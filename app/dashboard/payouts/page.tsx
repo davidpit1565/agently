@@ -1,0 +1,79 @@
+import { createClient } from "@/lib/supabase/server";
+
+export default async function PayoutsPage() {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    return (
+      <Notice title="Not connected yet">
+        This page needs Supabase configured before it can show real payout status.
+      </Notice>
+    );
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return <Notice title="Sign in first">You need an account to set up payouts.</Notice>;
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("stripe_connect_id, stripe_connect_ready")
+    .eq("id", user.id)
+    .single();
+
+  const ready = profile?.stripe_connect_ready ?? false;
+
+  return (
+    <main className="mx-auto max-w-lg px-6 py-16">
+      <h1 className="mb-2 font-display text-2xl font-semibold">Payouts</h1>
+      <p className="mb-8 text-sm text-ink-soft">
+        Every agent you sell pays through Stripe. This is where that money
+        actually reaches you — {" "}
+        <span className="text-ink">{100 - 15}%</span> of each sale, the rest is
+        the platform fee.
+      </p>
+
+      <div className="rounded-xl border border-line bg-surface p-6">
+        <div className="mb-4 flex items-center gap-2">
+          <span
+            className={`h-2 w-2 rounded-full ${ready ? "animate-pulse-dot bg-accent" : "bg-ink-faint"}`}
+            aria-hidden
+          />
+          <span className="font-mono text-sm">
+            {ready ? "Payouts connected" : profile?.stripe_connect_id ? "Onboarding started" : "Not connected"}
+          </span>
+        </div>
+
+        {!ready && (
+          <>
+            <p className="mb-4 text-sm text-ink-soft">
+              {profile?.stripe_connect_id
+                ? "Stripe needs a bit more from you to finish setup — details, bank account, or identity verification."
+                : "Takes about 5 minutes on Stripe's own form: business details, bank account, identity verification."}
+            </p>
+            <form action="/api/stripe/connect" method="POST">
+              <button
+                type="submit"
+                className="rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-[#04140f] hover:opacity-90"
+              >
+                {profile?.stripe_connect_id ? "Finish setup on Stripe" : "Connect Stripe"}
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </main>
+  );
+}
+
+function Notice({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <main className="mx-auto max-w-md px-6 py-24 text-center">
+      <h1 className="mb-2 font-display text-xl font-semibold">{title}</h1>
+      <p className="text-sm text-ink-soft">{children}</p>
+    </main>
+  );
+}

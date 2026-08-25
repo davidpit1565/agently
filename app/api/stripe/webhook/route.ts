@@ -50,6 +50,17 @@ export async function POST(request: Request) {
         .eq("stripe_customer_id", subscription.customer);
       break;
     }
+    case "account.updated": {
+      // Fires as a creator moves through Stripe's onboarding form. Only
+      // charges_enabled means Stripe will actually let money reach them —
+      // details_submitted alone can still mean "pending verification".
+      const account = event.data.object as { id: string; charges_enabled: boolean };
+      await supabase
+        .from("profiles")
+        .update({ stripe_connect_ready: account.charges_enabled })
+        .eq("stripe_connect_id", account.id);
+      break;
+    }
   }
 
   return NextResponse.json({ received: true });

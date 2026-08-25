@@ -16,6 +16,8 @@ create table if not exists profiles (
   membership_status text not null default 'inactive' check (membership_status in ('inactive', 'active', 'past_due', 'canceled')),
   membership_renews_at timestamptz,
   stripe_customer_id text,
+  stripe_connect_id text,
+  stripe_connect_ready boolean not null default false,
   created_at timestamptz not null default now()
 );
 

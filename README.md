@@ -15,10 +15,22 @@ upload — see the market research report, chapters 12 and 14, for why.
 - **Auth** (`/auth/sign-in`) — Supabase magic-link, no password.
 - **Upload** (`/dashboard/upload`) — gated on an active paid membership;
   submissions land as `pending_review`, never auto-published.
-- **Payments** — Stripe Checkout for one-time/subscription agent purchases
-  with the platform fee taken via `application_fee_amount`
-  (`app/api/checkout`), plus a webhook (`app/api/stripe/webhook`) that
-  records purchases and membership status.
+- **Payments** — Stripe Checkout for one-time/subscription agent purchases,
+  split via Stripe Connect (`application_fee_amount` + `transfer_data` to
+  the creator's connected account — both have to be set together, or the
+  fee split silently doesn't happen), plus a webhook
+  (`app/api/stripe/webhook`) that records purchases, membership status, and
+  when a creator's payout account becomes chargeable.
+- **Creator payouts** (`/dashboard/payouts`, `app/api/stripe/connect`) —
+  Stripe Express onboarding for creators. Checkout refuses to sell a paid
+  agent whose creator hasn't finished this — there'd be nowhere for their
+  share of the sale to go.
+- **Reviews** (`lib/reviews.ts`, `app/api/reviews`) — star rating + comment
+  per buyer per agent, shown on the agent page. One review per buyer,
+  editable, not duplicable.
+- **Membership limits enforced server-side** — the "up to N listings" per
+  tier on `/pricing` is checked in `app/api/agents` at insert time, not
+  just displayed as copy.
 - **Database schema** (`supabase/schema.sql`) — profiles, agents,
   categories, purchases, reviews, with row-level security so buyers only see
   approved listings and everyone only edits their own rows.
@@ -28,7 +40,6 @@ upload — see the market research report, chapters 12 and 14, for why.
 - The safety-review agent and the concierge/matching agent — phase 1 uses
   manual review; both are AI work that comes after there's real supply to
   review and real searches to match.
-- Stripe Connect onboarding for creators (so payouts actually reach them).
 - Any hosted execution / sandboxing — that's phase 2, not part of this MVP.
 
 ## What I need from you before this goes live
@@ -43,8 +54,9 @@ yet. Three things only you can do:
 2. **Create a Stripe account**, enable Connect → copy the secret key into
    Vercel as `STRIPE_SECRET_KEY`. Once the account exists, add a webhook
    pointed at `https://<your-domain>/api/stripe/webhook` for
-   `checkout.session.completed` and `customer.subscription.*`, then put its
-   signing secret in Vercel as `STRIPE_WEBHOOK_SECRET`.
+   `checkout.session.completed`, `customer.subscription.*`, and
+   `account.updated` (that last one is what turns on a creator's payouts),
+   then put its signing secret in Vercel as `STRIPE_WEBHOOK_SECRET`.
 3. **Connect this repo to the Vercel project** in its Git settings — the
    deploy exists already, it just isn't wired to `main` yet.
 

@@ -33,7 +33,7 @@ export default async function UploadPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("membership_tier, membership_status")
+    .select("membership_tier, membership_status, stripe_connect_ready")
     .eq("id", user.id)
     .single();
 
@@ -56,10 +56,21 @@ export default async function UploadPage() {
   return (
     <main className="mx-auto max-w-xl px-6 py-16">
       <h1 className="mb-2 font-display text-2xl font-semibold">Upload an agent</h1>
-      <p className="mb-8 text-sm text-ink-faint">
+      <p className="mb-6 text-sm text-ink-faint">
         Goes to <strong className="text-ink-soft">pending review</strong> first — nothing you submit here
         is publicly visible until the safety review clears it.
       </p>
+
+      {!profile?.stripe_connect_ready && (
+        <p className="mb-8 rounded-lg border border-line bg-surface p-4 text-sm text-ink-soft">
+          You can list a free agent without this, but a paid one won&apos;t be
+          purchasable until payouts are set up.{" "}
+          <Link href="/dashboard/payouts" className="text-accent underline">
+            Connect Stripe
+          </Link>
+          .
+        </p>
+      )}
 
       <form action="/api/agents" method="POST" className="flex flex-col gap-4">
         <Field label="Name" name="name" required />
