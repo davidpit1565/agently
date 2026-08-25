@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Header } from "./components/header";
+import { Footer } from "./components/footer";
 
 export const metadata: Metadata = {
   title: "Agently — the marketplace for AI agents",
@@ -24,9 +25,7 @@ export default function RootLayout({
         <div className="flex min-h-screen flex-col">
           <Header />
           <div className="flex-1">{children}</div>
-          <footer className="border-t border-ink/10 px-6 py-8 text-center text-xs text-ink/50">
-            Agently — built by a creator who uses this catalog on their own channel first.
-          </footer>
+          <Footer />
         </div>
       </body>
     </html>
