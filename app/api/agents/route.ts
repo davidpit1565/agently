@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { MEMBERSHIP_TIERS, canUpload } from "@/lib/membership";
+import type { MembershipTier } from "@/lib/types";
 
 // Handles the upload form (app/dashboard/upload). Every new agent lands as
 // pending_review — nothing here marks an agent approved. That's a separate
@@ -12,6 +14,39 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.redirect(new URL("/auth/sign-in", request.url));
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("membership_tier")
+    .eq("id", user.id)
+    .single();
+
+  const tier = (profile?.membership_tier ?? "free") as MembershipTier;
+
+  if (!canUpload(tier)) {
+    return NextResponse.json(
+      { error: "A paid membership is required to list an agent. See /pricing." },
+      { status: 403 }
+    );
+  }
+
+  // The plan page promises "up to N active listings" per tier — enforce it
+  // here, not just in copy, or the tiers mean nothing.
+  const { count } = await supabase
+    .from("agents")
+    .select("id", { count: "exact", head: true })
+    .eq("creator_id", user.id)
+    .in("status", ["pending_review", "approved"]);
+
+  const limit = MEMBERSHIP_TIERS[tier as Exclude<MembershipTier, "free">].maxActiveListings;
+  if ((count ?? 0) >= limit) {
+    return NextResponse.json(
+      {
+        error: `Your ${tier} membership allows up to ${limit} active listings. Delist one, or upgrade at /pricing.`,
+      },
+      { status: 403 }
+    );
   }
 
   const form = await request.formData();
