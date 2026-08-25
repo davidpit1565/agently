@@ -1,10 +1,17 @@
 import Link from "next/link";
 import { getApprovedAgents } from "@/lib/catalog";
+import { CATEGORIES_FALLBACK } from "@/data/categories";
+import { agentCode } from "@/lib/agent-code";
+import { TrustRing } from "@/app/components/trust-ring";
 
 function priceLabel(agent: Awaited<ReturnType<typeof getApprovedAgents>>[number]) {
   if (agent.pricing_model === "free") return "Free";
   const amount = ((agent.price_cents ?? 0) / 100).toFixed(0);
   return agent.pricing_model === "subscription" ? `€${amount}/mo` : `€${amount} once`;
+}
+
+function categoryName(slug: string) {
+  return CATEGORIES_FALLBACK.find((c) => c.slug === slug)?.name ?? slug;
 }
 
 export default async function BrowsePage() {
@@ -13,29 +20,37 @@ export default async function BrowsePage() {
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
       <div className="mb-10 flex flex-col gap-2">
-        <h1 className="text-2xl font-semibold">Browse agents</h1>
-        <p className="text-ink/60">
-          {agents.length} agent{agents.length === 1 ? "" : "s"} in the catalog, sorted newest first.
+        <h1 className="font-display text-2xl font-semibold">Browse agents</h1>
+        <p className="font-mono text-sm text-ink-faint">
+          {agents.length} agent{agents.length === 1 ? "" : "s"} · sorted newest first
         </p>
       </div>
 
-      <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {agents.map((agent) => (
           <Link
             key={agent.id}
             href={`/agents/${agent.slug}`}
-            className="flex flex-col gap-3 rounded-xl border border-ink/10 bg-white/60 p-5 transition hover:border-accent/40"
+            className="group flex flex-col gap-3 rounded-xl border border-line bg-surface p-5 transition hover:border-accent/40 hover:bg-surface-raised"
           >
-            <div className="flex items-start justify-between gap-3">
-              <h2 className="font-semibold">{agent.name}</h2>
-              <span className="shrink-0 rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent">
-                {priceLabel(agent)}
+            <div className="flex items-center justify-between">
+              <span className="flex items-center gap-1.5 font-mono text-[11px] text-ink-faint">
+                <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-accent" aria-hidden />
+                {agentCode(agent.id)}
               </span>
+              <TrustRing score={agent.trust_score} />
             </div>
-            <p className="text-sm text-ink/70">{agent.tagline}</p>
-            <div className="mt-auto flex items-center gap-2 text-xs text-ink/50">
-              <span>Trust score</span>
-              <span className="font-mono font-semibold text-ink/70">{agent.trust_score}</span>
+
+            <div>
+              <h2 className="font-display font-semibold">{agent.name}</h2>
+              <p className="mt-1 text-sm text-ink-soft">{agent.tagline}</p>
+            </div>
+
+            <div className="mt-auto flex items-center justify-between pt-2 text-xs">
+              <span className="rounded-full border border-line px-2 py-0.5 text-ink-faint">
+                {categoryName(agent.category_slug)}
+              </span>
+              <span className="font-mono font-medium text-accent">{priceLabel(agent)}</span>
             </div>
           </Link>
         ))}

@@ -55,9 +55,9 @@ export default async function UploadPage() {
 
   return (
     <main className="mx-auto max-w-xl px-6 py-16">
-      <h1 className="mb-2 text-2xl font-semibold">Upload an agent</h1>
-      <p className="mb-8 text-sm text-ink/60">
-        Goes to <strong>pending review</strong> first — nothing you submit here
+      <h1 className="mb-2 font-display text-2xl font-semibold">Upload an agent</h1>
+      <p className="mb-8 text-sm text-ink-faint">
+        Goes to <strong className="text-ink-soft">pending review</strong> first — nothing you submit here
         is publicly visible until the safety review clears it.
       </p>
 
@@ -78,7 +78,7 @@ export default async function UploadPage() {
           <select
             name="category_slug"
             required
-            className="rounded-lg border border-ink/15 bg-white px-4 py-2.5 outline-none focus:border-accent"
+            className="rounded-lg border border-line bg-surface px-4 py-2.5 text-ink outline-none focus:border-accent"
           >
             {CATEGORIES_FALLBACK.map((c) => (
               <option key={c.slug} value={c.slug}>
@@ -93,7 +93,7 @@ export default async function UploadPage() {
           <select
             name="pricing_model"
             required
-            className="rounded-lg border border-ink/15 bg-white px-4 py-2.5 outline-none focus:border-accent"
+            className="rounded-lg border border-line bg-surface px-4 py-2.5 text-ink outline-none focus:border-accent"
           >
             <option value="one_time">One-time purchase</option>
             <option value="subscription">Monthly subscription</option>
@@ -110,7 +110,7 @@ export default async function UploadPage() {
 
         <button
           type="submit"
-          className="mt-2 rounded-full bg-accent px-6 py-3 text-sm font-medium text-white hover:opacity-90"
+          className="mt-2 rounded-full bg-accent px-6 py-3 text-sm font-medium text-[#04140f] hover:opacity-90"
         >
           Submit for review
         </button>
@@ -122,8 +122,8 @@ export default async function UploadPage() {
 function Notice({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <main className="mx-auto max-w-md px-6 py-24 text-center">
-      <h1 className="mb-2 text-xl font-semibold">{title}</h1>
-      <p className="text-sm text-ink/70">{children}</p>
+      <h1 className="mb-2 font-display text-xl font-semibold">{title}</h1>
+      <p className="text-sm text-ink-soft">{children}</p>
     </main>
   );
 }
@@ -151,17 +151,17 @@ function Field({
           name={name}
           required={required}
           rows={3}
-          className="rounded-lg border border-ink/15 bg-white px-4 py-2.5 outline-none focus:border-accent"
+          className="rounded-lg border border-line bg-surface px-4 py-2.5 text-ink outline-none focus:border-accent"
         />
       ) : (
         <input
           type={type}
           name={name}
           required={required}
-          className="rounded-lg border border-ink/15 bg-white px-4 py-2.5 outline-none focus:border-accent"
+          className="rounded-lg border border-line bg-surface px-4 py-2.5 text-ink outline-none focus:border-accent"
         />
       )}
-      {hint && <span className="text-xs text-ink/50">{hint}</span>}
+      {hint && <span className="text-xs text-ink-faint">{hint}</span>}
     </label>
   );
 }

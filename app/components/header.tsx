@@ -13,13 +13,14 @@ export function Header() {
   const [open, setOpen] = useState(false);
 
   return (
-    <header className="border-b border-ink/10">
+    <header className="border-b border-line">
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-4">
-        <Link href="/" className="shrink-0 text-sm font-semibold tracking-tight">
+        <Link href="/" className="flex shrink-0 items-center gap-2 font-display text-sm font-semibold tracking-tight">
+          <span className="h-2 w-2 animate-pulse-dot rounded-full bg-accent" aria-hidden />
           Agently
         </Link>
 
-        <nav className="hidden items-center gap-6 text-sm text-ink/70 sm:flex">
+        <nav className="hidden items-center gap-6 text-sm text-ink-soft sm:flex">
           {NAV.map((item) => (
             <Link key={item.href} href={item.href} className="hover:text-ink">
               {item.label}
@@ -27,7 +28,7 @@ export function Header() {
           ))}
           <Link
             href="/auth/sign-in"
-            className="rounded-full border border-ink/15 px-3 py-1.5 hover:border-ink/40 hover:text-ink"
+            className="rounded-full border border-line px-3 py-1.5 hover:border-accent/50 hover:text-ink"
           >
             Sign in
           </Link>
@@ -36,7 +37,7 @@ export function Header() {
         <div className="flex items-center gap-2 sm:hidden">
           <Link
             href="/auth/sign-in"
-            className="flex h-11 items-center rounded-full border border-ink/15 px-4 text-sm hover:border-ink/40"
+            className="flex h-11 items-center rounded-full border border-line px-4 text-sm hover:border-accent/50"
           >
             Sign in
           </Link>
@@ -45,7 +46,7 @@ export function Header() {
             aria-label={open ? "Close menu" : "Open menu"}
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-ink/15"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line"
           >
             <span className="sr-only">Menu</span>
             {open ? (
@@ -62,13 +63,13 @@ export function Header() {
       </div>
 
       {open && (
-        <nav className="flex flex-col gap-1 border-t border-ink/10 px-6 py-3 text-sm text-ink/70 sm:hidden">
+        <nav className="flex flex-col gap-1 border-t border-line px-6 py-3 text-sm text-ink-soft sm:hidden">
           {NAV.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               onClick={() => setOpen(false)}
-              className="flex min-h-11 items-center rounded-lg px-2 hover:bg-ink/5 hover:text-ink"
+              className="flex min-h-11 items-center rounded-lg px-2 hover:bg-surface hover:text-ink"
             >
               {item.label}
             </Link>

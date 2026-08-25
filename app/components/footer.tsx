@@ -22,7 +22,7 @@ const SOCIAL_LINKS = [
 
 export function Footer() {
   return (
-    <footer className="border-t border-ink/10 px-6 py-8 text-center text-xs text-ink/50">
+    <footer className="border-t border-line px-6 py-8 text-center text-xs text-ink-faint">
       <div className="mb-4 flex items-center justify-center gap-4">
         {SOCIAL_LINKS.map((l) => (
           <a
@@ -31,7 +31,7 @@ export function Footer() {
             target="_blank"
             rel="noopener noreferrer"
             aria-label={l.name}
-            className="text-ink/40 hover:text-accent"
+            className="text-ink-faint hover:text-accent"
           >
             <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
               <path d={l.path} />

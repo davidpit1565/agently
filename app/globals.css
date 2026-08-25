@@ -3,12 +3,36 @@
 @tailwind utilities;
 
 :root {
-  --paper: #f7f5f1;
-  --ink: #111716;
-  --accent: #0e6b5c;
+  --ground: #0a0d0b;
+  --ink: #edf3ee;
+  --accent: #2fe0ad;
 }
 
 body {
-  background: var(--paper);
+  background: var(--ground);
   color: var(--ink);
+  font-family: var(--font-body), sans-serif;
+}
+
+::selection {
+  background: #2fe0ad;
+  color: #061410;
+}
+
+/* The console-glow behind the hero — one soft radial bloom, not a busy gradient mesh. */
+.hero-glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 60% 50% at 50% -10%,
+    rgba(47, 224, 173, 0.16),
+    transparent 70%
+  );
+}
+
+/* Faint scanline texture, restrained — signals "console" without reaching for a cliché grid. */
+.console-grain {
+  background-image: radial-gradient(rgba(237, 243, 238, 0.035) 1px, transparent 1px);
+  background-size: 22px 22px;
 }

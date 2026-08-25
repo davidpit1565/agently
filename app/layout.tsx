@@ -1,7 +1,24 @@
 import type { Metadata, Viewport } from "next";
+import { Bricolage_Grotesque, Manrope, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Header } from "./components/header";
 import { Footer } from "./components/footer";
+
+const display = Bricolage_Grotesque({
+  subsets: ["latin"],
+  variable: "--font-display",
+  display: "swap",
+});
+const body = Manrope({
+  subsets: ["latin"],
+  variable: "--font-body",
+  display: "swap",
+});
+const mono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: "Agently — the marketplace for AI agents",
@@ -12,6 +29,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
+  themeColor: "#0a0d0b",
 };
 
 export default function RootLayout({
@@ -20,8 +38,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <body>
+    <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
+      <body className="console-grain">
         <div className="flex min-h-screen flex-col">
           <Header />
           <div className="flex-1">{children}</div>

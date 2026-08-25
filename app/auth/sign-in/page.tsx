@@ -19,13 +19,13 @@ export default function SignInPage() {
 
   return (
     <main className="mx-auto max-w-sm px-6 py-24">
-      <h1 className="mb-2 text-2xl font-semibold">Sign in</h1>
-      <p className="mb-8 text-sm text-ink/60">
+      <h1 className="mb-2 font-display text-2xl font-semibold">Sign in</h1>
+      <p className="mb-8 text-sm text-ink-faint">
         No password — we email you a one-time link.
       </p>
 
       {sent ? (
-        <p className="rounded-lg bg-accent/10 p-4 text-sm text-accent">
+        <p className="rounded-lg bg-accent-soft p-4 text-sm text-accent">
           Check your inbox for a sign-in link.
         </p>
       ) : (
@@ -36,15 +36,15 @@ export default function SignInPage() {
             placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            className="rounded-lg border border-ink/15 bg-white px-4 py-2.5 text-sm outline-none focus:border-accent"
+            className="rounded-lg border border-line bg-surface px-4 py-2.5 text-sm text-ink outline-none focus:border-accent"
           />
           <button
             type="submit"
-            className="rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-white hover:opacity-90"
+            className="rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-[#04140f] hover:opacity-90"
           >
             Send link
           </button>
-          {error && <p className="text-sm text-red-600">{error}</p>}
+          {error && <p className="text-sm text-red-400">{error}</p>}
         </form>
       )}
     </main>
