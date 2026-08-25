@@ -1,0 +1,14 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --paper: #f7f5f1;
+  --ink: #111716;
+  --accent: #0e6b5c;
+}
+
+body {
+  background: var(--paper);
+  color: var(--ink);
+}
