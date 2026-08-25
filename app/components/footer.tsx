@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 /** Same three real accounts as the Actually Works site (videos-ai/studio/app/site-social.tsx)
  *  — one source of truth for the icons, kept in sync by hand until these two sites share a
  *  package. Update both places together if an account changes (a rename is planned but not
@@ -47,7 +49,11 @@ export function Footer() {
         >
           Actually Works
         </a>{" "}
-        — built by a creator who uses this catalog on their own channel first.
+        — built by a creator who uses this catalog on their own channel first.{" "}
+        <Link href="/about" className="underline hover:text-accent">
+          Why it looks like this
+        </Link>
+        .
       </p>
     </footer>
   );

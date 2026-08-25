@@ -20,10 +20,16 @@ const mono = JetBrains_Mono({
   display: "swap",
 });
 
+const title = "Agently — the marketplace for AI agents";
+const description =
+  "Upload, sell, and find AI agents by the problem they solve. Safety-reviewed before they're listed.";
+
 export const metadata: Metadata = {
-  title: "Agently — the marketplace for AI agents",
-  description:
-    "Upload, sell, and find AI agents by the problem they solve. Safety-reviewed before they're listed.",
+  metadataBase: new URL("https://agently-orcin.vercel.app"),
+  title,
+  description,
+  openGraph: { title, description, type: "website" },
+  twitter: { card: "summary_large_image", title, description },
 };
 
 export const viewport: Viewport = {

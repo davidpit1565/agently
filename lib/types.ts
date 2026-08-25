@@ -8,6 +8,7 @@ export type Category = {
   slug: string;
   name: string;
   description: string | null;
+  color: string;
 };
 
 export type Agent = {

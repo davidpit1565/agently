@@ -10,8 +10,8 @@ function priceLabel(agent: Awaited<ReturnType<typeof getApprovedAgents>>[number]
   return agent.pricing_model === "subscription" ? `€${amount}/mo` : `€${amount} once`;
 }
 
-function categoryName(slug: string) {
-  return CATEGORIES_FALLBACK.find((c) => c.slug === slug)?.name ?? slug;
+function category(slug: string) {
+  return CATEGORIES_FALLBACK.find((c) => c.slug === slug) ?? CATEGORIES_FALLBACK[CATEGORIES_FALLBACK.length - 1];
 }
 
 export default async function BrowsePage() {
@@ -27,33 +27,37 @@ export default async function BrowsePage() {
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        {agents.map((agent) => (
-          <Link
-            key={agent.id}
-            href={`/agents/${agent.slug}`}
-            className="group flex flex-col gap-3 rounded-xl border border-line bg-surface p-5 transition hover:border-accent/40 hover:bg-surface-raised"
-          >
-            <div className="flex items-center justify-between">
-              <span className="flex items-center gap-1.5 font-mono text-[11px] text-ink-faint">
-                <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-accent" aria-hidden />
-                {agentCode(agent.id)}
-              </span>
-              <TrustRing score={agent.trust_score} />
-            </div>
+        {agents.map((agent) => {
+          const cat = category(agent.category_slug);
+          return (
+            <Link
+              key={agent.id}
+              href={`/agents/${agent.slug}`}
+              className="group flex flex-col gap-3 rounded-xl border border-line bg-surface p-5 transition duration-200 ease-out hover:-translate-y-1 hover:border-accent/40 hover:bg-surface-raised hover:shadow-[0_12px_32px_-12px_rgba(47,224,173,0.25)]"
+            >
+              <div className="flex items-center justify-between">
+                <span className="flex items-center gap-1.5 font-mono text-[11px] text-ink-faint">
+                  <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-accent" aria-hidden />
+                  {agentCode(agent.id)}
+                </span>
+                <TrustRing score={agent.trust_score} />
+              </div>
 
-            <div>
-              <h2 className="font-display font-semibold">{agent.name}</h2>
-              <p className="mt-1 text-sm text-ink-soft">{agent.tagline}</p>
-            </div>
+              <div>
+                <h2 className="font-display font-semibold">{agent.name}</h2>
+                <p className="mt-1 text-sm text-ink-soft">{agent.tagline}</p>
+              </div>
 
-            <div className="mt-auto flex items-center justify-between pt-2 text-xs">
-              <span className="rounded-full border border-line px-2 py-0.5 text-ink-faint">
-                {categoryName(agent.category_slug)}
-              </span>
-              <span className="font-mono font-medium text-accent">{priceLabel(agent)}</span>
-            </div>
-          </Link>
-        ))}
+              <div className="mt-auto flex items-center justify-between pt-2 text-xs">
+                <span className="flex items-center gap-1.5 rounded-full border border-line px-2 py-0.5 text-ink-faint">
+                  <span className="h-1.5 w-1.5 rounded-full" style={{ background: cat.color }} aria-hidden />
+                  {cat.name}
+                </span>
+                <span className="font-mono font-medium text-accent">{priceLabel(agent)}</span>
+              </div>
+            </Link>
+          );
+        })}
       </div>
     </main>
   );

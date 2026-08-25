@@ -10,8 +10,8 @@ function priceLabel(agent: NonNullable<Awaited<ReturnType<typeof getAgentBySlug>
   return agent.pricing_model === "subscription" ? `€${amount} / month` : `€${amount} one-time`;
 }
 
-function categoryName(slug: string) {
-  return CATEGORIES_FALLBACK.find((c) => c.slug === slug)?.name ?? slug;
+function category(slug: string) {
+  return CATEGORIES_FALLBACK.find((c) => c.slug === slug) ?? CATEGORIES_FALLBACK[CATEGORIES_FALLBACK.length - 1];
 }
 
 export default async function AgentPage({
@@ -22,6 +22,7 @@ export default async function AgentPage({
   const { slug } = await params;
   const agent = await getAgentBySlug(slug);
   if (!agent) notFound();
+  const cat = category(agent.category_slug);
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
@@ -29,7 +30,10 @@ export default async function AgentPage({
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-1.5 font-mono text-xs text-ink-faint">
             <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-accent" aria-hidden />
-            {agentCode(agent.id)} · {categoryName(agent.category_slug)}
+            {agentCode(agent.id)}
+            <span className="mx-1 text-line">·</span>
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: cat.color }} aria-hidden />
+            {cat.name}
           </span>
           <TrustRing score={agent.trust_score} />
         </div>
