@@ -51,7 +51,7 @@ export function Footer() {
         </a>{" "}
         — built by a creator who uses this catalog on their own channel first.{" "}
         <Link href="/about" className="underline hover:text-accent">
-          Why it looks like this
+          About
         </Link>
         {" · "}
         <Link href="/terms" className="underline hover:text-accent">
