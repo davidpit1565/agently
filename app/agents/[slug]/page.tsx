@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { getAgentBySlug } from "@/lib/catalog";
+import Link from "next/link";
+import { getAgentBySlug, getCreatorProfile } from "@/lib/catalog";
 import { getReviewsForAgent } from "@/lib/reviews";
 import { CATEGORIES_FALLBACK } from "@/data/categories";
 import { agentCode } from "@/lib/agent-code";
@@ -47,6 +48,7 @@ export default async function AgentPage({
   if (!agent) notFound();
   const cat = category(agent.category_slug);
   const { reviews, average, count } = await getReviewsForAgent(agent.id);
+  const creator = await getCreatorProfile(agent.creator_id);
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
@@ -65,6 +67,14 @@ export default async function AgentPage({
         <div>
           <h1 className="font-display text-3xl font-semibold">{agent.name}</h1>
           <p className="mt-1 text-lg text-ink-soft">{agent.tagline}</p>
+          {creator && (
+            <Link
+              href={`/creators/${creator.id}`}
+              className="mt-2 inline-block text-sm text-ink-faint hover:text-accent"
+            >
+              by {creator.display_name}
+            </Link>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-3 text-sm">
