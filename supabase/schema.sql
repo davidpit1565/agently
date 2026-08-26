@@ -21,6 +21,32 @@ create table if not exists profiles (
   created_at timestamptz not null default now()
 );
 
+-- Nothing else in this file, and nothing in the app, ever inserted a
+-- profiles row — the "profiles insert on signup" policy below existed
+-- with no code path that ever used it. Every real sign-in created an
+-- auth.users row with no matching profiles row, silently breaking
+-- everything that reads or writes one: membership (the webhook's UPDATE
+-- profiles ... WHERE id = user_id affects zero rows with nothing to
+-- update), canUpload() defaulting to the 'free' tier forever, payouts,
+-- every page showing a creator's display name. This is the standard
+-- Supabase pattern for provisioning one automatically: a trigger on
+-- auth.users itself, since nothing in application code runs at the
+-- moment a user is actually created. security definer is required —
+-- this fires as part of Supabase's own auth flow, before there's a
+-- signed-in session for RLS's `auth.uid() = id` check to match against.
+create or replace function handle_new_user() returns trigger as $$
+begin
+  insert into public.profiles (id, display_name)
+  values (new.id, coalesce(split_part(new.email, '@', 1), 'there'));
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function handle_new_user();
+
 create table if not exists categories (
   slug text primary key,
   name text not null,

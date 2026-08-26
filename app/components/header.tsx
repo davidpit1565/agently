@@ -18,6 +18,9 @@ export function Header({ signedIn }: { signedIn: boolean }) {
       <Link href="/dashboard/agents" className="hover:text-ink">
         Your agents
       </Link>
+      <Link href="/dashboard/settings" className="hover:text-ink">
+        Settings
+      </Link>
       <form action="/auth/sign-out" method="POST">
         <button
           type="submit"
@@ -107,13 +110,22 @@ export function Header({ signedIn }: { signedIn: boolean }) {
             </Link>
           ))}
           {signedIn && (
-            <Link
-              href="/dashboard/agents"
-              onClick={() => setOpen(false)}
-              className="flex min-h-11 items-center rounded-lg px-2 hover:bg-surface hover:text-ink"
-            >
-              Your agents
-            </Link>
+            <>
+              <Link
+                href="/dashboard/agents"
+                onClick={() => setOpen(false)}
+                className="flex min-h-11 items-center rounded-lg px-2 hover:bg-surface hover:text-ink"
+              >
+                Your agents
+              </Link>
+              <Link
+                href="/dashboard/settings"
+                onClick={() => setOpen(false)}
+                className="flex min-h-11 items-center rounded-lg px-2 hover:bg-surface hover:text-ink"
+              >
+                Settings
+              </Link>
+            </>
           )}
         </nav>
       )}

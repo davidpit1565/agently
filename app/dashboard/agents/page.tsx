@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getMyAgents } from "@/lib/catalog";
 import { TrustRing } from "@/app/components/trust-ring";
 import { Notice } from "@/app/components/form-field";
+import { DelistButton } from "@/app/components/delist-button";
 
 const STATUS_LABEL: Record<string, string> = {
   approved: "Live",
@@ -14,9 +15,9 @@ const STATUS_LABEL: Record<string, string> = {
 export default async function MyAgentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ membership?: string }>;
+  searchParams: Promise<{ membership?: string; delisted?: string }>;
 }) {
-  const { membership } = await searchParams;
+  const { membership, delisted } = await searchParams;
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return (
@@ -42,6 +43,11 @@ export default async function MyAgentsPage({
       {membership && (
         <div className="mb-6 rounded-lg border border-accent/30 bg-accent-soft px-4 py-2.5 text-sm text-accent">
           You're a member — you can list agents now.
+        </div>
+      )}
+      {delisted && (
+        <div className="mb-6 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm text-ink-soft">
+          Removed from the catalog. Buyers who already own it keep access.
         </div>
       )}
       <div className="mb-8 flex items-center justify-between gap-4">
@@ -105,6 +111,9 @@ export default async function MyAgentsPage({
                 <Link href={`/dashboard/agents/${agent.id}/edit`} className="text-ink-soft hover:text-accent">
                   Edit
                 </Link>
+                {agent.status !== "delisted" && (
+                  <DelistButton agentId={agent.id} agentName={agent.name} />
+                )}
               </div>
             </div>
           ))}
