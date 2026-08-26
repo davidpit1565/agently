@@ -53,6 +53,10 @@ export function Footer() {
         <Link href="/about" className="underline hover:text-accent">
           Why it looks like this
         </Link>
+        {" · "}
+        <Link href="/terms" className="underline hover:text-accent">
+          Terms (draft)
+        </Link>
         .
       </p>
     </footer>
