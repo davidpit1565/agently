@@ -1,0 +1,52 @@
+import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
+
+// Submits a custom-agent request. Professional-tier only — enforced here
+// and again at the database (schema.sql's "professional members can
+// request an agent" policy), since a Professional-only perk that only the
+// UI hides isn't actually gated.
+export async function POST(request: Request) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+  }
+
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return NextResponse.redirect(new URL("/auth/sign-in", request.url));
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("membership_tier")
+    .eq("id", user.id)
+    .single();
+
+  if (profile?.membership_tier !== "professional") {
+    return NextResponse.json(
+      { error: "Requesting a custom agent is a Professional-membership perk." },
+      { status: 403 }
+    );
+  }
+
+  const form = await request.formData();
+  const description = String(form.get("description") ?? "").trim();
+
+  if (!description) {
+    return NextResponse.json({ error: "Describe what you need." }, { status: 400 });
+  }
+
+  const { error } = await supabase.from("agent_requests").insert({
+    requester_id: user.id,
+    description,
+  });
+
+  if (error) {
+    return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+
+  return NextResponse.redirect(new URL("/dashboard/request?submitted=1", request.url), 303);
+}

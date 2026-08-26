@@ -1,0 +1,77 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import Link from "next/link";
+
+type Match = { slug: string; name: string; tagline: string };
+
+export function RequestForm() {
+  const [description, setDescription] = useState("");
+  const [matches, setMatches] = useState<Match[]>([]);
+  const [checked, setChecked] = useState(false);
+
+  useEffect(() => {
+    if (description.trim().length < 15) {
+      setMatches([]);
+      setChecked(false);
+      return;
+    }
+    const timeout = setTimeout(async () => {
+      try {
+        const res = await fetch("/api/requests/match", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ description }),
+        });
+        const data = await res.json();
+        setMatches(data.matches ?? []);
+        setChecked(true);
+      } catch {
+        setChecked(false);
+      }
+    }, 500);
+    return () => clearTimeout(timeout);
+  }, [description]);
+
+  return (
+    <form action="/api/requests" method="POST" className="flex flex-col gap-4">
+      <label className="flex flex-col gap-1 text-sm">
+        <span className="font-medium">What do you need?</span>
+        <textarea
+          name="description"
+          required
+          rows={5}
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Describe the problem, not a product name — what are you stuck on, what would this need to actually do?"
+          className="rounded-lg border border-line bg-surface px-4 py-2.5 text-ink outline-none focus:border-accent"
+        />
+      </label>
+
+      {checked && matches.length > 0 && (
+        <div className="rounded-lg border border-accent/30 bg-accent-soft p-4">
+          <p className="mb-2 text-sm font-medium text-accent">
+            This might already exist — worth a look before you request a custom build:
+          </p>
+          <ul className="flex flex-col gap-1.5">
+            {matches.map((m) => (
+              <li key={m.slug}>
+                <Link href={`/agents/${m.slug}`} className="text-sm text-accent underline">
+                  {m.name}
+                </Link>
+                <span className="text-sm text-ink-soft"> — {m.tagline}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      <button
+        type="submit"
+        className="mt-2 w-fit rounded-full bg-accent px-6 py-3 text-sm font-medium text-[#04140f] hover:opacity-90"
+      >
+        Submit request
+      </button>
+    </form>
+  );
+}

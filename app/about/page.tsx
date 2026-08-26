@@ -75,8 +75,11 @@ export default function AboutPage() {
             meaning, not exact words — search today is real text matching,
             not that. And the safety review only reads a listing&apos;s
             description; it can&apos;t inspect what the agent&apos;s code
-            actually does. We&apos;d rather say that plainly than let the
-            site imply more than it does.
+            actually does. Requesting a custom agent (Professional tier)
+            is a real request to a real person, too — there&apos;s no
+            pipeline that turns a description into working code on its
+            own. We&apos;d rather say that plainly than let the site imply
+            more than it does.
           </p>
         </div>
       </div>

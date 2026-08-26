@@ -7,7 +7,7 @@ const TIER_ORDER = ["basic", "pro", "professional"] as const;
 const TIER_COPY: Record<(typeof TIER_ORDER)[number], { blurb: string }> = {
   basic: { blurb: "For your first agents. List up to 3 at a time." },
   pro: { blurb: "For creators publishing regularly. List up to 15 at a time." },
-  professional: { blurb: "For teams and companies running a full catalog." },
+  professional: { blurb: "For teams and companies running a full catalog — plus you can request a custom agent built for you." },
 };
 
 const title = "Membership — Agently";
