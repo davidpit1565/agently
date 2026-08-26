@@ -7,6 +7,10 @@ import { createClient } from "@/lib/supabase/server";
 // fix in app/api/checkout/route.ts for why this had to exist before that
 // route could honestly claim to split payment with the creator.
 export async function POST(request: Request) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+  }
+
   const supabase = await createClient();
   const {
     data: { user },

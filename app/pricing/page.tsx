@@ -1,4 +1,5 @@
 import { MEMBERSHIP_TIERS } from "@/lib/membership";
+import { createClient } from "@/lib/supabase/server";
 
 const TIER_ORDER = ["basic", "pro", "professional"] as const;
 
@@ -8,7 +9,27 @@ const TIER_COPY: Record<(typeof TIER_ORDER)[number], { blurb: string }> = {
   professional: { blurb: "For teams and companies running a full catalog." },
 };
 
-export default function PricingPage() {
+export default async function PricingPage() {
+  let signedIn = false;
+  let currentTier: string | null = null;
+  let hasActiveMembership = false;
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    signedIn = !!user;
+    if (user) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("membership_tier, membership_status")
+        .eq("id", user.id)
+        .single();
+      currentTier = profile?.membership_tier ?? null;
+      hasActiveMembership = profile?.membership_status === "active";
+    }
+  }
+
   return (
     <main className="mx-auto max-w-4xl px-6 py-16">
       <div className="mb-10 flex flex-col gap-2">
@@ -54,14 +75,60 @@ export default function PricingPage() {
                 or €{(config.yearlyPriceCents / 100).toFixed(0)} / year
               </p>
               <p className="mt-2 text-sm text-ink-soft">Up to {config.maxActiveListings} active listings</p>
-              <button
-                type="button"
-                disabled
-                className="mt-4 rounded-full border border-line px-4 py-2 text-sm font-medium text-ink-faint"
-                title="Sign in first — checkout wiring lands with real Stripe keys"
-              >
-                Sign in to join
-              </button>
+
+              {hasActiveMembership && currentTier === tier ? (
+                <div className="mt-4 flex flex-col gap-2">
+                  <span className="rounded-full border border-accent/30 bg-accent-soft px-4 py-2 text-center text-sm font-medium text-accent">
+                    Current plan
+                  </span>
+                  <form action="/api/membership/portal" method="POST">
+                    <button type="submit" className="w-full text-center text-xs text-ink-faint underline hover:text-ink-soft">
+                      Manage or cancel
+                    </button>
+                  </form>
+                </div>
+              ) : hasActiveMembership ? (
+                <form action="/api/membership/portal" method="POST" className="mt-4">
+                  <button
+                    type="submit"
+                    className="w-full rounded-full border border-line px-4 py-2 text-center text-sm font-medium text-ink-soft hover:border-accent/50 hover:text-ink"
+                    title={`Cancel your ${currentTier} membership first, then join ${config.name}`}
+                  >
+                    Switch from {currentTier}
+                  </button>
+                </form>
+              ) : signedIn ? (
+                <div className="mt-4 flex gap-2">
+                  <form action="/api/membership/checkout" method="POST" className="flex-1">
+                    <input type="hidden" name="tier" value={tier} />
+                    <input type="hidden" name="interval" value="monthly" />
+                    <button
+                      type="submit"
+                      className="w-full rounded-full bg-accent px-4 py-2 text-sm font-medium text-[#04140f] hover:opacity-90"
+                    >
+                      Join monthly
+                    </button>
+                  </form>
+                  <form action="/api/membership/checkout" method="POST">
+                    <input type="hidden" name="tier" value={tier} />
+                    <input type="hidden" name="interval" value="yearly" />
+                    <button
+                      type="submit"
+                      className="rounded-full border border-line px-3 py-2 text-xs text-ink-soft hover:border-accent/50 hover:text-accent"
+                      title="Pay yearly instead"
+                    >
+                      Yearly
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                <a
+                  href="/auth/sign-in"
+                  className="mt-4 block rounded-full border border-line px-4 py-2 text-center text-sm font-medium text-ink-soft hover:border-accent/50 hover:text-ink"
+                >
+                  Sign in to join
+                </a>
+              )}
             </div>
           );
         })}

@@ -50,7 +50,7 @@ export async function reviewAgentSubmission(input: {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) return null;
 
-  const prompt = `Review this AI agent marketplace listing before it goes live. Judge only what's written here — you cannot run the agent's actual code.
+  const prompt = `Review this AI agent catalog listing before it goes live. Judge only what's written here — you cannot run the agent's actual code.
 
 Name: ${input.name}
 Tagline: ${input.tagline}

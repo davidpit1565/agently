@@ -10,8 +10,31 @@ const NAV = [
   { href: "/dashboard/upload", label: "Upload an agent" },
 ];
 
-export function Header() {
+export function Header({ signedIn }: { signedIn: boolean }) {
   const [open, setOpen] = useState(false);
+
+  const account = signedIn ? (
+    <div className="flex items-center gap-3">
+      <Link href="/dashboard/agents" className="hover:text-ink">
+        Your agents
+      </Link>
+      <form action="/auth/sign-out" method="POST">
+        <button
+          type="submit"
+          className="rounded-full border border-line px-3 py-1.5 hover:border-accent/50 hover:text-ink"
+        >
+          Sign out
+        </button>
+      </form>
+    </div>
+  ) : (
+    <Link
+      href="/auth/sign-in"
+      className="rounded-full border border-line px-3 py-1.5 hover:border-accent/50 hover:text-ink"
+    >
+      Sign in
+    </Link>
+  );
 
   return (
     <header className="border-b border-line">
@@ -28,22 +51,28 @@ export function Header() {
             </Link>
           ))}
           <NotificationBell />
-          <Link
-            href="/auth/sign-in"
-            className="rounded-full border border-line px-3 py-1.5 hover:border-accent/50 hover:text-ink"
-          >
-            Sign in
-          </Link>
+          {account}
         </nav>
 
         <div className="flex items-center gap-2 sm:hidden">
           <NotificationBell />
-          <Link
-            href="/auth/sign-in"
-            className="flex h-11 items-center rounded-full border border-line px-4 text-sm hover:border-accent/50"
-          >
-            Sign in
-          </Link>
+          {signedIn ? (
+            <form action="/auth/sign-out" method="POST">
+              <button
+                type="submit"
+                className="flex h-11 items-center rounded-full border border-line px-4 text-sm hover:border-accent/50"
+              >
+                Sign out
+              </button>
+            </form>
+          ) : (
+            <Link
+              href="/auth/sign-in"
+              className="flex h-11 items-center rounded-full border border-line px-4 text-sm hover:border-accent/50"
+            >
+              Sign in
+            </Link>
+          )}
           <button
             type="button"
             aria-label={open ? "Close menu" : "Open menu"}
@@ -77,6 +106,15 @@ export function Header() {
               {item.label}
             </Link>
           ))}
+          {signedIn && (
+            <Link
+              href="/dashboard/agents"
+              onClick={() => setOpen(false)}
+              className="flex min-h-11 items-center rounded-lg px-2 hover:bg-surface hover:text-ink"
+            >
+              Your agents
+            </Link>
+          )}
         </nav>
       )}
     </header>

@@ -23,18 +23,18 @@ export async function getApprovedAgents(): Promise<Agent[]> {
   return data as Agent[];
 }
 
+// Not filtered by status — a pending or rejected agent still has to be
+// fetchable so its own creator can preview it (app/agents/[slug]/page.tsx
+// decides visibility for anyone who isn't the creator). RLS still limits
+// what a signed-out or non-owner request actually gets back to `approved`
+// rows via "approved agents are public".
 export async function getAgentBySlug(slug: string): Promise<Agent | null> {
   if (!supabaseConfigured()) {
     return SEED_AGENTS.find((a) => a.slug === slug) ?? null;
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("agents")
-    .select("*")
-    .eq("slug", slug)
-    .eq("status", "approved")
-    .single();
+  const { data, error } = await supabase.from("agents").select("*").eq("slug", slug).single();
 
   if (error || !data) return SEED_AGENTS.find((a) => a.slug === slug) ?? null;
   return data as Agent;
@@ -79,6 +79,25 @@ export async function getAgentsByCreator(creatorId: string): Promise<Agent[]> {
     .select("*")
     .eq("creator_id", creatorId)
     .eq("status", "approved")
+    .order("created_at", { ascending: false });
+
+  if (error || !data) return [];
+  return data as Agent[];
+}
+
+/** Every agent a creator owns, any status — for their own dashboard, never
+ *  for a public page. RLS's "approved agents are public" policy already
+ *  covers this: it reads `status = 'approved' or creator_id = auth.uid()`,
+ *  so a signed-in creator querying their own creator_id gets all of theirs
+ *  back regardless of status. */
+export async function getMyAgents(userId: string): Promise<Agent[]> {
+  if (!supabaseConfigured()) return [];
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("agents")
+    .select("*")
+    .eq("creator_id", userId)
     .order("created_at", { ascending: false });
 
   if (error || !data) return [];

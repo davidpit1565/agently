@@ -12,6 +12,10 @@ import { PLATFORM_FEE_PERCENT } from "@/lib/membership";
 // has no destination account to pay out to, so checkout refuses up front
 // instead of silently taking 100% of a sale with no way to pay them.
 export async function POST(request: Request) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+  }
+
   const form = await request.formData();
   const agentId = String(form.get("agentId"));
 
@@ -30,7 +34,33 @@ export async function POST(request: Request) {
     .eq("id", agentId)
     .single();
 
-  if (!agent || agent.pricing_model === "free" || !agent.price_cents) {
+  if (!agent) {
+    return NextResponse.json({ error: "This agent doesn't exist." }, { status: 404 });
+  }
+
+  // Free agents skip Stripe entirely — record a zero-amount purchase so the
+  // buyer shows up as owning it (unlocks reviewing it, matches paid agents'
+  // "you already got this" state) and send them straight to the delivery link.
+  if (agent.pricing_model === "free") {
+    await supabase.from("purchases").upsert(
+      {
+        agent_id: agent.id,
+        buyer_id: user.id,
+        stripe_checkout_session_id: `free_${agent.id}_${user.id}`,
+        amount_cents: 0,
+        platform_fee_cents: 0,
+        status: "paid",
+      },
+      { onConflict: "stripe_checkout_session_id" }
+    );
+    const origin = new URL(request.url).origin;
+    return NextResponse.redirect(
+      agent.delivery_url || `${origin}/agents/${agent.slug}?purchased=1`,
+      303
+    );
+  }
+
+  if (!agent.price_cents) {
     return NextResponse.json({ error: "This agent isn't purchasable through checkout." }, { status: 400 });
   }
 
@@ -65,7 +95,17 @@ export async function POST(request: Request) {
         : undefined,
     subscription_data:
       agent.pricing_model === "subscription"
-        ? { application_fee_percent: PLATFORM_FEE_PERCENT, transfer_data: { destination: creator.stripe_connect_id } }
+        ? {
+            application_fee_percent: PLATFORM_FEE_PERCENT,
+            transfer_data: { destination: creator.stripe_connect_id },
+            // The webhook's customer.subscription.* handler needs this to
+            // tell "someone canceled their subscription to this agent"
+            // apart from "someone canceled their Agently membership" —
+            // both fire the same event type. Metadata set here (not just
+            // on the Checkout Session) is what actually reaches that event,
+            // since it carries the Subscription object, not the Session.
+            metadata: { agent_id: agent.id, buyer_id: user.id },
+          }
         : undefined,
     success_url: `${origin}/agents/${agent.slug}?purchased=1`,
     cancel_url: `${origin}/agents/${agent.slug}`,

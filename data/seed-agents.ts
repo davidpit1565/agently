@@ -32,6 +32,7 @@ export const SEED_AGENTS: Agent[] = [
     review_notes: "Self-reviewed at MVP stage — creator is the platform owner.",
     trust_score: 72,
     created_at: new Date("2026-08-01").toISOString(),
+    updated_at: new Date("2026-08-01").toISOString(),
   },
   {
     id: "seed-retime",
@@ -52,6 +53,7 @@ export const SEED_AGENTS: Agent[] = [
     review_notes: "Self-reviewed at MVP stage — creator is the platform owner.",
     trust_score: 68,
     created_at: new Date("2026-08-05").toISOString(),
+    updated_at: new Date("2026-08-05").toISOString(),
   },
   {
     id: "seed-explain-steps",
@@ -72,6 +74,7 @@ export const SEED_AGENTS: Agent[] = [
     review_notes: "Self-reviewed at MVP stage — creator is the platform owner.",
     trust_score: 65,
     created_at: new Date("2026-08-10").toISOString(),
+    updated_at: new Date("2026-08-10").toISOString(),
   },
   {
     id: "seed-safe-check",
@@ -92,6 +95,7 @@ export const SEED_AGENTS: Agent[] = [
     review_notes: "Self-reviewed at MVP stage — creator is the platform owner.",
     trust_score: 70,
     created_at: new Date("2026-08-14").toISOString(),
+    updated_at: new Date("2026-08-14").toISOString(),
   },
   {
     id: "seed-karaoke",
@@ -112,5 +116,6 @@ export const SEED_AGENTS: Agent[] = [
     review_notes: "Self-reviewed at MVP stage — creator is the platform owner.",
     trust_score: 66,
     created_at: new Date("2026-08-18").toISOString(),
+    updated_at: new Date("2026-08-18").toISOString(),
   },
 ];

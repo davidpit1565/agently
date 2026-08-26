@@ -12,6 +12,10 @@ import { notifyBuyersOfUpdate } from "@/lib/notifications";
 // required, same pattern as every other write in this app), and forms
 // only support GET/POST.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+  }
+
   const { id } = await params;
   const supabase = await createClient();
   const {

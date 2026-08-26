@@ -28,6 +28,7 @@ export type Agent = {
   review_notes: string | null;
   trust_score: number;
   created_at: string;
+  updated_at: string;
 };
 
 export type Profile = {

@@ -42,7 +42,7 @@ export default function OGImage() {
             maxWidth: 900,
           }}
         >
-          <span>The marketplace for</span>
+          <span>The catalog for</span>
           <span style={{ color: "#2fe0ad" }}>AI agents.</span>
         </div>
         <div style={{ display: "flex", marginTop: 36, fontSize: 26, color: "#a6b3ac", maxWidth: 780 }}>

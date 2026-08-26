@@ -1,7 +1,7 @@
 import type { MetadataRoute } from "next";
 import { getApprovedAgents } from "@/lib/catalog";
 
-const SITE_URL = "https://agently-orcin.vercel.app";
+const SITE_URL = "https://agently-jet.vercel.app";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const agents = await getApprovedAgents();
@@ -15,7 +15,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const agentRoutes: MetadataRoute.Sitemap = agents.map((agent) => ({
     url: `${SITE_URL}/agents/${agent.slug}`,
-    lastModified: agent.created_at,
+    lastModified: agent.updated_at,
     changeFrequency: "weekly",
     priority: 0.7,
   }));

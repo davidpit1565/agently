@@ -1,6 +1,27 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import { getCreatorProfile, getAgentsByCreator } from "@/lib/catalog";
 import { AgentCard } from "@/app/components/agent-card";
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}): Promise<Metadata> {
+  const { id } = await params;
+  const creator = await getCreatorProfile(id);
+  if (!creator) return {};
+
+  const title = `${creator.display_name} on Agently`;
+  const description = `Agents listed by ${creator.display_name} — safety-reviewed before they're for sale.`;
+
+  return {
+    title,
+    description,
+    openGraph: { title, description, type: "website" },
+    twitter: { card: "summary_large_image", title, description },
+  };
+}
 
 export default async function CreatorPage({
   params,

@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // Point this route at Stripe's dashboard (or `stripe listen` locally) once
 // STRIPE_WEBHOOK_SECRET is set. Handles both one-time agent purchases and
 // membership subscription events.
+//
+// Uses the service-role admin client, not the cookie-based one: Stripe calls
+// this server-to-server with no user session, so auth.uid() is null and
+// every RLS policy in schema.sql would reject these writes otherwise —
+// meaning a real card charge would succeed on Stripe's side while the
+// purchase row (and the connect/subscription status updates below) silently
+// never got written.
 export async function POST(request: Request) {
   const stripe = getStripe();
   const signature = request.headers.get("stripe-signature");
@@ -21,12 +28,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Signature verification failed: ${err}` }, { status: 400 });
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
+  if (!supabase) {
+    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY not configured" }, { status: 500 });
+  }
 
   switch (event.type) {
     case "checkout.session.completed": {
-      const session = event.data.object as { id: string; amount_total: number | null; metadata: Record<string, string> };
-      const { agent_id, buyer_id } = session.metadata ?? {};
+      const session = event.data.object as {
+        id: string;
+        amount_total: number | null;
+        customer: string | null;
+        metadata: Record<string, string>;
+      };
+      const { agent_id, buyer_id, user_id, membership_tier } = session.metadata ?? {};
+
       if (agent_id && buyer_id) {
         await supabase.from("purchases").insert({
           agent_id,
@@ -36,16 +52,48 @@ export async function POST(request: Request) {
           platform_fee_cents: Math.round((session.amount_total ?? 0) * 0.15),
           status: "paid",
         });
+      } else if (user_id && membership_tier) {
+        await supabase
+          .from("profiles")
+          .update({
+            membership_tier,
+            membership_status: "active",
+            stripe_customer_id: session.customer,
+          })
+          .eq("id", user_id);
       }
       break;
     }
     case "customer.subscription.updated":
     case "customer.subscription.deleted": {
-      const subscription = event.data.object as { customer: string; status: string };
+      // A subscription can be either an Agently membership or a buyer's
+      // subscription to one specific paid agent (agent.pricing_model ===
+      // 'subscription') — both fire this same event type. Only the former
+      // should ever touch profiles.membership_tier/status; without this
+      // check, canceling a $19/mo agent would wrongly reset an unrelated
+      // membership back to 'free' for anyone who happened to also be a
+      // paying member. subscription_data.metadata (set at checkout time in
+      // app/api/membership/checkout and app/api/checkout) is what tells
+      // the two apart here.
+      const subscription = event.data.object as {
+        customer: string;
+        status: string;
+        metadata: Record<string, string>;
+      };
+      const { membership_tier } = subscription.metadata ?? {};
+      if (!membership_tier) break;
+
+      // membership_tier drives canUpload() (lib/membership.ts) — it isn't
+      // enough to just flip membership_status to 'canceled' here, or a
+      // lapsed subscription would keep uploading forever with whatever
+      // tier it last had. Reset the tier itself back to 'free' the moment
+      // the subscription stops being active.
+      const active = subscription.status === "active";
       await supabase
         .from("profiles")
         .update({
-          membership_status: subscription.status === "active" ? "active" : "canceled",
+          membership_status: active ? "active" : "canceled",
+          ...(active ? {} : { membership_tier: "free" }),
         })
         .eq("stripe_customer_id", subscription.customer);
       break;

@@ -12,7 +12,14 @@ export default function SignInPage() {
     e.preventDefault();
     setError(null);
     const supabase = createClient();
-    const { error } = await supabase.auth.signInWithOtp({ email });
+    const { error } = await supabase.auth.signInWithOtp({
+      email,
+      // Without this, Supabase falls back to whatever "Site URL" is set in
+      // its own dashboard (localhost by default on a new project) — the
+      // email link would point there instead of here, regardless of what
+      // domain someone actually opened this page from.
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
     if (error) setError(error.message);
     else setSent(true);
   }

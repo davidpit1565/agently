@@ -1,6 +1,6 @@
 # Agently
 
-Marketplace for AI agents — upload one, sell it (one-time, subscription, or
+Catalog for AI agents — upload one, sell it (one-time, subscription, or
 free), and let buyers find it by describing the problem they have instead of
 picking a category. Membership (not per-listing fees) is what gates who can
 upload — see the market research report, chapters 12 and 14, for why.
