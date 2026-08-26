@@ -91,7 +91,17 @@ export async function POST(request: Request) {
         : undefined,
     subscription_data:
       agent.pricing_model === "subscription"
-        ? { application_fee_percent: PLATFORM_FEE_PERCENT, transfer_data: { destination: creator.stripe_connect_id } }
+        ? {
+            application_fee_percent: PLATFORM_FEE_PERCENT,
+            transfer_data: { destination: creator.stripe_connect_id },
+            // The webhook's customer.subscription.* handler needs this to
+            // tell "someone canceled their subscription to this agent"
+            // apart from "someone canceled their Agently membership" —
+            // both fire the same event type. Metadata set here (not just
+            // on the Checkout Session) is what actually reaches that event,
+            // since it carries the Subscription object, not the Session.
+            metadata: { agent_id: agent.id, buyer_id: user.id },
+          }
         : undefined,
     success_url: `${origin}/agents/${agent.slug}?purchased=1`,
     cancel_url: `${origin}/agents/${agent.slug}`,

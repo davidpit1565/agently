@@ -66,12 +66,28 @@ export async function POST(request: Request) {
     }
     case "customer.subscription.updated":
     case "customer.subscription.deleted": {
+      // A subscription can be either an Agently membership or a buyer's
+      // subscription to one specific paid agent (agent.pricing_model ===
+      // 'subscription') — both fire this same event type. Only the former
+      // should ever touch profiles.membership_tier/status; without this
+      // check, canceling a $19/mo agent would wrongly reset an unrelated
+      // membership back to 'free' for anyone who happened to also be a
+      // paying member. subscription_data.metadata (set at checkout time in
+      // app/api/membership/checkout and app/api/checkout) is what tells
+      // the two apart here.
+      const subscription = event.data.object as {
+        customer: string;
+        status: string;
+        metadata: Record<string, string>;
+      };
+      const { membership_tier } = subscription.metadata ?? {};
+      if (!membership_tier) break;
+
       // membership_tier drives canUpload() (lib/membership.ts) — it isn't
       // enough to just flip membership_status to 'canceled' here, or a
       // lapsed subscription would keep uploading forever with whatever
       // tier it last had. Reset the tier itself back to 'free' the moment
       // the subscription stops being active.
-      const subscription = event.data.object as { customer: string; status: string };
       const active = subscription.status === "active";
       await supabase
         .from("profiles")

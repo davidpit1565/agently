@@ -69,6 +69,13 @@ export async function POST(request: Request) {
     success_url: `${origin}/dashboard/agents?membership=1`,
     cancel_url: `${origin}/pricing`,
     metadata: { user_id: user.id, membership_tier: tier },
+    // Also set on the subscription itself, not just the Checkout Session —
+    // customer.subscription.* webhook events carry the Subscription object,
+    // not the Session, and this is what lets that handler tell "this
+    // subscription is someone's Agently membership" apart from "this
+    // subscription is someone's purchase of a specific paid agent" (both
+    // fire the same event type otherwise).
+    subscription_data: { metadata: { user_id: user.id, membership_tier: tier } },
   });
 
   return NextResponse.redirect(session.url!, 303);
