@@ -47,7 +47,10 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const agent = await getAgentBySlug(slug);
-  if (!agent) return {};
+  // Pending/rejected listings aren't public — don't hand their title or
+  // description to a crawler just because the page itself now allows the
+  // owner to preview it.
+  if (!agent || agent.status !== "approved") return {};
 
   const title = `${agent.name} — ${agent.tagline}`;
   const description = agent.problem_solved;
@@ -68,6 +71,33 @@ export default async function AgentPage({
   const { slug } = await params;
   const agent = await getAgentBySlug(slug);
   if (!agent) notFound();
+
+  let isOwner = false;
+  let hasPurchased = false;
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    isOwner = user?.id === agent.creator_id;
+
+    if (user && !isOwner) {
+      const { data: purchase } = await supabase
+        .from("purchases")
+        .select("id")
+        .eq("agent_id", agent.id)
+        .eq("buyer_id", user.id)
+        .eq("status", "paid")
+        .maybeSingle();
+      hasPurchased = !!purchase;
+    }
+  }
+
+  // Pending or rejected listings are only visible to their own creator —
+  // getAgentBySlug no longer filters by status so the creator can preview
+  // one before it's approved; everyone else still gets a 404.
+  if (agent.status !== "approved" && !isOwner) notFound();
+
   const cat = category(agent.category_slug);
   const { reviews, average, count } = await getReviewsForAgent(agent.id);
   const creator = await getCreatorProfile(agent.creator_id);
@@ -104,27 +134,6 @@ export default async function AgentPage({
     },
   };
 
-  let isOwner = false;
-  let hasPurchased = false;
-  if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    const supabase = await createClient();
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
-    isOwner = user?.id === agent.creator_id;
-
-    if (user && !isOwner) {
-      const { data: purchase } = await supabase
-        .from("purchases")
-        .select("id")
-        .eq("agent_id", agent.id)
-        .eq("buyer_id", user.id)
-        .eq("status", "paid")
-        .maybeSingle();
-      hasPurchased = !!purchase;
-    }
-  }
-
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
       <script
@@ -132,6 +141,16 @@ export default async function AgentPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <div className="flex flex-col gap-5">
+        {isOwner && agent.status !== "approved" && (
+          <div className="rounded-lg border border-line bg-surface px-4 py-2.5 text-xs text-ink-soft">
+            {agent.status === "rejected"
+              ? "This listing didn't pass safety review — only you can see this page. "
+              : "This listing is still pending safety review — only you can see this page. "}
+            {agent.review_notes && (
+              <span className="text-ink-faint">{agent.review_notes}</span>
+            )}
+          </div>
+        )}
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-1.5 font-mono text-xs text-ink-faint">
             <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-accent" aria-hidden />

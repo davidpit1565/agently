@@ -23,18 +23,18 @@ export async function getApprovedAgents(): Promise<Agent[]> {
   return data as Agent[];
 }
 
+// Not filtered by status — a pending or rejected agent still has to be
+// fetchable so its own creator can preview it (app/agents/[slug]/page.tsx
+// decides visibility for anyone who isn't the creator). RLS still limits
+// what a signed-out or non-owner request actually gets back to `approved`
+// rows via "approved agents are public".
 export async function getAgentBySlug(slug: string): Promise<Agent | null> {
   if (!supabaseConfigured()) {
     return SEED_AGENTS.find((a) => a.slug === slug) ?? null;
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("agents")
-    .select("*")
-    .eq("slug", slug)
-    .eq("status", "approved")
-    .single();
+  const { data, error } = await supabase.from("agents").select("*").eq("slug", slug).single();
 
   if (error || !data) return SEED_AGENTS.find((a) => a.slug === slug) ?? null;
   return data as Agent;
