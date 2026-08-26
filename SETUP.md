@@ -45,10 +45,10 @@ you). This is the exact path, phone-friendly, boring-but-reliable.
     appears — that's the whole database structure created in one shot.
 20. On the left sidebar, tap **"Authentication"**, then **"URL
     Configuration"** near the top of that page.
-21. **Site URL**: type `https://agently-orcin.vercel.app` (replace with
+21. **Site URL**: type `https://agently-jet.vercel.app` (replace with
     your real domain if you've set one up).
 22. Under **"Redirect URLs"**, tap **"Add URL"** and add
-    `https://agently-orcin.vercel.app/auth/callback`. Without this exact
+    `https://agently-jet.vercel.app/auth/callback`. Without this exact
     entry, Supabase silently refuses the sign-in link this app sends —
     someone taps it and lands on an error instead of being signed in.
 23. Tap **"Save"** at the bottom of that section.
@@ -65,7 +65,7 @@ you). This is the exact path, phone-friendly, boring-but-reliable.
 5. Under **"Standard keys"**, find **"Secret key"** — tap **"Reveal test
    key"**, then copy it. This goes into Vercel as `STRIPE_SECRET_KEY`.
 6. Still in Developers, tap **"Webhooks"**, then **"Add endpoint"**.
-7. **Endpoint URL**: `https://agently-orcin.vercel.app/api/stripe/webhook`
+7. **Endpoint URL**: `https://agently-jet.vercel.app/api/stripe/webhook`
 8. Tap **"Select events"**, and check these four: `checkout.session.completed`,
    `customer.subscription.updated`, `customer.subscription.deleted`,
    `account.updated`. Tap **"Add events"**.

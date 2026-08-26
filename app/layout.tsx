@@ -26,7 +26,7 @@ const description =
   "Upload, sell, and find AI agents by the problem they solve. Safety-reviewed before they're listed.";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://agently-orcin.vercel.app"),
+  metadataBase: new URL("https://agently-jet.vercel.app"),
   title,
   description,
   openGraph: { title, description, type: "website" },
