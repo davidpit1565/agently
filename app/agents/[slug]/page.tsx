@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import type { Metadata } from "next";
 import Link from "next/link";
 import { getAgentBySlug, getCreatorProfile } from "@/lib/catalog";
 import { getReviewsForAgent } from "@/lib/reviews";
@@ -39,6 +40,26 @@ function category(slug: string) {
   return CATEGORIES_FALLBACK.find((c) => c.slug === slug) ?? CATEGORIES_FALLBACK[CATEGORIES_FALLBACK.length - 1];
 }
 
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const agent = await getAgentBySlug(slug);
+  if (!agent) return {};
+
+  const title = `${agent.name} — ${agent.tagline}`;
+  const description = agent.problem_solved;
+
+  return {
+    title,
+    description,
+    openGraph: { title, description, type: "website" },
+    twitter: { card: "summary_large_image", title, description },
+  };
+}
+
 export default async function AgentPage({
   params,
 }: {
@@ -51,6 +72,38 @@ export default async function AgentPage({
   const { reviews, average, count } = await getReviewsForAgent(agent.id);
   const creator = await getCreatorProfile(agent.creator_id);
 
+  const jsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: agent.name,
+    description: agent.problem_solved,
+    category: cat.name,
+    ...(creator && {
+      brand: { "@type": "Organization", name: creator.display_name },
+    }),
+    ...(average !== null && count > 0
+      ? {
+          aggregateRating: {
+            "@type": "AggregateRating",
+            ratingValue: average.toFixed(1),
+            reviewCount: count,
+          },
+        }
+      : {}),
+    offers: {
+      "@type": "Offer",
+      price: ((agent.price_cents ?? 0) / 100).toFixed(2),
+      priceCurrency: "EUR",
+      availability: "https://schema.org/InStock",
+      ...(agent.pricing_model === "subscription" && {
+        priceSpecification: {
+          "@type": "UnitPriceSpecification",
+          billingDuration: "P1M",
+        },
+      }),
+    },
+  };
+
   let isOwner = false;
   if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
     const supabase = await createClient();
@@ -62,6 +115,10 @@ export default async function AgentPage({
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       <div className="flex flex-col gap-5">
         <div className="flex items-center justify-between">
           <span className="flex items-center gap-1.5 font-mono text-xs text-ink-faint">
