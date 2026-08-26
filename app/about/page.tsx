@@ -1,3 +1,15 @@
+import type { Metadata } from "next";
+
+const title = "Why it looks like this — Agently";
+const description = "We're the first customer, not just the platform — every agent in the catalog did a real job before it was ever listed for sale.";
+
+export const metadata: Metadata = {
+  title,
+  description,
+  openGraph: { title, description, type: "website" },
+  twitter: { card: "summary_large_image", title, description },
+};
+
 const STEPS = [
   {
     n: "01",

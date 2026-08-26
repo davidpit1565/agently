@@ -1,5 +1,16 @@
+import type { Metadata } from "next";
 import { getApprovedAgents } from "@/lib/catalog";
 import { BrowseClient } from "./browse-client";
+
+const title = "Browse agents — Agently";
+const description = "Every AI agent in the catalog, found by the problem it solves — not a category or a keyword.";
+
+export const metadata: Metadata = {
+  title,
+  description,
+  openGraph: { title, description, type: "website" },
+  twitter: { card: "summary_large_image", title, description },
+};
 
 export default async function BrowsePage() {
   const agents = await getApprovedAgents();
