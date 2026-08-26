@@ -21,7 +21,7 @@ const mono = JetBrains_Mono({
   display: "swap",
 });
 
-const title = "Agently — the marketplace for AI agents";
+const title = "Agently — the catalog for AI agents";
 const description =
   "Upload, sell, and find AI agents by the problem they solve. Safety-reviewed before they're listed.";
 

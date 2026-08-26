@@ -12,10 +12,10 @@ export default function TermsPage() {
 
       <div className="flex flex-col gap-6 text-sm leading-relaxed text-ink-soft">
         <Section title="What Agently is">
-          A marketplace connecting people who build AI agents with people who
-          need one. Agently lists agents, processes payment, and takes a
-          platform fee on each sale — it does not build, own, or guarantee
-          the agents themselves.
+          A catalog of AI agents built by real creators, sold directly to
+          the people who need them. Agently lists agents, processes
+          payment, and takes a platform fee on each sale — it does not
+          build, own, or guarantee the agents themselves.
         </Section>
         <Section title="Creator responsibility">
           The creator of an agent is responsible for what it does, what data

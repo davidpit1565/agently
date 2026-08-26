@@ -32,7 +32,7 @@ export default async function Home() {
             {agents.length} agent{agents.length === 1 ? "" : "s"} live now
           </div>
           <h1 className="text-balance font-display text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
-            The marketplace for
+            The catalog for
             <br />
             <span className="text-accent">AI agents.</span>
           </h1>
