@@ -15,7 +15,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   const agentRoutes: MetadataRoute.Sitemap = agents.map((agent) => ({
     url: `${SITE_URL}/agents/${agent.slug}`,
-    lastModified: agent.created_at,
+    lastModified: agent.updated_at,
     changeFrequency: "weekly",
     priority: 0.7,
   }));
