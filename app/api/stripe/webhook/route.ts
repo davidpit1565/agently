@@ -35,8 +35,14 @@ export async function POST(request: Request) {
 
   switch (event.type) {
     case "checkout.session.completed": {
-      const session = event.data.object as { id: string; amount_total: number | null; metadata: Record<string, string> };
-      const { agent_id, buyer_id } = session.metadata ?? {};
+      const session = event.data.object as {
+        id: string;
+        amount_total: number | null;
+        customer: string | null;
+        metadata: Record<string, string>;
+      };
+      const { agent_id, buyer_id, user_id, membership_tier } = session.metadata ?? {};
+
       if (agent_id && buyer_id) {
         await supabase.from("purchases").insert({
           agent_id,
@@ -46,16 +52,32 @@ export async function POST(request: Request) {
           platform_fee_cents: Math.round((session.amount_total ?? 0) * 0.15),
           status: "paid",
         });
+      } else if (user_id && membership_tier) {
+        await supabase
+          .from("profiles")
+          .update({
+            membership_tier,
+            membership_status: "active",
+            stripe_customer_id: session.customer,
+          })
+          .eq("id", user_id);
       }
       break;
     }
     case "customer.subscription.updated":
     case "customer.subscription.deleted": {
+      // membership_tier drives canUpload() (lib/membership.ts) — it isn't
+      // enough to just flip membership_status to 'canceled' here, or a
+      // lapsed subscription would keep uploading forever with whatever
+      // tier it last had. Reset the tier itself back to 'free' the moment
+      // the subscription stops being active.
       const subscription = event.data.object as { customer: string; status: string };
+      const active = subscription.status === "active";
       await supabase
         .from("profiles")
         .update({
-          membership_status: subscription.status === "active" ? "active" : "canceled",
+          membership_status: active ? "active" : "canceled",
+          ...(active ? {} : { membership_tier: "free" }),
         })
         .eq("stripe_customer_id", subscription.customer);
       break;
