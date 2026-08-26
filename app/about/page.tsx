@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
-const title = "Why it looks like this — Agently";
-const description = "We're the first customer, not just the platform — every agent in the catalog did a real job before it was ever listed for sale.";
+const title = "About — Agently";
+const description = "The catalog for AI agents, built the way we'd want to buy from it — every listing does a real job before it's ever offered for sale.";
 
 export const metadata: Metadata = {
   title,
@@ -40,36 +40,42 @@ export default function AboutPage() {
       <div className="relative mx-auto flex max-w-2xl flex-col gap-16 px-6 py-24">
         <div className="flex flex-col gap-5">
           <span className="w-fit rounded-full border border-line bg-surface px-3 py-1 font-mono text-xs uppercase tracking-wide text-ink-soft">
-            Why it looks like this
+            About Agently
           </span>
           <h1 className="text-balance font-display text-4xl font-semibold leading-[1.1] tracking-tight">
-            We&apos;re the first customer, <span className="text-accent">not just the platform.</span>
+            A catalog built the way <span className="text-accent">we&apos;d want to buy from it.</span>
           </h1>
           <p className="text-pretty text-lg leading-relaxed text-ink-soft">
-            Agently started because we needed somewhere to put the agents we
-            were already building for our own content channel —{" "}
+            Most tool catalogs launch empty and hope creators show up.
+            Agently didn&apos;t: every agent listed here already does a
+            real job on our own content channel,{" "}
             <a href="https://actually-works-studio.vercel.app" className="text-accent underline">
               Actually Works
             </a>
-            . Every agent in the catalog today did a real job before it was
-            ever listed for sale.
+            , before it&apos;s ever offered for sale. If it isn&apos;t good
+            enough for us to run ourselves, it doesn&apos;t go in the
+            catalog. That&apos;s the whole standard — not a slogan, a
+            filter every listing has already passed before you see it.
           </p>
         </div>
 
-        <div className="flex flex-col gap-px overflow-hidden rounded-2xl border border-line bg-line">
-          {STEPS.map((s) => (
-            <div key={s.n} className="flex gap-5 bg-surface p-6">
-              <span className="font-mono text-sm text-accent">{s.n}</span>
-              <div>
-                <h2 className="text-balance font-display font-semibold">{s.title}</h2>
-                <p className="mt-1 text-pretty text-sm leading-relaxed text-ink-soft">{s.body}</p>
+        <div className="flex flex-col gap-3">
+          <h2 className="text-balance font-display text-lg font-semibold">How a listing gets here</h2>
+          <div className="flex flex-col gap-px overflow-hidden rounded-2xl border border-line bg-line">
+            {STEPS.map((s) => (
+              <div key={s.n} className="flex gap-5 bg-surface p-6">
+                <span className="font-mono text-sm text-accent">{s.n}</span>
+                <div>
+                  <h3 className="text-balance font-display font-semibold">{s.title}</h3>
+                  <p className="mt-1 text-pretty text-sm leading-relaxed text-ink-soft">{s.body}</p>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
 
         <div className="rounded-xl border border-line bg-surface p-6">
-          <h2 className="mb-2 font-display text-sm font-semibold text-accent">What&apos;s not built yet</h2>
+          <h2 className="mb-2 font-display text-sm font-semibold text-accent">Where we draw the line</h2>
           <p className="text-pretty text-sm leading-relaxed text-ink-soft">
             The concierge that matches a buyer&apos;s problem to an agent by
             meaning, not exact words — search today is real text matching,
