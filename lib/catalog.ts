@@ -84,3 +84,22 @@ export async function getAgentsByCreator(creatorId: string): Promise<Agent[]> {
   if (error || !data) return [];
   return data as Agent[];
 }
+
+/** Every agent a creator owns, any status — for their own dashboard, never
+ *  for a public page. RLS's "approved agents are public" policy already
+ *  covers this: it reads `status = 'approved' or creator_id = auth.uid()`,
+ *  so a signed-in creator querying their own creator_id gets all of theirs
+ *  back regardless of status. */
+export async function getMyAgents(userId: string): Promise<Agent[]> {
+  if (!supabaseConfigured()) return [];
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("agents")
+    .select("*")
+    .eq("creator_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (error || !data) return [];
+  return data as Agent[];
+}

@@ -4,7 +4,13 @@ import { canUpload } from "@/lib/membership";
 import { CATEGORIES_FALLBACK } from "@/data/categories";
 import { Field, Notice } from "@/app/components/form-field";
 
-export default async function UploadPage() {
+export default async function UploadPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ submitted?: string }>;
+}) {
+  const { submitted } = await searchParams;
+
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return (
       <Notice title="Not connected yet">
@@ -61,6 +67,14 @@ export default async function UploadPage() {
         Goes to <strong className="text-ink-soft">pending review</strong> first — nothing you submit here
         is publicly visible until the safety review clears it.
       </p>
+
+      {submitted && (
+        <p className="mb-6 rounded-lg border border-accent/30 bg-accent-soft px-4 py-3 text-sm text-accent">
+          Submitted. Check <Link href="/dashboard/agents" className="underline">your listings</Link> for
+          the review result — approved ones go live right away, others wait on a
+          quick human look.
+        </p>
+      )}
 
       {!profile?.stripe_connect_ready && (
         <p className="mb-8 rounded-lg border border-line bg-surface p-4 text-sm text-ink-soft">

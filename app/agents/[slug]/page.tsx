@@ -65,10 +65,13 @@ export async function generateMetadata({
 
 export default async function AgentPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ slug: string }>;
+  searchParams: Promise<{ purchased?: string; reviewed?: string }>;
 }) {
   const { slug } = await params;
+  const { purchased, reviewed } = await searchParams;
   const agent = await getAgentBySlug(slug);
   if (!agent) notFound();
 
@@ -141,6 +144,11 @@ export default async function AgentPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <div className="flex flex-col gap-5">
+        {(purchased || reviewed) && (
+          <div className="rounded-lg border border-accent/30 bg-accent-soft px-4 py-2.5 text-sm text-accent">
+            {purchased ? "You got it — check the delivery link below." : "Thanks — your review is posted."}
+          </div>
+        )}
         {isOwner && agent.status !== "approved" && (
           <div className="rounded-lg border border-line bg-surface px-4 py-2.5 text-xs text-ink-soft">
             {agent.status === "rejected"
@@ -191,6 +199,22 @@ export default async function AgentPage({
             </Link>
           )}
         </div>
+
+        {(hasPurchased || isOwner) && agent.delivery_url && (
+          <div className="rounded-xl border border-accent/30 bg-accent-soft p-5">
+            <h2 className="mb-2 font-display text-sm font-semibold text-accent">
+              {isOwner ? "Delivery link" : "You own this — here's how to get it"}
+            </h2>
+            <a
+              href={agent.delivery_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="break-all text-sm text-accent underline"
+            >
+              {agent.delivery_url}
+            </a>
+          </div>
+        )}
 
         <div className="rounded-xl border border-line bg-surface p-5">
           <h2 className="mb-2 font-display text-sm font-semibold text-accent">The problem this solves</h2>
