@@ -19,7 +19,7 @@ export default function SignInPage() {
 
   return (
     <main className="mx-auto max-w-sm px-6 py-24">
-      <h1 className="mb-2 font-display text-2xl font-semibold">Sign in</h1>
+      <h1 className="text-balance mb-2 font-display text-2xl font-semibold">Sign in</h1>
       <p className="mb-8 text-sm text-ink-faint">
         No password — we email you a one-time link.
       </p>

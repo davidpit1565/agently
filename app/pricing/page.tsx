@@ -13,7 +13,7 @@ export default function PricingPage() {
     <main className="mx-auto max-w-4xl px-6 py-16">
       <div className="mb-10 flex flex-col gap-2">
         <h1 className="font-display text-2xl font-semibold">Membership</h1>
-        <p className="max-w-xl text-ink-soft">
+        <p className="max-w-xl text-pretty leading-relaxed text-ink-soft">
           Browsing and buying is always free. A membership is what lets you{" "}
           <strong className="text-ink">list</strong> your own agents — it's a
           quality filter as much as a plan. Prices below are early and will
@@ -45,12 +45,12 @@ export default function PricingPage() {
               <h2 className="font-display text-lg font-semibold">{config.name}</h2>
               <p className="text-sm text-ink-soft">{TIER_COPY[tier].blurb}</p>
               <div className="mt-2">
-                <span className="font-display text-2xl font-semibold">
+                <span className="font-display text-2xl font-semibold tabular-nums">
                   €{(config.monthlyPriceCents / 100).toFixed(0)}
                 </span>
                 <span className="text-ink-faint"> / month</span>
               </div>
-              <p className="font-mono text-xs text-ink-faint">
+              <p className="font-mono text-xs tabular-nums text-ink-faint">
                 or €{(config.yearlyPriceCents / 100).toFixed(0)} / year
               </p>
               <p className="mt-2 text-sm text-ink-soft">Up to {config.maxActiveListings} active listings</p>

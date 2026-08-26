@@ -30,10 +30,10 @@ export default function AboutPage() {
           <span className="w-fit rounded-full border border-line bg-surface px-3 py-1 font-mono text-xs uppercase tracking-wide text-ink-soft">
             Why it looks like this
           </span>
-          <h1 className="font-display text-4xl font-semibold leading-[1.1] tracking-tight">
+          <h1 className="text-balance font-display text-4xl font-semibold leading-[1.1] tracking-tight">
             We&apos;re the first customer, <span className="text-accent">not just the platform.</span>
           </h1>
-          <p className="text-lg text-ink-soft">
+          <p className="text-pretty text-lg leading-relaxed text-ink-soft">
             Agently started because we needed somewhere to put the agents we
             were already building for our own content channel —{" "}
             <a href="https://actually-works-studio.vercel.app" className="text-accent underline">
@@ -49,8 +49,8 @@ export default function AboutPage() {
             <div key={s.n} className="flex gap-5 bg-surface p-6">
               <span className="font-mono text-sm text-accent">{s.n}</span>
               <div>
-                <h2 className="font-display font-semibold">{s.title}</h2>
-                <p className="mt-1 text-sm text-ink-soft">{s.body}</p>
+                <h2 className="text-balance font-display font-semibold">{s.title}</h2>
+                <p className="mt-1 text-pretty text-sm leading-relaxed text-ink-soft">{s.body}</p>
               </div>
             </div>
           ))}
@@ -58,7 +58,7 @@ export default function AboutPage() {
 
         <div className="rounded-xl border border-line bg-surface p-6">
           <h2 className="mb-2 font-display text-sm font-semibold text-accent">What&apos;s not built yet</h2>
-          <p className="text-sm text-ink-soft">
+          <p className="text-pretty text-sm leading-relaxed text-ink-soft">
             The concierge that matches a buyer&apos;s problem to an agent by
             meaning, not exact words — search today is real text matching,
             not that. And the safety review only reads a listing&apos;s

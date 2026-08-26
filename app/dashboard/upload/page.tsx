@@ -56,7 +56,7 @@ export default async function UploadPage() {
 
   return (
     <main className="mx-auto max-w-xl px-6 py-16">
-      <h1 className="mb-2 font-display text-2xl font-semibold">Upload an agent</h1>
+      <h1 className="text-balance mb-2 font-display text-2xl font-semibold">Upload an agent</h1>
       <p className="mb-6 text-sm text-ink-faint">
         Goes to <strong className="text-ink-soft">pending review</strong> first — nothing you submit here
         is publicly visible until the safety review clears it.

@@ -20,7 +20,7 @@ export default async function CreatorPage({
           {creator.display_name.slice(0, 1).toUpperCase()}
         </div>
         <div>
-          <h1 className="font-display text-2xl font-semibold">{creator.display_name}</h1>
+          <h1 className="text-balance font-display text-2xl font-semibold">{creator.display_name}</h1>
           <p className="font-mono text-xs text-ink-faint">
             {creator.account_type === "company" ? "Company" : "Individual"} ·{" "}
             {agents.length} agent{agents.length === 1 ? "" : "s"} listed

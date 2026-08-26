@@ -31,7 +31,7 @@ export default async function EditAgentPage({
 
   return (
     <main className="mx-auto max-w-xl px-6 py-16">
-      <h1 className="mb-2 font-display text-2xl font-semibold">Edit {agent.name}</h1>
+      <h1 className="text-balance mb-2 font-display text-2xl font-semibold">Edit {agent.name}</h1>
       <p className="mb-8 text-sm text-ink-faint">
         Every buyer who owns this agent gets notified that it changed.
         Changing the name, tagline, problem, or description re-runs the

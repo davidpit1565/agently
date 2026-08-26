@@ -75,8 +75,8 @@ export default async function AgentPage({
         </div>
 
         <div>
-          <h1 className="font-display text-3xl font-semibold">{agent.name}</h1>
-          <p className="mt-1 text-lg text-ink-soft">{agent.tagline}</p>
+          <h1 className="text-balance font-display text-3xl font-semibold">{agent.name}</h1>
+          <p className="mt-1 text-pretty text-lg leading-relaxed text-ink-soft">{agent.tagline}</p>
           {creator && (
             <Link
               href={`/creators/${creator.id}`}
@@ -88,7 +88,7 @@ export default async function AgentPage({
         </div>
 
         <div className="flex flex-wrap items-center gap-3 text-sm">
-          <span className="rounded-full bg-accent-soft px-3 py-1 font-mono font-medium text-accent">
+          <span className="rounded-full bg-accent-soft px-3 py-1 font-mono font-medium tabular-nums text-accent">
             {priceLabel(agent)}
           </span>
           {agent.status === "approved" && (
@@ -106,19 +106,19 @@ export default async function AgentPage({
 
         <div className="rounded-xl border border-line bg-surface p-5">
           <h2 className="mb-2 font-display text-sm font-semibold text-accent">The problem this solves</h2>
-          <p className="text-sm text-ink-soft">{agent.problem_solved}</p>
+          <p className="text-pretty text-sm leading-relaxed text-ink-soft">{agent.problem_solved}</p>
         </div>
 
         <div>
           <h2 className="mb-2 font-display text-sm font-semibold text-accent">What it does</h2>
-          <p className="whitespace-pre-line text-ink-soft">{agent.description}</p>
+          <p className="whitespace-pre-line text-pretty leading-relaxed text-ink-soft">{agent.description}</p>
         </div>
 
         <div className="border-t border-line pt-6">
           <div className="mb-4 flex items-center gap-3">
             <h2 className="font-display text-sm font-semibold text-accent">Reviews</h2>
             {average !== null && (
-              <span className="flex items-center gap-1.5 text-xs text-ink-faint">
+              <span className="flex items-center gap-1.5 text-xs tabular-nums text-ink-faint">
                 <Stars value={average} />
                 {average.toFixed(1)} · {count} review{count === 1 ? "" : "s"}
               </span>

@@ -28,11 +28,11 @@ export default async function PayoutsPage() {
 
   return (
     <main className="mx-auto max-w-lg px-6 py-16">
-      <h1 className="mb-2 font-display text-2xl font-semibold">Payouts</h1>
-      <p className="mb-8 text-sm text-ink-soft">
+      <h1 className="text-balance mb-2 font-display text-2xl font-semibold">Payouts</h1>
+      <p className="mb-8 text-pretty text-sm leading-relaxed text-ink-soft">
         Every agent you sell pays through Stripe. This is where that money
         actually reaches you — {" "}
-        <span className="text-ink">{100 - 15}%</span> of each sale, the rest is
+        <span className="tabular-nums text-ink">{100 - 15}%</span> of each sale, the rest is
         the platform fee.
       </p>
 
@@ -72,7 +72,7 @@ export default async function PayoutsPage() {
 function Notice({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <main className="mx-auto max-w-md px-6 py-24 text-center">
-      <h1 className="mb-2 font-display text-xl font-semibold">{title}</h1>
+      <h1 className="text-balance mb-2 font-display text-xl font-semibold">{title}</h1>
       <p className="text-sm text-ink-soft">{children}</p>
     </main>
   );

@@ -43,7 +43,7 @@ export function Field({
 export function Notice({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <main className="mx-auto max-w-md px-6 py-24 text-center">
-      <h1 className="mb-2 font-display text-xl font-semibold">{title}</h1>
+      <h1 className="text-balance mb-2 font-display text-xl font-semibold">{title}</h1>
       <p className="text-sm text-ink-soft">{children}</p>
     </main>
   );

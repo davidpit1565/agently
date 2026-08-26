@@ -31,12 +31,12 @@ export default async function Home() {
             <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-accent" aria-hidden />
             {agents.length} agent{agents.length === 1 ? "" : "s"} live now
           </div>
-          <h1 className="font-display text-5xl font-semibold leading-[1.05] tracking-tight sm:text-6xl">
+          <h1 className="text-balance font-display text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
             The marketplace for
             <br />
             <span className="text-accent">AI agents.</span>
           </h1>
-          <p className="max-w-xl text-lg text-ink-soft">
+          <p className="max-w-xl text-pretty text-lg leading-relaxed text-ink-soft">
             Built for the people making agents and the people who need one. The
             first agents in the catalog are the ones already running on our own
             channel — we&apos;re the first customer, not just the platform.
@@ -66,7 +66,7 @@ export default async function Home() {
               <span className="font-mono text-xs text-ink-faint transition group-hover:text-accent">
                 {p.n}
               </span>
-              <h2 className="font-display text-base font-semibold">{p.title}</h2>
+              <h2 className="text-balance font-display text-base font-semibold">{p.title}</h2>
               <p className="text-sm text-ink-soft">{p.body}</p>
             </div>
           ))}

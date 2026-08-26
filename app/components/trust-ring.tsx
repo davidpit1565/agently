@@ -31,7 +31,7 @@ export function TrustRing({ score }: { score: number }) {
           className="text-accent"
         />
       </svg>
-      <span className="absolute font-mono text-[10px] font-medium text-ink-soft">{score}</span>
+      <span className="absolute font-mono text-[10px] font-medium tabular-nums text-ink-soft">{score}</span>
     </div>
   );
 }
