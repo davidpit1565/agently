@@ -11,7 +11,13 @@ const STATUS_LABEL: Record<string, string> = {
   delisted: "Delisted",
 };
 
-export default async function MyAgentsPage() {
+export default async function MyAgentsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ membership?: string }>;
+}) {
+  const { membership } = await searchParams;
+
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return (
       <Notice title="Not connected yet">
@@ -33,6 +39,11 @@ export default async function MyAgentsPage() {
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
+      {membership && (
+        <div className="mb-6 rounded-lg border border-accent/30 bg-accent-soft px-4 py-2.5 text-sm text-accent">
+          You're a member — you can list agents now.
+        </div>
+      )}
       <div className="mb-8 flex items-center justify-between gap-4">
         <h1 className="text-balance font-display text-2xl font-semibold">Your agents</h1>
         <div className="flex shrink-0 items-center gap-3">

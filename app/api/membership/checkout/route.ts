@@ -9,6 +9,10 @@ import type { MembershipTier } from "@/lib/types";
 // once payment succeeds — this route only starts checkout, nothing here
 // grants access on its own.
 export async function POST(request: Request) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+  }
+
   const form = await request.formData();
   const tier = String(form.get("tier")) as MembershipTier;
   const interval = form.get("interval") === "yearly" ? "yearly" : "monthly";

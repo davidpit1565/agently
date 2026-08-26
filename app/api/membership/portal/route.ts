@@ -7,6 +7,10 @@ import { createClient } from "@/lib/supabase/server";
 // any of that through a second /api/membership/checkout call would create
 // a second, separate subscription instead of changing the one they have.
 export async function POST(request: Request) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+  }
+
   const supabase = await createClient();
   const {
     data: { user },

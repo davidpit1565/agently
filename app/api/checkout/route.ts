@@ -12,6 +12,10 @@ import { PLATFORM_FEE_PERCENT } from "@/lib/membership";
 // has no destination account to pay out to, so checkout refuses up front
 // instead of silently taking 100% of a sale with no way to pay them.
 export async function POST(request: Request) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+  }
+
   const form = await request.formData();
   const agentId = String(form.get("agentId"));
 

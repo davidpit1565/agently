@@ -1,6 +1,12 @@
 import { createClient } from "@/lib/supabase/server";
 
-export default async function PayoutsPage() {
+export default async function PayoutsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ onboarded?: string }>;
+}) {
+  const { onboarded } = await searchParams;
+
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return (
       <Notice title="Not connected yet">
@@ -35,6 +41,13 @@ export default async function PayoutsPage() {
         <span className="tabular-nums text-ink">{100 - 15}%</span> of each sale, the rest is
         the platform fee.
       </p>
+
+      {onboarded && !ready && (
+        <p className="mb-6 rounded-lg border border-line bg-surface px-4 py-3 text-sm text-ink-soft">
+          You're back from Stripe — this can take a minute to update below
+          while they finish verifying your details.
+        </p>
+      )}
 
       <div className="rounded-xl border border-line bg-surface p-6">
         <div className="mb-4 flex items-center gap-2">
