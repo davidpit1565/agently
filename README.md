@@ -34,12 +34,18 @@ upload — see the market research report, chapters 12 and 14, for why.
 - **Database schema** (`supabase/schema.sql`) — profiles, agents,
   categories, purchases, reviews, with row-level security so buyers only see
   approved listings and everyone only edits their own rows.
+- **Safety-review agent, first pass** (`lib/safety-review.ts`) — a Claude
+  call judges a new submission's description for vague or overly-broad
+  access claims. `low` risk auto-approves; `medium`/`high` (or no
+  `ANTHROPIC_API_KEY` configured) leaves it `pending_review` for a human,
+  same as before this existed. It judges what's *written*, not the agent's
+  actual code — that's still a real limit, not solved by this.
 
 ## Not built yet (intentionally — see report ch. 13-14)
 
-- The safety-review agent and the concierge/matching agent — phase 1 uses
-  manual review; both are AI work that comes after there's real supply to
-  review and real searches to match.
+- The concierge/matching agent — /browse search today is real text
+  matching (see app/browse/browse-client.tsx), not semantic matching by
+  meaning. That's still phase 2.
 - Any hosted execution / sandboxing — that's phase 2, not part of this MVP.
 
 ## What I need from you before this goes live
@@ -59,6 +65,9 @@ yet. Three things only you can do:
    then put its signing secret in Vercel as `STRIPE_WEBHOOK_SECRET`.
 3. **Connect this repo to the Vercel project** in its Git settings — the
    deploy exists already, it just isn't wired to `main` yet.
+4. **Optional** — add `ANTHROPIC_API_KEY` to Vercel to turn on automated
+   safety review for new submissions. Skip it and everything still works
+   exactly as it does today: every submission just waits for you.
 
 Nothing here needs a decision from you beyond creating those two accounts —
 the code already assumes the schema and env var names above.

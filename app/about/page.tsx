@@ -7,7 +7,7 @@ const STEPS = [
   {
     n: "02",
     title: "It gets reviewed",
-    body: "Before anything goes live: what it asks permission for, what it does, whether the listing matches the behavior. Manual today, automated as an agent of its own once there's volume to justify it.",
+    body: "A first automated pass judges the listing itself — vague or overly-broad access claims get flagged for a human; a clear, narrow description can auto-approve. It reads what's written, not the agent's actual code — that's a real limit, not a solved problem.",
   },
   {
     n: "03",
@@ -59,10 +59,12 @@ export default function AboutPage() {
         <div className="rounded-xl border border-line bg-surface p-6">
           <h2 className="mb-2 font-display text-sm font-semibold text-accent">What&apos;s not built yet</h2>
           <p className="text-sm text-ink-soft">
-            The automated safety-review agent and the concierge that matches
-            buyers to agents by problem description — both real, both planned,
-            neither live. Today those steps are manual. We&apos;d rather say
-            that plainly than let the site imply more than it does.
+            The concierge that matches a buyer&apos;s problem to an agent by
+            meaning, not exact words — search today is real text matching,
+            not that. And the safety review only reads a listing&apos;s
+            description; it can&apos;t inspect what the agent&apos;s code
+            actually does. We&apos;d rather say that plainly than let the
+            site imply more than it does.
           </p>
         </div>
       </div>
