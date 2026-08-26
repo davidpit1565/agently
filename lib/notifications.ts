@@ -34,7 +34,7 @@ export async function getNotifications(userId: string): Promise<{ notifications:
  *  creator's own session — the RLS policy on `notifications` only allows an
  *  insert when the caller owns the referenced agent, so this can't be used
  *  to spam notifications for an agent that isn't the caller's. */
-export async function notifyBuyersOfUpdate(agentId: string, agentName: string) {
+export async function notifyBuyersOfUpdate(agentId: string, agentName: string, version: number) {
   const supabase = await createClient();
 
   const { data: purchases } = await supabase
@@ -51,7 +51,7 @@ export async function notifyBuyersOfUpdate(agentId: string, agentName: string) {
       user_id: buyerId,
       agent_id: agentId,
       type: "agent_updated" as const,
-      message: `${agentName} was updated by its creator.`,
+      message: `${agentName} was updated to v${version}.`,
     }))
   );
 }

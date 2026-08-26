@@ -20,5 +20,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
-  return [...staticRoutes, ...agentRoutes];
+  // Creator pages were never in here at all — real, indexable content
+  // (getApprovedAgents already has everything needed to derive the list,
+  // no separate query).
+  const creatorIds = [...new Set(agents.map((agent) => agent.creator_id))];
+  const creatorRoutes: MetadataRoute.Sitemap = creatorIds.map((id) => ({
+    url: `${SITE_URL}/creators/${id}`,
+    changeFrequency: "weekly",
+    priority: 0.5,
+  }));
+
+  return [...staticRoutes, ...agentRoutes, ...creatorRoutes];
 }

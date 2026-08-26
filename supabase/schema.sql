@@ -21,6 +21,32 @@ create table if not exists profiles (
   created_at timestamptz not null default now()
 );
 
+-- Nothing else in this file, and nothing in the app, ever inserted a
+-- profiles row — the "profiles insert on signup" policy below existed
+-- with no code path that ever used it. Every real sign-in created an
+-- auth.users row with no matching profiles row, silently breaking
+-- everything that reads or writes one: membership (the webhook's UPDATE
+-- profiles ... WHERE id = user_id affects zero rows with nothing to
+-- update), canUpload() defaulting to the 'free' tier forever, payouts,
+-- every page showing a creator's display name. This is the standard
+-- Supabase pattern for provisioning one automatically: a trigger on
+-- auth.users itself, since nothing in application code runs at the
+-- moment a user is actually created. security definer is required —
+-- this fires as part of Supabase's own auth flow, before there's a
+-- signed-in session for RLS's `auth.uid() = id` check to match against.
+create or replace function handle_new_user() returns trigger as $$
+begin
+  insert into public.profiles (id, display_name)
+  values (new.id, coalesce(split_part(new.email, '@', 1), 'there'));
+  return new;
+end;
+$$ language plpgsql security definer set search_path = public;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute function handle_new_user();
+
 create table if not exists categories (
   slug text primary key,
   name text not null,
@@ -55,9 +81,21 @@ create table if not exists agents (
   trust_score integer not null default 0 check (trust_score between 0 and 100),
   stripe_product_id text,
   stripe_price_id text,
+  -- Bumped whenever an edit changes what a buyer actually reads or where the
+  -- code lives (app/api/agents/[id]/route.ts) — not on every save (a price
+  -- or category tweak doesn't mean new code exists). This is what
+  -- /api/agents/[slug]/version exists for: an agent delivered as a
+  -- standalone script has no reason to ever load the Agently site again,
+  -- so it can't see the in-app notification bell. Pinging that endpoint on
+  -- its own is the only update signal that reaches it.
+  version integer not null default 1,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Safe to re-run against a project that already ran this file before
+-- `version` existed — `create table if not exists` above wouldn't add it.
+alter table agents add column if not exists version integer not null default 1;
 
 create index if not exists agents_status_idx on agents (status);
 create index if not exists agents_category_idx on agents (category_slug);
@@ -145,6 +183,16 @@ create policy "buyers can claim free agents" on purchases for insert
     buyer_id = auth.uid()
     and exists (select 1 from agents where agents.id = agent_id and agents.pricing_model = 'free')
   );
+-- The free-agent claim in app/api/checkout/route.ts upserts on a
+-- deterministic conflict key (free_<agent>_<buyer>), so re-clicking "Get
+-- this agent" always hits the ON CONFLICT DO UPDATE branch, not a fresh
+-- insert. RLS checks that branch as an UPDATE — without this, the very
+-- first claim would succeed and every one after it would fail.
+create policy "buyers can re-claim free agents" on purchases for update
+  using (
+    buyer_id = auth.uid()
+    and exists (select 1 from agents where agents.id = agent_id and agents.pricing_model = 'free')
+  );
 
 create policy "reviews are public" on reviews for select using (true);
 -- A review requires an actual (paid) purchase row for that agent — without
@@ -161,6 +209,13 @@ create policy "buyers can write their own review" on reviews for insert
         and purchases.status = 'paid'
     )
   );
+-- The reviews route upserts (ON CONFLICT (agent_id, buyer_id) DO UPDATE) so
+-- a buyer re-submitting their review updates it instead of erroring on the
+-- unique constraint — but RLS checks the actual UPDATE that runs on a
+-- conflict, and without this policy there was none, so the row a buyer
+-- already owns could be inserted once and never touched again.
+create policy "buyers can update their own review" on reviews for update
+  using (buyer_id = auth.uid());
 
 create policy "users see their own notifications" on notifications for select using (user_id = auth.uid());
 create policy "users mark their own notifications read" on notifications for update using (user_id = auth.uid());

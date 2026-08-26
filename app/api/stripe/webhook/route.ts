@@ -13,13 +13,18 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // purchase row (and the connect/subscription status updates below) silently
 // never got written.
 export async function POST(request: Request) {
-  const stripe = getStripe();
   const signature = request.headers.get("stripe-signature");
-  const body = await request.text();
 
-  if (!signature || !process.env.STRIPE_WEBHOOK_SECRET) {
+  // Checked before getStripe() on purpose — that throws with no
+  // STRIPE_SECRET_KEY, which would turn a stray or premature POST to this
+  // endpoint (before Stripe is even configured) into an unhandled 500
+  // instead of the same clean 400 an unconfigured webhook already returns.
+  if (!signature || !process.env.STRIPE_WEBHOOK_SECRET || !process.env.STRIPE_SECRET_KEY) {
     return NextResponse.json({ error: "Webhook not configured" }, { status: 400 });
   }
+
+  const stripe = getStripe();
+  const body = await request.text();
 
   let event;
   try {

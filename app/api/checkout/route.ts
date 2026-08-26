@@ -72,6 +72,10 @@ export async function POST(request: Request) {
     );
   }
 
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return NextResponse.json({ error: "Not connected yet — Stripe isn't configured." }, { status: 503 });
+  }
+
   const stripe = getStripe();
   const platformFee = Math.round((agent.price_cents * PLATFORM_FEE_PERCENT) / 100);
   const origin = new URL(request.url).origin;

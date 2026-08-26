@@ -10,6 +10,9 @@ export async function POST(request: Request) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
   }
+  if (!process.env.STRIPE_SECRET_KEY) {
+    return NextResponse.json({ error: "Not connected yet — Stripe isn't configured." }, { status: 503 });
+  }
 
   const supabase = await createClient();
   const {

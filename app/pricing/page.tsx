@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { MEMBERSHIP_TIERS } from "@/lib/membership";
 import { createClient } from "@/lib/supabase/server";
 
@@ -7,6 +8,16 @@ const TIER_COPY: Record<(typeof TIER_ORDER)[number], { blurb: string }> = {
   basic: { blurb: "For your first agents. List up to 3 at a time." },
   pro: { blurb: "For creators publishing regularly. List up to 15 at a time." },
   professional: { blurb: "For teams and companies running a full catalog." },
+};
+
+const title = "Membership — Agently";
+const description = "Browsing and buying is always free. A membership is what lets you list your own agents.";
+
+export const metadata: Metadata = {
+  title,
+  description,
+  openGraph: { title, description, type: "website" },
+  twitter: { card: "summary_large_image", title, description },
 };
 
 export default async function PricingPage() {

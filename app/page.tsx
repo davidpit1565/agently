@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getApprovedAgents } from "@/lib/catalog";
+import { AgentCard } from "@/app/components/agent-card";
 
 const PILLARS = [
   {
@@ -71,6 +72,22 @@ export default async function Home() {
             </div>
           ))}
         </div>
+
+        {agents.length > 0 && (
+          <div className="flex flex-col gap-5">
+            <div className="flex items-center justify-between">
+              <h2 className="font-display text-lg font-semibold">Newest in the catalog</h2>
+              <Link href="/browse" className="text-sm text-ink-faint hover:text-accent">
+                See all {agents.length} →
+              </Link>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              {agents.slice(0, 3).map((agent) => (
+                <AgentCard key={agent.id} agent={agent} />
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </main>
   );

@@ -1,3 +1,13 @@
+import type { Metadata } from "next";
+
+// noindex, not a full title/OG treatment — this is explicitly a draft, not
+// reviewed by a lawyer yet (see the notice below); it shouldn't be what a
+// search result sends someone to before it's real.
+export const metadata: Metadata = {
+  title: "Terms of Service (draft) — Agently",
+  robots: { index: false, follow: true },
+};
+
 export default function TermsPage() {
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
