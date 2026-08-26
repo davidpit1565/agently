@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { NotificationBell } from "@/app/components/notification-bell";
 
 const NAV = [
   { href: "/browse", label: "Browse" },
@@ -26,6 +27,7 @@ export function Header() {
               {item.label}
             </Link>
           ))}
+          <NotificationBell />
           <Link
             href="/auth/sign-in"
             className="rounded-full border border-line px-3 py-1.5 hover:border-accent/50 hover:text-ink"
@@ -35,6 +37,7 @@ export function Header() {
         </nav>
 
         <div className="flex items-center gap-2 sm:hidden">
+          <NotificationBell />
           <Link
             href="/auth/sign-in"
             className="flex h-11 items-center rounded-full border border-line px-4 text-sm hover:border-accent/50"

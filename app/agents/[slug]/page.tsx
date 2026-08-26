@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getAgentBySlug, getCreatorProfile } from "@/lib/catalog";
 import { getReviewsForAgent } from "@/lib/reviews";
+import { createClient } from "@/lib/supabase/server";
 import { CATEGORIES_FALLBACK } from "@/data/categories";
 import { agentCode } from "@/lib/agent-code";
 import { TrustRing } from "@/app/components/trust-ring";
@@ -50,6 +51,15 @@ export default async function AgentPage({
   const { reviews, average, count } = await getReviewsForAgent(agent.id);
   const creator = await getCreatorProfile(agent.creator_id);
 
+  let isOwner = false;
+  if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    const supabase = await createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    isOwner = user?.id === agent.creator_id;
+  }
+
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
       <div className="flex flex-col gap-5">
@@ -83,6 +93,14 @@ export default async function AgentPage({
           </span>
           {agent.status === "approved" && (
             <span className="text-ink-faint">Safety-reviewed ✓</span>
+          )}
+          {isOwner && (
+            <Link
+              href={`/dashboard/agents/${agent.id}/edit`}
+              className="rounded-full border border-line px-3 py-1 text-xs text-ink-faint hover:border-accent/50 hover:text-accent"
+            >
+              Edit listing
+            </Link>
           )}
         </div>
 

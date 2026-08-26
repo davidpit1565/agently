@@ -83,11 +83,43 @@ create table if not exists reviews (
   unique (agent_id, buyer_id)
 );
 
+-- Keeps agents.updated_at honest on every edit, so "when was this last
+-- changed" is never something the app has to remember to set by hand.
+create or replace function touch_updated_at() returns trigger as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$ language plpgsql;
+
+drop trigger if exists agents_touch_updated_at on agents;
+create trigger agents_touch_updated_at
+  before update on agents
+  for each row execute function touch_updated_at();
+
+-- One row per buyer per agent-update. Written by the creator's own edit
+-- request (app/api/agents/[id]) on behalf of every buyer who owns that
+-- agent — the insert policy below is what makes that legitimate without
+-- a service-role key: a creator may only insert rows for an agent they
+-- actually own, never impersonate notifications for an agent that isn't theirs.
+create table if not exists notifications (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references profiles(id) on delete cascade,
+  agent_id uuid references agents(id) on delete cascade,
+  type text not null default 'agent_updated' check (type in ('agent_updated')),
+  message text not null,
+  read boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists notifications_user_idx on notifications (user_id, read);
+
 -- Row Level Security: catalog is public to read; writes are locked to owners.
 alter table profiles enable row level security;
 alter table agents enable row level security;
 alter table purchases enable row level security;
 alter table reviews enable row level security;
+alter table notifications enable row level security;
 
 create policy "profiles are self-readable" on profiles for select using (auth.uid() = id);
 create policy "profiles are self-updatable" on profiles for update using (auth.uid() = id);
@@ -101,3 +133,8 @@ create policy "buyers see their own purchases" on purchases for select using (bu
 
 create policy "reviews are public" on reviews for select using (true);
 create policy "buyers can write their own review" on reviews for insert with check (buyer_id = auth.uid());
+
+create policy "users see their own notifications" on notifications for select using (user_id = auth.uid());
+create policy "users mark their own notifications read" on notifications for update using (user_id = auth.uid());
+create policy "creators notify their own agent's buyers" on notifications for insert
+  with check (exists (select 1 from agents where agents.id = agent_id and agents.creator_id = auth.uid()));

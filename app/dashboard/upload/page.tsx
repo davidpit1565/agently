@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { canUpload } from "@/lib/membership";
 import { CATEGORIES_FALLBACK } from "@/data/categories";
+import { Field, Notice } from "@/app/components/form-field";
 
 export default async function UploadPage() {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
@@ -127,52 +128,5 @@ export default async function UploadPage() {
         </button>
       </form>
     </main>
-  );
-}
-
-function Notice({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <main className="mx-auto max-w-md px-6 py-24 text-center">
-      <h1 className="mb-2 font-display text-xl font-semibold">{title}</h1>
-      <p className="text-sm text-ink-soft">{children}</p>
-    </main>
-  );
-}
-
-function Field({
-  label,
-  name,
-  required,
-  textarea,
-  type = "text",
-  hint,
-}: {
-  label: string;
-  name: string;
-  required?: boolean;
-  textarea?: boolean;
-  type?: string;
-  hint?: string;
-}) {
-  return (
-    <label className="flex flex-col gap-1 text-sm">
-      <span className="font-medium">{label}</span>
-      {textarea ? (
-        <textarea
-          name={name}
-          required={required}
-          rows={3}
-          className="rounded-lg border border-line bg-surface px-4 py-2.5 text-ink outline-none focus:border-accent"
-        />
-      ) : (
-        <input
-          type={type}
-          name={name}
-          required={required}
-          className="rounded-lg border border-line bg-surface px-4 py-2.5 text-ink outline-none focus:border-accent"
-        />
-      )}
-      {hint && <span className="text-xs text-ink-faint">{hint}</span>}
-    </label>
   );
 }
