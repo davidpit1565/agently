@@ -43,6 +43,15 @@ you). This is the exact path, phone-friendly, boring-but-reliable.
     it, and paste it into the SQL editor box.
 19. Tap **"Run"** (bottom right, or Ctrl/Cmd+Enter). A success message
     appears — that's the whole database structure created in one shot.
+20. On the left sidebar, tap **"Authentication"**, then **"URL
+    Configuration"** near the top of that page.
+21. **Site URL**: type `https://agently-orcin.vercel.app` (replace with
+    your real domain if you've set one up).
+22. Under **"Redirect URLs"**, tap **"Add URL"** and add
+    `https://agently-orcin.vercel.app/auth/callback`. Without this exact
+    entry, Supabase silently refuses the sign-in link this app sends —
+    someone taps it and lands on an error instead of being signed in.
+23. Tap **"Save"** at the bottom of that section.
 
 ## Part 2 — Stripe (~5 minutes)
 
