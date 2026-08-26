@@ -157,6 +157,16 @@ create policy "buyers can claim free agents" on purchases for insert
     buyer_id = auth.uid()
     and exists (select 1 from agents where agents.id = agent_id and agents.pricing_model = 'free')
   );
+-- The free-agent claim in app/api/checkout/route.ts upserts on a
+-- deterministic conflict key (free_<agent>_<buyer>), so re-clicking "Get
+-- this agent" always hits the ON CONFLICT DO UPDATE branch, not a fresh
+-- insert. RLS checks that branch as an UPDATE — without this, the very
+-- first claim would succeed and every one after it would fail.
+create policy "buyers can re-claim free agents" on purchases for update
+  using (
+    buyer_id = auth.uid()
+    and exists (select 1 from agents where agents.id = agent_id and agents.pricing_model = 'free')
+  );
 
 create policy "reviews are public" on reviews for select using (true);
 -- A review requires an actual (paid) purchase row for that agent — without
@@ -173,6 +183,13 @@ create policy "buyers can write their own review" on reviews for insert
         and purchases.status = 'paid'
     )
   );
+-- The reviews route upserts (ON CONFLICT (agent_id, buyer_id) DO UPDATE) so
+-- a buyer re-submitting their review updates it instead of erroring on the
+-- unique constraint — but RLS checks the actual UPDATE that runs on a
+-- conflict, and without this policy there was none, so the row a buyer
+-- already owns could be inserted once and never touched again.
+create policy "buyers can update their own review" on reviews for update
+  using (buyer_id = auth.uid());
 
 create policy "users see their own notifications" on notifications for select using (user_id = auth.uid());
 create policy "users mark their own notifications read" on notifications for update using (user_id = auth.uid());
