@@ -68,10 +68,10 @@ export default async function AgentPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ purchased?: string; reviewed?: string }>;
+  searchParams: Promise<{ purchased?: string; reviewed?: string; updated?: string }>;
 }) {
   const { slug } = await params;
-  const { purchased, reviewed } = await searchParams;
+  const { purchased, reviewed, updated } = await searchParams;
   const agent = await getAgentBySlug(slug);
   if (!agent) notFound();
 
@@ -144,9 +144,13 @@ export default async function AgentPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <div className="flex flex-col gap-5">
-        {(purchased || reviewed) && (
+        {(purchased || reviewed || updated) && (
           <div className="rounded-lg border border-accent/30 bg-accent-soft px-4 py-2.5 text-sm text-accent">
-            {purchased ? "You got it — check the delivery link below." : "Thanks — your review is posted."}
+            {purchased
+              ? "You got it — check the delivery link below."
+              : reviewed
+                ? "Thanks — your review is posted."
+                : "Saved. Every buyer who owns this agent has been notified."}
           </div>
         )}
         {isOwner && agent.status !== "approved" && (
