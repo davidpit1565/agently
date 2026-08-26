@@ -28,9 +28,22 @@ export async function POST(request: Request) {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("stripe_customer_id")
+    .select("stripe_customer_id, membership_status")
     .eq("id", user.id)
     .single();
+
+  // Starting a second Checkout session while one subscription is already
+  // active would create a second, separate subscription — Stripe has no
+  // idea it's meant to replace the first one, so this would double-bill.
+  // Changing or canceling an existing membership goes through the billing
+  // portal instead (/api/membership/portal), which edits the one real
+  // subscription rather than stacking a new one on top of it.
+  if (profile?.membership_status === "active") {
+    return NextResponse.json(
+      { error: "You already have an active membership — manage or change it from your dashboard instead of starting a new one." },
+      { status: 409 }
+    );
+  }
 
   const config = MEMBERSHIP_TIERS[tier];
   const amount = interval === "yearly" ? config.yearlyPriceCents : config.monthlyPriceCents;

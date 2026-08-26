@@ -12,6 +12,7 @@ const TIER_COPY: Record<(typeof TIER_ORDER)[number], { blurb: string }> = {
 export default async function PricingPage() {
   let signedIn = false;
   let currentTier: string | null = null;
+  let hasActiveMembership = false;
   if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
     const supabase = await createClient();
     const {
@@ -21,10 +22,11 @@ export default async function PricingPage() {
     if (user) {
       const { data: profile } = await supabase
         .from("profiles")
-        .select("membership_tier")
+        .select("membership_tier, membership_status")
         .eq("id", user.id)
         .single();
       currentTier = profile?.membership_tier ?? null;
+      hasActiveMembership = profile?.membership_status === "active";
     }
   }
 
@@ -74,10 +76,27 @@ export default async function PricingPage() {
               </p>
               <p className="mt-2 text-sm text-ink-soft">Up to {config.maxActiveListings} active listings</p>
 
-              {currentTier === tier ? (
-                <span className="mt-4 rounded-full border border-accent/30 bg-accent-soft px-4 py-2 text-center text-sm font-medium text-accent">
-                  Current plan
-                </span>
+              {hasActiveMembership && currentTier === tier ? (
+                <div className="mt-4 flex flex-col gap-2">
+                  <span className="rounded-full border border-accent/30 bg-accent-soft px-4 py-2 text-center text-sm font-medium text-accent">
+                    Current plan
+                  </span>
+                  <form action="/api/membership/portal" method="POST">
+                    <button type="submit" className="w-full text-center text-xs text-ink-faint underline hover:text-ink-soft">
+                      Manage or cancel
+                    </button>
+                  </form>
+                </div>
+              ) : hasActiveMembership ? (
+                <form action="/api/membership/portal" method="POST" className="mt-4">
+                  <button
+                    type="submit"
+                    className="w-full rounded-full border border-line px-4 py-2 text-center text-sm font-medium text-ink-soft hover:border-accent/50 hover:text-ink"
+                    title={`Cancel your ${currentTier} membership first, then join ${config.name}`}
+                  >
+                    Switch from {currentTier}
+                  </button>
+                </form>
               ) : signedIn ? (
                 <div className="mt-4 flex gap-2">
                   <form action="/api/membership/checkout" method="POST" className="flex-1">
