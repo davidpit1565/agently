@@ -57,8 +57,9 @@ you). This is the exact path, phone-friendly, boring-but-reliable.
    key"**, then copy it. This goes into Vercel as `STRIPE_SECRET_KEY`.
 6. Still in Developers, tap **"Webhooks"**, then **"Add endpoint"**.
 7. **Endpoint URL**: `https://agently-orcin.vercel.app/api/stripe/webhook`
-8. Tap **"Select events"**, and check these three: `checkout.session.completed`,
-   `customer.subscription.updated`, `account.updated`. Tap **"Add events"**.
+8. Tap **"Select events"**, and check these four: `checkout.session.completed`,
+   `customer.subscription.updated`, `customer.subscription.deleted`,
+   `account.updated`. Tap **"Add events"**.
 9. Tap **"Add endpoint"**.
 10. On the endpoint's page, find **"Signing secret"**, tap **"Reveal"**,
     copy it. This goes into Vercel as `STRIPE_WEBHOOK_SECRET`.
