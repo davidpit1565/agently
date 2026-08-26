@@ -55,9 +55,21 @@ create table if not exists agents (
   trust_score integer not null default 0 check (trust_score between 0 and 100),
   stripe_product_id text,
   stripe_price_id text,
+  -- Bumped whenever an edit changes what a buyer actually reads or where the
+  -- code lives (app/api/agents/[id]/route.ts) — not on every save (a price
+  -- or category tweak doesn't mean new code exists). This is what
+  -- /api/agents/[slug]/version exists for: an agent delivered as a
+  -- standalone script has no reason to ever load the Agently site again,
+  -- so it can't see the in-app notification bell. Pinging that endpoint on
+  -- its own is the only update signal that reaches it.
+  version integer not null default 1,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+-- Safe to re-run against a project that already ran this file before
+-- `version` existed — `create table if not exists` above wouldn't add it.
+alter table agents add column if not exists version integer not null default 1;
 
 create index if not exists agents_status_idx on agents (status);
 create index if not exists agents_category_idx on agents (category_slug);

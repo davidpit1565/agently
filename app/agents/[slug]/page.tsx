@@ -68,10 +68,10 @@ export default async function AgentPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ purchased?: string; reviewed?: string; updated?: string }>;
+  searchParams: Promise<{ purchased?: string; reviewed?: string; updated?: string; saved?: string }>;
 }) {
   const { slug } = await params;
-  const { purchased, reviewed, updated } = await searchParams;
+  const { purchased, reviewed, updated, saved } = await searchParams;
   const agent = await getAgentBySlug(slug);
   if (!agent) notFound();
 
@@ -144,13 +144,15 @@ export default async function AgentPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <div className="flex flex-col gap-5">
-        {(purchased || reviewed || updated) && (
+        {(purchased || reviewed || updated || saved) && (
           <div className="rounded-lg border border-accent/30 bg-accent-soft px-4 py-2.5 text-sm text-accent">
             {purchased
               ? "You got it — check the delivery link below."
               : reviewed
                 ? "Thanks — your review is posted."
-                : "Saved. Every buyer who owns this agent has been notified."}
+                : updated
+                  ? "Saved as a new version. Every buyer who owns this agent has been notified, and its version-check endpoint now reports it."
+                  : "Saved."}
           </div>
         )}
         {isOwner && agent.status !== "approved" && (
@@ -170,6 +172,8 @@ export default async function AgentPage({
             <span className="mx-1 text-line">·</span>
             <span className="h-1.5 w-1.5 rounded-full" style={{ background: cat.color }} aria-hidden />
             {cat.name}
+            <span className="mx-1 text-line">·</span>
+            <span className="tabular-nums">v{agent.version}</span>
           </span>
           <TrustRing score={agent.trust_score} />
         </div>
@@ -217,6 +221,25 @@ export default async function AgentPage({
             >
               {agent.delivery_url}
             </a>
+
+            {isOwner && (
+              <details className="mt-4 border-t border-accent/20 pt-4">
+                <summary className="cursor-pointer text-xs font-medium text-ink-soft">
+                  Let a standalone script check for updates on its own
+                </summary>
+                <p className="mt-2 text-xs leading-relaxed text-ink-faint">
+                  The notification above only reaches someone looking at
+                  this site. If what you deliver runs on its own — a
+                  script, a scheduled job — it can check{" "}
+                  <code className="text-ink-soft">
+                    GET /api/version/{agent.slug}
+                  </code>{" "}
+                  itself instead. See{" "}
+                  <code className="text-ink-soft">CHECKING-FOR-UPDATES.md</code>{" "}
+                  in the repo for a drop-in Python/JS snippet.
+                </p>
+              </details>
+            )}
           </div>
         )}
 
