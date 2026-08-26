@@ -3,10 +3,11 @@ import { createClient } from "@/lib/supabase/server";
 import { reviewAgentSubmission } from "@/lib/safety-review";
 import { notifyBuyersOfUpdate } from "@/lib/notifications";
 
-// Edits an existing listing. Every buyer who owns it gets a notification
-// (lib/notifications.ts) — the gap the report flagged: "the creator updated
-// it, do I get the new version or am I stuck on the old one?" This doesn't
-// push a new file to existing buyers, it tells them one exists.
+// Edits an existing listing. When the edit is a real new version — the
+// delivery link or the buyer-facing content actually changed, not just
+// price or category — every buyer who owns it gets notified in-app
+// (lib/notifications.ts) and the version /api/version/[slug] reports goes
+// up, so a standalone delivered script can also notice on its own.
 //
 // POST, not PATCH — the edit page submits a plain HTML form (no JS
 // required, same pattern as every other write in this app), and forms
