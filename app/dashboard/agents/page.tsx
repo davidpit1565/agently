@@ -90,6 +90,7 @@ export default async function MyAgentsPage({
                   >
                     {STATUS_LABEL[agent.status] ?? agent.status}
                   </span>
+                  <span className="font-mono text-[10px] tabular-nums text-ink-faint">v{agent.version}</span>
                 </div>
                 <p className="mt-0.5 truncate text-sm text-ink-faint">{agent.tagline}</p>
                 {agent.review_notes && agent.status !== "approved" && (

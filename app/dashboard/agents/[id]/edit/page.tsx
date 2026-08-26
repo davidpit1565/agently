@@ -31,11 +31,14 @@ export default async function EditAgentPage({
 
   return (
     <main className="mx-auto max-w-xl px-6 py-16">
-      <h1 className="text-balance mb-2 font-display text-2xl font-semibold">Edit {agent.name}</h1>
+      <h1 className="text-balance mb-2 font-display text-2xl font-semibold">
+        Edit {agent.name} <span className="text-ink-faint">· v{agent.version}</span>
+      </h1>
       <p className="mb-8 text-sm text-ink-faint">
-        Every buyer who owns this agent gets notified that it changed.
-        Changing the name, tagline, problem, or description re-runs the
-        safety review — price and category changes don&apos;t.
+        Changing the name, tagline, problem, description, or delivery link
+        bumps the version, re-runs the safety review, and notifies every
+        buyer who owns it — price and category changes alone don&apos;t
+        count as a new version.
       </p>
 
       <form action={`/api/agents/${agent.id}`} method="POST" className="flex flex-col gap-4">
