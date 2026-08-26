@@ -77,15 +77,16 @@ export default function AboutPage() {
         <div className="rounded-xl border border-line bg-surface p-6">
           <h2 className="mb-2 font-display text-sm font-semibold text-accent">Where we draw the line</h2>
           <p className="text-pretty text-sm leading-relaxed text-ink-soft">
-            The concierge that matches a buyer&apos;s problem to an agent by
-            meaning, not exact words — search today is real text matching,
-            not that. And the safety review only reads a listing&apos;s
-            description; it can&apos;t inspect what the agent&apos;s code
-            actually does. Requesting a custom agent (Professional tier)
-            is a real request to a real person, too — there&apos;s no
-            pipeline that turns a description into working code on its
-            own. We&apos;d rather say that plainly than let the site imply
-            more than it does.
+            Search ranks by meaning, not just shared words, when it&apos;s
+            configured — but that&apos;s similarity between two pieces of
+            text, not an understanding of whether the agent actually solves
+            your problem; it still can&apos;t run the agent to check. And
+            the safety review only reads a listing&apos;s description; it
+            can&apos;t inspect what the agent&apos;s code actually does.
+            Requesting a custom agent (Professional tier) is a real request
+            to a real person, too — there&apos;s no pipeline that turns a
+            description into working code on its own. We&apos;d rather say
+            that plainly than let the site imply more than it does.
           </p>
         </div>
       </div>
