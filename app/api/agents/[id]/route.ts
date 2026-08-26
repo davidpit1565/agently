@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { reviewAgentSubmission } from "@/lib/safety-review";
 import { notifyBuyersOfUpdate } from "@/lib/notifications";
+import { getEmbedding, embeddableText } from "@/lib/embeddings";
 
 // Edits an existing listing. When the edit is a real new version — the
 // delivery link or the buyer-facing content actually changed, not just
@@ -58,6 +59,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   let status = existing.status;
   let trustScore = existing.trust_score;
   let reviewNotes = existing.review_notes;
+  let embedding = existing.embedding;
 
   if (contentChanged) {
     const verdict = await reviewAgentSubmission({ name, tagline, problemSolved, description, deliveryUrl });
@@ -70,6 +72,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       // back to a human rather than silently keeping the old verdict.
       status = "pending_review";
     }
+
+    // The text a buyer's search matches against changed — re-embed, or the
+    // listing keeps ranking against wording it no longer has.
+    embedding = await getEmbedding(embeddableText({ name, tagline, problem_solved: problemSolved }));
   }
 
   const { error } = await supabase
@@ -79,6 +85,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       tagline,
       problem_solved: problemSolved,
       description,
+      embedding,
       category_slug: categorySlug,
       pricing_model: pricingModel,
       price_cents: pricingModel === "free" ? null : Math.round(Number(priceEur) * 100),

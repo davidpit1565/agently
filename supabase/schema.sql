@@ -97,6 +97,17 @@ create table if not exists agents (
 -- `version` existed — `create table if not exists` above wouldn't add it.
 alter table agents add column if not exists version integer not null default 1;
 
+-- Semantic search (lib/embeddings.ts) — a listing's name+tagline+problem_solved
+-- run through Voyage AI, stored as a plain JSON float array rather than
+-- pgvector so this file stays a single SQL Editor paste with no extension
+-- step. Ranking is done in application code (cosineSimilarity), which is
+-- fine at catalog sizes an early marketplace actually has; a pgvector
+-- column + index is the upgrade once that stops being true. Null until
+-- VOYAGE_API_KEY is configured — search falls back to substring matching
+-- until then, same pattern as trust_score falling back to 0 without
+-- ANTHROPIC_API_KEY.
+alter table agents add column if not exists embedding jsonb;
+
 create index if not exists agents_status_idx on agents (status);
 create index if not exists agents_category_idx on agents (category_slug);
 

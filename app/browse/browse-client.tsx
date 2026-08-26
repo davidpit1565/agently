@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CATEGORIES_FALLBACK } from "@/data/categories";
 import { AgentCard } from "@/app/components/agent-card";
@@ -10,15 +10,58 @@ export function BrowseClient({ agents }: { agents: Agent[] }) {
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
+  // Agent ids in relevance order from /api/search, or null when semantic
+  // ranking isn't available for this query (no VOYAGE_API_KEY, the call
+  // failed, or nothing embedded cleared the similarity bar) — null means
+  // "fall back to substring matching," never "no results."
+  const [semanticIds, setSemanticIds] = useState<string[] | null>(null);
+
+  useEffect(() => {
+    const q = query.trim();
+    if (!q) {
+      setSemanticIds(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    // Debounced, not on every keystroke — this is a network call per query.
+    const timer = setTimeout(() => {
+      fetch("/api/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: q }),
+        signal: controller.signal,
+      })
+        .then((res) => res.json())
+        .then((data) => setSemanticIds(data.ranked ?? null))
+        .catch(() => setSemanticIds(null));
+    }, 300);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [query]);
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return agents.filter((agent) => {
-      if (activeCategory && agent.category_slug !== activeCategory) return false;
-      if (!q) return true;
+    const byCategory = agents.filter((agent) => !activeCategory || agent.category_slug === activeCategory);
+
+    if (!q) return byCategory;
+
+    if (semanticIds) {
+      const rank = new Map(semanticIds.map((id, i) => [id, i]));
+      return byCategory
+        .filter((agent) => rank.has(agent.id))
+        .sort((a, b) => rank.get(a.id)! - rank.get(b.id)!);
+    }
+
+    // Fallback: no semantic ranking available for this query.
+    return byCategory.filter((agent) => {
       const haystack = `${agent.name} ${agent.tagline} ${agent.problem_solved}`.toLowerCase();
       return haystack.includes(q);
     });
-  }, [agents, query, activeCategory]);
+  }, [agents, query, activeCategory, semanticIds]);
 
   const usedCategories = useMemo(
     () => CATEGORIES_FALLBACK.filter((c) => agents.some((a) => a.category_slug === c.slug)),
@@ -88,9 +131,7 @@ export function BrowseClient({ agents }: { agents: Agent[] }) {
           <span className="h-2 w-2 rounded-full bg-ink-faint" aria-hidden />
           <p className="font-display text-lg font-semibold">Nothing matches that yet</p>
           <p className="max-w-sm text-sm text-ink-soft">
-            The catalog is still small — the concierge that matches a problem to
-            an agent by meaning (not exact words) is planned but not built.
-            Try a broader search, or{" "}
+            The catalog is still small. Try a broader search, or{" "}
             <Link href="/dashboard/upload" className="text-accent underline">
               list the agent
             </Link>{" "}

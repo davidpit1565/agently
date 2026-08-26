@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { MEMBERSHIP_TIERS, canUpload } from "@/lib/membership";
 import { reviewAgentSubmission } from "@/lib/safety-review";
+import { getEmbedding, embeddableText } from "@/lib/embeddings";
 import type { MembershipTier } from "@/lib/types";
 
 // Handles the upload form (app/dashboard/upload). A "low" risk verdict from
@@ -77,6 +78,10 @@ export async function POST(request: Request) {
   const status = verdict?.risk === "low" ? "approved" : "pending_review";
   const trustScore = verdict ? { low: 65, medium: 40, high: 15 }[verdict.risk] : 0;
 
+  // Null without VOYAGE_API_KEY configured — /api/search falls back to
+  // substring matching for any listing with no embedding, same as today.
+  const embedding = await getEmbedding(embeddableText({ name, tagline, problem_solved: problemSolved }));
+
   const { error } = await supabase.from("agents").insert({
     creator_id: user.id,
     slug: slugify(name),
@@ -84,6 +89,7 @@ export async function POST(request: Request) {
     tagline,
     problem_solved: problemSolved,
     description,
+    embedding,
     category_slug: form.get("category_slug"),
     pricing_model: pricingModel,
     price_cents: pricingModel === "free" ? null : Math.round(Number(priceEur) * 100),
