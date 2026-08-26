@@ -30,7 +30,33 @@ export async function POST(request: Request) {
     .eq("id", agentId)
     .single();
 
-  if (!agent || agent.pricing_model === "free" || !agent.price_cents) {
+  if (!agent) {
+    return NextResponse.json({ error: "This agent doesn't exist." }, { status: 404 });
+  }
+
+  // Free agents skip Stripe entirely — record a zero-amount purchase so the
+  // buyer shows up as owning it (unlocks reviewing it, matches paid agents'
+  // "you already got this" state) and send them straight to the delivery link.
+  if (agent.pricing_model === "free") {
+    await supabase.from("purchases").upsert(
+      {
+        agent_id: agent.id,
+        buyer_id: user.id,
+        stripe_checkout_session_id: `free_${agent.id}_${user.id}`,
+        amount_cents: 0,
+        platform_fee_cents: 0,
+        status: "paid",
+      },
+      { onConflict: "stripe_checkout_session_id" }
+    );
+    const origin = new URL(request.url).origin;
+    return NextResponse.redirect(
+      agent.delivery_url || `${origin}/agents/${agent.slug}?purchased=1`,
+      303
+    );
+  }
+
+  if (!agent.price_cents) {
     return NextResponse.json({ error: "This agent isn't purchasable through checkout." }, { status: 400 });
   }
 

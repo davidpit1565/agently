@@ -105,12 +105,24 @@ export default async function AgentPage({
   };
 
   let isOwner = false;
+  let hasPurchased = false;
   if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
     const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
     isOwner = user?.id === agent.creator_id;
+
+    if (user && !isOwner) {
+      const { data: purchase } = await supabase
+        .from("purchases")
+        .select("id")
+        .eq("agent_id", agent.id)
+        .eq("buyer_id", user.id)
+        .eq("status", "paid")
+        .maybeSingle();
+      hasPurchased = !!purchase;
+    }
   }
 
   return (
@@ -193,7 +205,15 @@ export default async function AgentPage({
             </div>
           )}
 
-          <ReviewForm agentId={agent.id} />
+          {hasPurchased ? (
+            <ReviewForm agentId={agent.id} />
+          ) : (
+            <p className="text-xs text-ink-faint">
+              {isOwner
+                ? "You can't review your own agent."
+                : "Get this agent to leave a review — reviews are limited to people who actually used it."}
+            </p>
+          )}
         </div>
 
         <form action="/api/checkout" method="POST" className="pt-4">

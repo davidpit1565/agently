@@ -30,11 +30,18 @@ you). This is the exact path, phone-friendly, boring-but-reliable.
     what goes into Vercel as `NEXT_PUBLIC_SUPABASE_URL`.
 14. Still on that page, find **"anon public"** under API keys — tap copy
     next to it. This goes into Vercel as `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
-15. On the left sidebar, tap the **SQL Editor** icon (looks like `>_`).
-16. Tap **"New query"**.
-17. Open `supabase/schema.sql` from this repo, select all its text, copy
+15. On the same page, find **"service_role"** under API keys — tap
+    **"Reveal"**, then copy it. This goes into Vercel as
+    `SUPABASE_SERVICE_ROLE_KEY`. It's more powerful than the anon key
+    (it skips every access rule in the database), which is exactly why
+    only one thing in this repo uses it — the Stripe webhook, the one
+    place that has no signed-in visitor to check permissions against.
+    Never put this one in anything client-facing.
+16. On the left sidebar, tap the **SQL Editor** icon (looks like `>_`).
+17. Tap **"New query"**.
+18. Open `supabase/schema.sql` from this repo, select all its text, copy
     it, and paste it into the SQL editor box.
-18. Tap **"Run"** (bottom right, or Ctrl/Cmd+Enter). A success message
+19. Tap **"Run"** (bottom right, or Ctrl/Cmd+Enter). A success message
     appears — that's the whole database structure created in one shot.
 
 ## Part 2 — Stripe (~5 minutes)
@@ -67,9 +74,10 @@ you). This is the exact path, phone-friendly, boring-but-reliable.
 3. Add each of these one at a time — name, then value, then **"Save"**:
    - `NEXT_PUBLIC_SUPABASE_URL`
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - `SUPABASE_SERVICE_ROLE_KEY`
    - `STRIPE_SECRET_KEY`
    - `STRIPE_WEBHOOK_SECRET`
-4. Once all four are saved, go to the **"Deployments"** tab, tap the
+4. Once all five are saved, go to the **"Deployments"** tab, tap the
    **⋯** menu on the latest deployment, tap **"Redeploy"** — new env vars
    only take effect on a fresh build.
 

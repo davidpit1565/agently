@@ -130,9 +130,37 @@ create policy "members can insert their own agents" on agents for insert with ch
 create policy "creators can update their own agents" on agents for update using (creator_id = auth.uid());
 
 create policy "buyers see their own purchases" on purchases for select using (buyer_id = auth.uid());
+-- Without this, notifyBuyersOfUpdate() (lib/notifications.ts) queries
+-- purchases with the creator's own session to find who to notify, and RLS
+-- silently returns zero rows — a creator can never see their own agent's
+-- buyer list, and the update-notification feature never fires.
+create policy "creators see purchases of their own agents" on purchases for select
+  using (exists (select 1 from agents where agents.id = agent_id and agents.creator_id = auth.uid()));
+-- Paid purchases are written by the webhook via the service-role key (bypasses
+-- RLS — see lib/supabase/admin.ts). This policy only covers the one purchase
+-- a signed-in user can legitimately record for themselves: claiming a free
+-- agent, which never touches Stripe.
+create policy "buyers can claim free agents" on purchases for insert
+  with check (
+    buyer_id = auth.uid()
+    and exists (select 1 from agents where agents.id = agent_id and agents.pricing_model = 'free')
+  );
 
 create policy "reviews are public" on reviews for select using (true);
-create policy "buyers can write their own review" on reviews for insert with check (buyer_id = auth.uid());
+-- A review requires an actual (paid) purchase row for that agent — without
+-- this, any signed-in visitor could review any agent, including one they
+-- never bought or their own listing, which is exactly what the trust score
+-- and safety review exist to prevent.
+create policy "buyers can write their own review" on reviews for insert
+  with check (
+    buyer_id = auth.uid()
+    and exists (
+      select 1 from purchases
+      where purchases.agent_id = reviews.agent_id
+        and purchases.buyer_id = auth.uid()
+        and purchases.status = 'paid'
+    )
+  );
 
 create policy "users see their own notifications" on notifications for select using (user_id = auth.uid());
 create policy "users mark their own notifications read" on notifications for update using (user_id = auth.uid());

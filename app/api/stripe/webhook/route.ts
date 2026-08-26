@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
-import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // Point this route at Stripe's dashboard (or `stripe listen` locally) once
 // STRIPE_WEBHOOK_SECRET is set. Handles both one-time agent purchases and
 // membership subscription events.
+//
+// Uses the service-role admin client, not the cookie-based one: Stripe calls
+// this server-to-server with no user session, so auth.uid() is null and
+// every RLS policy in schema.sql would reject these writes otherwise —
+// meaning a real card charge would succeed on Stripe's side while the
+// purchase row (and the connect/subscription status updates below) silently
+// never got written.
 export async function POST(request: Request) {
   const stripe = getStripe();
   const signature = request.headers.get("stripe-signature");
@@ -21,7 +28,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: `Signature verification failed: ${err}` }, { status: 400 });
   }
 
-  const supabase = await createClient();
+  const supabase = createAdminClient();
+  if (!supabase) {
+    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY not configured" }, { status: 500 });
+  }
 
   switch (event.type) {
     case "checkout.session.completed": {
