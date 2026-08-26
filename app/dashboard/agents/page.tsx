@@ -56,6 +56,9 @@ export default async function MyAgentsPage({
           <Link href="/dashboard/payouts" className="text-sm text-ink-soft hover:text-accent">
             Payouts
           </Link>
+          <Link href="/dashboard/request" className="text-sm text-ink-soft hover:text-accent">
+            Request an agent
+          </Link>
           <Link
             href="/dashboard/upload"
             className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-[#04140f] hover:opacity-90"

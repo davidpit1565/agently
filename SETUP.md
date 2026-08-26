@@ -87,7 +87,10 @@ you). This is the exact path, phone-friendly, boring-but-reliable.
    - `SUPABASE_SERVICE_ROLE_KEY`
    - `STRIPE_SECRET_KEY`
    - `STRIPE_WEBHOOK_SECRET`
-4. Once all five are saved, go to the **"Deployments"** tab, tap the
+   - `PLATFORM_OWNER_EMAIL` — the email address you sign in with. This is
+     what unlocks `/dashboard/admin/requests`, where custom agent requests
+     from Professional members show up, for you and only you.
+4. Once all six are saved, go to the **"Deployments"** tab, tap the
    **⋯** menu on the latest deployment, tap **"Redeploy"** — new env vars
    only take effect on a fresh build.
 

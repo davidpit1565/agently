@@ -152,12 +152,41 @@ create table if not exists notifications (
 
 create index if not exists notifications_user_idx on notifications (user_id, read);
 
+-- Notifications now also cover a fulfilled agent request, not just an
+-- update to an agent someone bought.
+alter table notifications drop constraint if exists notifications_type_check;
+alter table notifications add constraint notifications_type_check
+  check (type in ('agent_updated', 'agent_request_fulfilled'));
+
+-- "Describe a problem, get a custom agent built for it" — a Professional-
+-- tier perk. Fulfillment itself is manual (someone on the team actually
+-- builds it and marks the request fulfilled); there's no automated
+-- pipeline that turns a description into working code. status tracks
+-- where a request is; fulfilled_agent_id links to the real listing once
+-- one exists, so the requester's notification can point straight at it.
+create table if not exists agent_requests (
+  id uuid primary key default gen_random_uuid(),
+  requester_id uuid not null references profiles(id) on delete cascade,
+  description text not null,
+  status text not null default 'pending' check (status in ('pending', 'in_progress', 'fulfilled', 'declined')),
+  admin_notes text,
+  fulfilled_agent_id uuid references agents(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists agent_requests_touch_updated_at on agent_requests;
+create trigger agent_requests_touch_updated_at
+  before update on agent_requests
+  for each row execute function touch_updated_at();
+
 -- Row Level Security: catalog is public to read; writes are locked to owners.
 alter table profiles enable row level security;
 alter table agents enable row level security;
 alter table purchases enable row level security;
 alter table reviews enable row level security;
 alter table notifications enable row level security;
+alter table agent_requests enable row level security;
 
 create policy "profiles are self-readable" on profiles for select using (auth.uid() = id);
 create policy "profiles are self-updatable" on profiles for update using (auth.uid() = id);
@@ -221,3 +250,21 @@ create policy "users see their own notifications" on notifications for select us
 create policy "users mark their own notifications read" on notifications for update using (user_id = auth.uid());
 create policy "creators notify their own agent's buyers" on notifications for insert
   with check (exists (select 1 from agents where agents.id = agent_id and agents.creator_id = auth.uid()));
+
+create policy "requesters see their own agent requests" on agent_requests for select
+  using (requester_id = auth.uid());
+-- Enforced here too, not just in app/api/requests/route.ts — a
+-- Professional-tier perk isn't real if only the UI hides the form for
+-- everyone else.
+create policy "professional members can request an agent" on agent_requests for insert
+  with check (
+    requester_id = auth.uid()
+    and exists (
+      select 1 from profiles
+      where profiles.id = auth.uid() and profiles.membership_tier = 'professional'
+    )
+  );
+-- No admin update/select policy here on purpose — the fulfillment routes
+-- (app/api/requests/[id]/route.ts) run through the service-role client
+-- (lib/supabase/admin.ts), same as the Stripe webhook, since there's no
+-- per-row "is this person the platform owner" concept RLS can check.

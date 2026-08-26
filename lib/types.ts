@@ -40,3 +40,16 @@ export type Profile = {
   membership_tier: MembershipTier;
   membership_status: "inactive" | "active" | "past_due" | "canceled";
 };
+
+export type AgentRequestStatus = "pending" | "in_progress" | "fulfilled" | "declined";
+
+export type AgentRequest = {
+  id: string;
+  requester_id: string;
+  description: string;
+  status: AgentRequestStatus;
+  admin_notes: string | null;
+  fulfilled_agent_id: string | null;
+  created_at: string;
+  updated_at: string;
+};
