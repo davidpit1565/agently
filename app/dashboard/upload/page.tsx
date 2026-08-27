@@ -62,11 +62,13 @@ export default async function UploadPage({
 
   return (
     <main className="mx-auto max-w-xl px-6 py-16">
-      <h1 className="text-balance mb-2 font-display text-2xl font-semibold">Upload an agent</h1>
-      <p className="mb-6 text-sm text-ink-faint">
-        Goes to <strong className="text-ink-soft">pending review</strong> first — nothing you submit here
-        is publicly visible until the safety review clears it.
-      </p>
+      <div className="animate-fade-up">
+        <h1 className="text-balance mb-2 font-display text-2xl font-semibold">Upload an agent</h1>
+        <p className="mb-6 text-sm text-ink-faint">
+          Goes to <strong className="text-ink-soft">pending review</strong> first — nothing you submit here
+          is publicly visible until the safety review clears it.
+        </p>
+      </div>
 
       {submitted && (
         <p className="mb-6 rounded-lg border border-accent/30 bg-accent-soft px-4 py-3 text-sm text-accent">
@@ -94,7 +96,13 @@ export default async function UploadPage({
         </p>
       )}
 
-      <form action="/api/agents" method="POST" encType="multipart/form-data" className="flex flex-col gap-4">
+      <form
+        action="/api/agents"
+        method="POST"
+        encType="multipart/form-data"
+        className="flex animate-fade-up flex-col gap-4"
+        style={{ animationDelay: "90ms" }}
+      >
         <Field label="Name" name="name" required />
         <Field label="One-line tagline" name="tagline" required />
         <Field
@@ -160,7 +168,7 @@ export default async function UploadPage({
 
         <button
           type="submit"
-          className="mt-2 rounded-full bg-accent px-6 py-3 text-sm font-medium text-[#04140f] hover:opacity-90"
+          className="shine-sweep mt-2 rounded-full bg-accent px-6 py-3 text-sm font-medium text-[#04140f] transition-transform duration-200 hover:-translate-y-0.5 hover:opacity-90"
         >
           Submit for review
         </button>

@@ -8,6 +8,7 @@ import { CATEGORIES_FALLBACK } from "@/data/categories";
 import { agentCode } from "@/lib/agent-code";
 import { TrustRing } from "@/app/components/trust-ring";
 import { ReviewForm } from "@/app/components/review-form";
+import { Reveal } from "@/app/components/reveal";
 import { getAgentFiles, getReadmeHtml, getSignedFileUrl } from "@/lib/agent-files";
 
 function formatSize(bytes: number) {
@@ -201,7 +202,7 @@ export default async function AgentPage({
             )}
           </div>
         )}
-        <div className="flex items-center justify-between">
+        <div className="flex animate-fade-up items-center justify-between">
           <span className="flex items-center gap-1.5 font-mono text-xs text-ink-faint">
             <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-accent" aria-hidden />
             {agentCode(agent.id)}
@@ -214,7 +215,7 @@ export default async function AgentPage({
           <TrustRing score={agent.trust_score} />
         </div>
 
-        <div>
+        <div className="animate-fade-up" style={{ animationDelay: "70ms" }}>
           <h1 className="text-balance font-display text-3xl font-semibold">{agent.name}</h1>
           <p className="mt-1 text-pretty text-lg leading-relaxed text-ink-soft">{agent.tagline}</p>
           {creator && (
@@ -227,7 +228,7 @@ export default async function AgentPage({
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-3 text-sm">
+        <div className="flex animate-fade-up flex-wrap items-center gap-3 text-sm" style={{ animationDelay: "140ms" }}>
           <span className="rounded-full bg-accent-soft px-3 py-1 font-mono font-medium tabular-nums text-accent">
             {priceLabel(agent)}
           </span>
@@ -245,7 +246,7 @@ export default async function AgentPage({
         </div>
 
         {(hasPurchased || isOwner) && agent.delivery_url && (
-          <div className="rounded-xl border border-accent/30 bg-accent-soft p-5">
+          <Reveal className="rounded-xl border border-accent/30 bg-accent-soft p-5">
             <h2 className="mb-2 font-display text-sm font-semibold text-accent">
               {isOwner ? "Delivery link" : "You own this — here's how to get it"}
             </h2>
@@ -276,11 +277,11 @@ export default async function AgentPage({
                 </p>
               </details>
             )}
-          </div>
+          </Reveal>
         )}
 
         {(hasPurchased || isOwner) && downloadableFiles.length > 0 && (
-          <div className="rounded-xl border border-line bg-surface p-5">
+          <Reveal className="rounded-xl border border-line bg-surface p-5">
             <h2 className="mb-3 font-display text-sm font-semibold text-accent">Files</h2>
             <div className="flex flex-col gap-2">
               {downloadableFiles.map((f) =>
@@ -296,30 +297,30 @@ export default async function AgentPage({
                 ) : null
               )}
             </div>
-          </div>
+          </Reveal>
         )}
 
-        <div className="rounded-xl border border-line bg-surface p-5">
+        <Reveal className="rounded-xl border border-line bg-surface p-5">
           <h2 className="mb-2 font-display text-sm font-semibold text-accent">The problem this solves</h2>
           <p className="text-pretty text-sm leading-relaxed text-ink-soft">{agent.problem_solved}</p>
-        </div>
+        </Reveal>
 
-        <div>
+        <Reveal delay={80}>
           <h2 className="mb-2 font-display text-sm font-semibold text-accent">What it does</h2>
           <p className="whitespace-pre-line text-pretty leading-relaxed text-ink-soft">{agent.description}</p>
-        </div>
+        </Reveal>
 
         {readmeHtml && (
-          <div className="rounded-xl border border-line bg-surface p-5">
+          <Reveal className="rounded-xl border border-line bg-surface p-5">
             <h2 className="mb-3 font-display text-sm font-semibold text-accent">README</h2>
             <div
               className="prose prose-sm max-w-none text-ink-soft [&_a]:text-accent [&_code]:text-ink [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-surface-raised [&_pre]:p-3"
               dangerouslySetInnerHTML={{ __html: readmeHtml }}
             />
-          </div>
+          </Reveal>
         )}
 
-        <div className="border-t border-line pt-6">
+        <Reveal className="border-t border-line pt-6">
           <div className="mb-4 flex items-center gap-3">
             <h2 className="font-display text-sm font-semibold text-accent">Reviews</h2>
             {average !== null && (
@@ -350,13 +351,13 @@ export default async function AgentPage({
                 : "Get this agent to leave a review — reviews are limited to people who actually used it."}
             </p>
           )}
-        </div>
+        </Reveal>
 
         <form action="/api/checkout" method="POST" className="pt-4">
           <input type="hidden" name="agentId" value={agent.id} />
           <button
             type="submit"
-            className="rounded-full bg-accent px-6 py-3 text-sm font-medium text-[#04140f] hover:opacity-90"
+            className="shine-sweep rounded-full bg-accent px-6 py-3 text-sm font-medium text-[#04140f] transition-transform duration-200 hover:-translate-y-0.5 hover:opacity-90"
           >
             {agent.pricing_model === "free" ? "Get this agent" : `Buy — ${priceLabel(agent)}`}
           </button>
