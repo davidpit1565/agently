@@ -172,7 +172,11 @@ export default async function AgentPage({
     <main className="mx-auto max-w-2xl px-6 py-16">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        // JSON.stringify doesn't escape "</", so a listing name/description
+        // containing "</script><script>..." (a creator-supplied field, only
+        // LLM-reviewed for risk, never for HTML breakout) would otherwise
+        // close this tag early and execute for every visitor of the page.
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
       />
       <div className="flex flex-col gap-5">
         {(purchased || reviewed || updated || saved) && (

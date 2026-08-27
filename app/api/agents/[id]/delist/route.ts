@@ -1,11 +1,13 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // Soft-delete — sets status to 'delisted' rather than removing the row.
 // A hard delete would orphan real purchase and review history that has
 // to survive the listing (refunds, past buyers' access, the trust
-// record). Covered by the existing "creators can update their own
-// agents" RLS policy, same as every other field on this table.
+// record). Ownership is checked below with the user's own session; the
+// actual write goes through the service-role client, since "authenticated"
+// has no update privilege at all on agently_agents (see supabase/schema.sql).
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
@@ -26,7 +28,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Agent not found, or you don't own it." }, { status: 404 });
   }
 
-  const { error } = await supabase.from("agently_agents").update({ status: "delisted" }).eq("id", id);
+  const admin = createAdminClient();
+  if (!admin) {
+    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+  }
+
+  const { error } = await admin.from("agently_agents").update({ status: "delisted" }).eq("id", id);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }

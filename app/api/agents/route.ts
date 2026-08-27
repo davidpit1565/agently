@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { MEMBERSHIP_TIERS, canUpload } from "@/lib/membership";
 import { reviewAgentSubmission } from "@/lib/safety-review";
 import { getEmbedding, embeddableText } from "@/lib/embeddings";
 import { uploadAgentFiles } from "@/lib/agent-files";
+import { sanitizeUrl } from "@/lib/validation";
 import type { MembershipTier } from "@/lib/types";
 
 // Handles the upload form (app/dashboard/upload). A "low" risk verdict from
@@ -64,7 +66,7 @@ export async function POST(request: Request) {
   const tagline = String(form.get("tagline"));
   const problemSolved = String(form.get("problem_solved"));
   const description = String(form.get("description"));
-  const deliveryUrl = (form.get("delivery_url") as string) || null;
+  const deliveryUrl = sanitizeUrl((form.get("delivery_url") as string) || null);
   // A file input still submits one zero-size entry when nothing was
   // picked — filtered out in uploadAgentFiles, not here, so this stays
   // the single place that decides what counts as "no file."
@@ -87,7 +89,18 @@ export async function POST(request: Request) {
   // substring matching for any listing with no embedding, same as today.
   const embedding = await getEmbedding(embeddableText({ name, tagline, problem_solved: problemSolved }));
 
-  const { data: inserted, error } = await supabase
+  // Ownership/membership/limit are all verified above with the user's own
+  // session. The insert itself goes through the service-role client — the
+  // "authenticated" role has no insert privilege at all on agently_agents
+  // (see supabase/schema.sql), specifically so nobody can PATCH/POST a row
+  // directly with status='approved' and a fabricated trust_score, bypassing
+  // reviewAgentSubmission() above.
+  const admin = createAdminClient();
+  if (!admin) {
+    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+  }
+
+  const { data: inserted, error } = await admin
     .from("agently_agents")
     .insert({
       creator_id: user.id,

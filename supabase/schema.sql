@@ -259,25 +259,67 @@ alter table agently_agent_requests enable row level security;
 -- table: every access goes through the service-role client instead.
 alter table agently_agent_files enable row level security;
 
+-- Every policy below is preceded by `drop policy if exists` — a bare
+-- `create policy` errors ("already exists") on any re-run, which is exactly
+-- what happened the first time this file was pasted twice. Every other
+-- statement in this file already tolerates a re-run (`if not exists`, `or
+-- replace`); policies are the one DDL form Postgres has no `if not exists`
+-- for, so this is the manual equivalent.
+drop policy if exists "profiles are self-readable" on agently_profiles;
 create policy "profiles are self-readable" on agently_profiles for select using (auth.uid() = id);
+drop policy if exists "profiles are self-updatable" on agently_profiles;
 create policy "profiles are self-updatable" on agently_profiles for update using (auth.uid() = id);
+drop policy if exists "profiles insert on signup" on agently_profiles;
 create policy "profiles insert on signup" on agently_profiles for insert with check (auth.uid() = id);
 
-create policy "approved agents are public" on agently_agents for select using (status = 'approved' or creator_id = auth.uid());
-create policy "members can insert their own agents" on agently_agents for insert with check (creator_id = auth.uid());
-create policy "creators can update their own agents" on agently_agents for update using (creator_id = auth.uid());
+-- RLS policies are row-level only — "self-updatable" above has no way to
+-- say *which columns* a user may change. Without the column-privilege lock
+-- below, any signed-in user can call the Supabase REST API directly with
+-- their own session (the anon key is public, by design) and PATCH their
+-- own row to set membership_tier='professional'/membership_status='active'
+-- — a full paywall bypass with no payment — since the app's own
+-- /api/profile route only ever writes the safe columns, but RLS never
+-- stopped a *different* client from writing the rest. Revoking UPDATE
+-- entirely and re-granting only the columns Settings actually edits means
+-- Postgres itself rejects any write to a money/trust column before RLS is
+-- even evaluated; the membership columns are now only ever written by the
+-- Stripe webhook's service-role client (lib/supabase/admin.ts), which
+-- bypasses grants and RLS alike.
+revoke update on agently_profiles from authenticated;
+grant update (display_name, account_type, company_name, bio, website_url) on agently_profiles to authenticated;
 
+drop policy if exists "approved agents are public" on agently_agents;
+create policy "approved agents are public" on agently_agents for select using (status = 'approved' or creator_id = auth.uid());
+
+-- Same class of gap as agently_profiles above, for status/trust_score/
+-- review_notes: RLS's "creators can update their own agents" (row-level:
+-- creator_id = auth.uid()) placed no limit on *which* columns, so a
+-- creator could PATCH their own listing directly to status='approved' and
+-- trust_score=100, self-approving a rejected or never-reviewed listing and
+-- fabricating its trust score — bypassing reviewAgentSubmission() (the
+-- safety-review pipeline) entirely. Revoking insert/update from
+-- `authenticated` outright (rather than granting a safe column subset, as
+-- above) is correct here specifically because app/api/agents/route.ts and
+-- app/api/agents/[id]/route.ts now write every agently_agents row through
+-- the service-role client after checking ownership/membership in code —
+-- there is no longer any legitimate insert or update from a user's own
+-- session to carve an exception for.
+revoke insert, update on agently_agents from authenticated;
+
+drop policy if exists "buyers see their own purchases" on agently_purchases;
 create policy "buyers see their own purchases" on agently_purchases for select using (buyer_id = auth.uid());
 -- Without this, notifyBuyersOfUpdate() (lib/notifications.ts) queries
 -- agently_purchases with the creator's own session to find who to notify, and RLS
 -- silently returns zero rows — a creator can never see their own agent's
 -- buyer list, and the update-notification feature never fires.
+drop policy if exists "creators see purchases of their own agents" on agently_purchases;
 create policy "creators see purchases of their own agents" on agently_purchases for select
   using (exists (select 1 from agently_agents where agently_agents.id = agent_id and agently_agents.creator_id = auth.uid()));
 -- Paid purchases are written by the webhook via the service-role key (bypasses
 -- RLS — see lib/supabase/admin.ts). This policy only covers the one purchase
 -- a signed-in user can legitimately record for themselves: claiming a free
 -- agent, which never touches Stripe.
+drop policy if exists "buyers can claim free agents" on agently_purchases;
 create policy "buyers can claim free agents" on agently_purchases for insert
   with check (
     buyer_id = auth.uid()
@@ -288,17 +330,20 @@ create policy "buyers can claim free agents" on agently_purchases for insert
 -- this agent" always hits the ON CONFLICT DO UPDATE branch, not a fresh
 -- insert. RLS checks that branch as an UPDATE — without this, the very
 -- first claim would succeed and every one after it would fail.
+drop policy if exists "buyers can re-claim free agents" on agently_purchases;
 create policy "buyers can re-claim free agents" on agently_purchases for update
   using (
     buyer_id = auth.uid()
     and exists (select 1 from agently_agents where agently_agents.id = agent_id and agently_agents.pricing_model = 'free')
   );
 
+drop policy if exists "reviews are public" on agently_reviews;
 create policy "reviews are public" on agently_reviews for select using (true);
 -- A review requires an actual (paid) purchase row for that agent — without
 -- this, any signed-in visitor could review any agent, including one they
 -- never bought or their own listing, which is exactly what the trust score
 -- and safety review exist to prevent.
+drop policy if exists "buyers can write their own review" on agently_reviews;
 create policy "buyers can write their own review" on agently_reviews for insert
   with check (
     buyer_id = auth.uid()
@@ -314,19 +359,38 @@ create policy "buyers can write their own review" on agently_reviews for insert
 -- unique constraint — but RLS checks the actual UPDATE that runs on a
 -- conflict, and without this policy there was none, so the row a buyer
 -- already owns could be inserted once and never touched again.
+drop policy if exists "buyers can update their own review" on agently_reviews;
 create policy "buyers can update their own review" on agently_reviews for update
   using (buyer_id = auth.uid());
 
+drop policy if exists "users see their own notifications" on agently_notifications;
 create policy "users see their own notifications" on agently_notifications for select using (user_id = auth.uid());
+drop policy if exists "users mark their own notifications read" on agently_notifications;
 create policy "users mark their own notifications read" on agently_notifications for update using (user_id = auth.uid());
+-- Originally checked only that the caller owns the agent — not that
+-- `user_id` is an actual buyer of it, so a creator could insert an
+-- arbitrary "notification" targeting any known user id as long as they own
+-- some agent. Now also requires a real paid purchase row linking that
+-- buyer to that agent, matching what the message is supposed to mean.
+drop policy if exists "creators notify their own agent's buyers" on agently_notifications;
 create policy "creators notify their own agent's buyers" on agently_notifications for insert
-  with check (exists (select 1 from agently_agents where agently_agents.id = agent_id and agently_agents.creator_id = auth.uid()));
+  with check (
+    exists (select 1 from agently_agents where agently_agents.id = agent_id and agently_agents.creator_id = auth.uid())
+    and exists (
+      select 1 from agently_purchases
+      where agently_purchases.agent_id = agently_notifications.agent_id
+        and agently_purchases.buyer_id = agently_notifications.user_id
+        and agently_purchases.status = 'paid'
+    )
+  );
 
+drop policy if exists "requesters see their own agent requests" on agently_agent_requests;
 create policy "requesters see their own agent requests" on agently_agent_requests for select
   using (requester_id = auth.uid());
 -- Enforced here too, not just in app/api/requests/route.ts — a
 -- Professional-tier perk isn't real if only the UI hides the form for
 -- everyone else.
+drop policy if exists "professional members can request an agent" on agently_agent_requests;
 create policy "professional members can request an agent" on agently_agent_requests for insert
   with check (
     requester_id = auth.uid()
