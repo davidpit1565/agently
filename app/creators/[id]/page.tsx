@@ -49,6 +49,22 @@ export default async function CreatorPage({
         </div>
       </div>
 
+      {(creator.bio || creator.website_url) && (
+        <div className="mb-10 flex flex-col gap-2 border-b border-line pb-8">
+          {creator.bio && <p className="max-w-2xl text-pretty leading-relaxed text-ink-soft">{creator.bio}</p>}
+          {creator.website_url && (
+            <a
+              href={creator.website_url}
+              target="_blank"
+              rel="noopener noreferrer nofollow"
+              className="w-fit text-sm text-accent hover:underline"
+            >
+              {creator.website_url.replace(/^https?:\/\//, "")}
+            </a>
+          )}
+        </div>
+      )}
+
       {agents.length === 0 ? (
         <p className="text-sm text-ink-soft">Nothing listed yet.</p>
       ) : (

@@ -47,6 +47,12 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function handle_new_user();
 
+-- Safe to re-run against a project that already ran this file before these
+-- existed — same "create table if not exists" limitation as agents.version
+-- above. Both nullable: a blank profile page shouldn't block anyone.
+alter table profiles add column if not exists bio text;
+alter table profiles add column if not exists website_url text;
+
 create table if not exists categories (
   slug text primary key,
   name text not null,

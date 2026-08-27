@@ -44,12 +44,16 @@ export type CreatorProfile = {
   id: string;
   display_name: string;
   account_type: "individual" | "company";
+  bio: string | null;
+  website_url: string | null;
 };
 
 const SEED_CREATOR: CreatorProfile = {
   id: "seed-creator",
   display_name: "Agently",
   account_type: "company",
+  bio: null,
+  website_url: null,
 };
 
 export async function getCreatorProfile(creatorId: string): Promise<CreatorProfile | null> {
@@ -60,7 +64,7 @@ export async function getCreatorProfile(creatorId: string): Promise<CreatorProfi
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, display_name, account_type")
+    .select("id, display_name, account_type, bio, website_url")
     .eq("id", creatorId)
     .single();
 
