@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { reviewAgentSubmission } from "@/lib/safety-review";
 import { notifyBuyersOfUpdate } from "@/lib/notifications";
 import { getEmbedding, embeddableText } from "@/lib/embeddings";
 import { uploadAgentFiles } from "@/lib/agent-files";
+import { sanitizeUrl } from "@/lib/validation";
 
 // Edits an existing listing. When the edit is a real new version — the
 // delivery link or the buyer-facing content actually changed, not just
@@ -42,7 +44,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const categorySlug = String(form.get("category_slug"));
   const pricingModel = String(form.get("pricing_model"));
   const priceEur = form.get("price");
-  const deliveryUrl = (form.get("delivery_url") as string) || null;
+  const deliveryUrl = sanitizeUrl((form.get("delivery_url") as string) || null);
   const newFiles = form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
 
   // Content changed enough to matter for trust/safety re-run only if the
@@ -80,7 +82,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     embedding = await getEmbedding(embeddableText({ name, tagline, problem_solved: problemSolved }));
   }
 
-  const { error } = await supabase
+  // Ownership was already checked above with the user's own session. The
+  // write itself goes through the service-role client — "authenticated" has
+  // no update privilege at all on agently_agents (see supabase/schema.sql),
+  // specifically so a creator can't PATCH their own row directly to
+  // status='approved'/trust_score=100, bypassing the safety-review verdict
+  // computed just above.
+  const admin = createAdminClient();
+  if (!admin) {
+    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+  }
+
+  const { error } = await admin
     .from("agently_agents")
     .update({
       name,

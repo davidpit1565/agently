@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { sanitizeUrl } from "@/lib/validation";
 
 export async function POST(request: Request) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
@@ -20,7 +21,7 @@ export async function POST(request: Request) {
   const accountType = form.get("account_type") === "company" ? "company" : "individual";
   const companyName = accountType === "company" ? (form.get("company_name") as string) || null : null;
   const bio = (form.get("bio") as string)?.trim() || null;
-  const websiteUrl = (form.get("website_url") as string)?.trim() || null;
+  const websiteUrl = sanitizeUrl((form.get("website_url") as string)?.trim() || null);
 
   if (!displayName) {
     return NextResponse.json({ error: "Display name can't be empty." }, { status: 400 });

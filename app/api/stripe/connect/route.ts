@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 // Sends a creator to Stripe's hosted onboarding so they can receive payouts.
 // Without this, a sale has nowhere to send the creator's share — see the
@@ -44,7 +45,14 @@ export async function POST(request: Request) {
       },
     });
     accountId = account.id;
-    await supabase.from("agently_profiles").update({ stripe_connect_id: accountId }).eq("id", user.id);
+    // stripe_connect_id isn't in the self-updatable column grant (see
+    // supabase/schema.sql) — a signed-in user's own session can no longer
+    // write it directly, so this write goes through the service-role
+    // client, same as every other Stripe-driven profile field.
+    const admin = createAdminClient();
+    if (admin) {
+      await admin.from("agently_profiles").update({ stripe_connect_id: accountId }).eq("id", user.id);
+    }
   }
 
   const link = await stripe.accountLinks.create({
