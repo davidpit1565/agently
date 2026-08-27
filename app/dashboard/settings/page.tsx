@@ -27,9 +27,15 @@ export default async function SettingsPage({
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("display_name, account_type, company_name")
+    .select("display_name, account_type, company_name, bio, website_url")
     .eq("id", user.id)
     .single();
+
+  // handle_new_user() (supabase/schema.sql) sets this from the email at
+  // signup, so it's only ever empty for a profile row created before that
+  // trigger existed — fall back to the same derivation here rather than
+  // showing a blank required field.
+  const displayName = profile?.display_name || user.email?.split("@")[0] || "";
 
   return (
     <main className="mx-auto max-w-xl px-6 py-16">
@@ -46,7 +52,7 @@ export default async function SettingsPage({
       )}
 
       <form action="/api/profile" method="POST" className="flex flex-col gap-4">
-        <Field label="Display name" name="display_name" required defaultValue={profile?.display_name} />
+        <Field label="Display name" name="display_name" required defaultValue={displayName} />
 
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium">Account type</span>
@@ -65,6 +71,22 @@ export default async function SettingsPage({
           name="company_name"
           defaultValue={profile?.company_name ?? undefined}
           hint="Only shown if account type is Company."
+        />
+
+        <Field
+          label="Bio"
+          name="bio"
+          textarea
+          defaultValue={profile?.bio ?? undefined}
+          hint="A couple of sentences — shows on your creator page, above your listings."
+        />
+
+        <Field
+          label="Website or link"
+          name="website_url"
+          type="url"
+          defaultValue={profile?.website_url ?? undefined}
+          hint="Optional — your site, a portfolio, or wherever people should find you."
         />
 
         <button

@@ -19,6 +19,8 @@ export async function POST(request: Request) {
   const displayName = String(form.get("display_name") ?? "").trim();
   const accountType = form.get("account_type") === "company" ? "company" : "individual";
   const companyName = accountType === "company" ? (form.get("company_name") as string) || null : null;
+  const bio = (form.get("bio") as string)?.trim() || null;
+  const websiteUrl = (form.get("website_url") as string)?.trim() || null;
 
   if (!displayName) {
     return NextResponse.json({ error: "Display name can't be empty." }, { status: 400 });
@@ -26,7 +28,13 @@ export async function POST(request: Request) {
 
   const { error } = await supabase
     .from("profiles")
-    .update({ display_name: displayName, account_type: accountType, company_name: companyName })
+    .update({
+      display_name: displayName,
+      account_type: accountType,
+      company_name: companyName,
+      bio,
+      website_url: websiteUrl,
+    })
     .eq("id", user.id);
 
   if (error) {
