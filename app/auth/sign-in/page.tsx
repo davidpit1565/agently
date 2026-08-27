@@ -56,59 +56,76 @@ export default function SignInPage() {
   }
 
   return (
-    <main className="mx-auto max-w-sm px-6 py-24">
-      <h1 className="text-balance mb-2 font-display text-2xl font-semibold">Sign in</h1>
-      <p className="mb-8 text-sm text-ink-faint">
-        No password — we email you a one-time link and a 6-digit code.
-      </p>
+    <main className="relative mx-auto max-w-sm overflow-hidden px-6 py-24">
+      <div className="hero-glow">
+        <div className="hero-glow-a" />
+      </div>
+      <div className="relative animate-fade-up">
+        <h1 className="text-balance mb-2 font-display text-2xl font-semibold">Sign in</h1>
+        <p className="mb-8 text-sm text-ink-faint">
+          No password — we email you a one-time link and a 6-digit code.
+        </p>
 
-      {sent ? (
-        <div className="flex flex-col gap-4">
-          <p className="rounded-lg bg-accent-soft p-4 text-sm text-accent">
-            Check your inbox. Click the link, or type the 6-digit code from
-            the same email below — the code works even if the link doesn't
-            (some inboxes scan and use up links automatically before you
-            click them).
-          </p>
-          <form onSubmit={handleVerifyCode} className="flex flex-col gap-3">
+        {sent ? (
+          <div className="flex animate-pop-in flex-col gap-4">
+            <p className="flex items-start gap-2 rounded-lg bg-accent-soft p-4 text-sm text-accent">
+              <svg
+                viewBox="0 0 20 20"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                className="mt-0.5 shrink-0"
+              >
+                <path d="M4 10.5l3.5 3.5L16 6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              Check your inbox. Click the link, or type the 6-digit code from
+              the same email below — the code works even if the link doesn't
+              (some inboxes scan and use up links automatically before you
+              click them).
+            </p>
+            <form onSubmit={handleVerifyCode} className="flex flex-col gap-3">
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                required
+                placeholder="123456"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                className="rounded-lg border border-line bg-surface px-4 py-2.5 text-center text-lg tracking-[0.3em] text-ink outline-none transition-colors focus:border-accent"
+              />
+              <button
+                type="submit"
+                disabled={verifying}
+                className="shine-sweep rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-[#04140f] transition-transform duration-200 hover:-translate-y-0.5 hover:opacity-90 disabled:opacity-60"
+              >
+                {verifying ? "Checking…" : "Verify code"}
+              </button>
+              {error && <p className="animate-shake text-sm text-red-400">{error}</p>}
+            </form>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="flex flex-col gap-3">
             <input
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
+              type="email"
               required
-              placeholder="123456"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              className="rounded-lg border border-line bg-surface px-4 py-2.5 text-center text-lg tracking-[0.3em] text-ink outline-none focus:border-accent"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="rounded-lg border border-line bg-surface px-4 py-2.5 text-sm text-ink outline-none transition-colors focus:border-accent"
             />
             <button
               type="submit"
-              disabled={verifying}
-              className="rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-[#04140f] hover:opacity-90 disabled:opacity-60"
+              className="shine-sweep rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-[#04140f] transition-transform duration-200 hover:-translate-y-0.5 hover:opacity-90"
             >
-              {verifying ? "Checking…" : "Verify code"}
+              Send link
             </button>
+            {error && <p className="animate-shake text-sm text-red-400">{error}</p>}
           </form>
-        </div>
-      ) : (
-        <form onSubmit={handleSubmit} className="flex flex-col gap-3">
-          <input
-            type="email"
-            required
-            placeholder="you@example.com"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="rounded-lg border border-line bg-surface px-4 py-2.5 text-sm text-ink outline-none focus:border-accent"
-          />
-          <button
-            type="submit"
-            className="rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-[#04140f] hover:opacity-90"
-          >
-            Send link
-          </button>
-        </form>
-      )}
-      {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+        )}
+      </div>
     </main>
   );
 }

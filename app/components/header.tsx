@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { NotificationBell } from "@/app/components/notification-bell";
 
@@ -10,8 +10,27 @@ const NAV = [
   { href: "/dashboard/upload", label: "Upload an agent" },
 ];
 
+/** An underline that grows in from the left on hover instead of just appearing —
+ *  a small motion cue that makes the nav feel responsive to the cursor, not static text. */
+function NavLink({ href, label, onClick }: { href: string; label: string; onClick?: () => void }) {
+  return (
+    <Link href={href} onClick={onClick} className="group relative transition-colors duration-200 hover:text-ink">
+      {label}
+      <span className="absolute -bottom-1 left-0 h-px w-0 bg-accent transition-all duration-300 ease-out group-hover:w-full" />
+    </Link>
+  );
+}
+
 export function Header({ signedIn }: { signedIn: boolean }) {
   const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
 
   const account = signedIn ? (
     <div className="flex items-center gap-3">
@@ -40,7 +59,11 @@ export function Header({ signedIn }: { signedIn: boolean }) {
   );
 
   return (
-    <header className="border-b border-line">
+    <header
+      className={`sticky top-0 z-40 border-b transition-colors duration-300 ${
+        scrolled ? "border-line bg-ground/80 backdrop-blur-md" : "border-transparent bg-transparent"
+      }`}
+    >
       <div className="mx-auto flex max-w-5xl items-center justify-between gap-4 px-6 py-4">
         <Link href="/" className="flex shrink-0 items-center gap-2 font-display text-sm font-semibold tracking-tight">
           <span className="h-2 w-2 animate-pulse-dot rounded-full bg-accent" aria-hidden />
@@ -49,9 +72,7 @@ export function Header({ signedIn }: { signedIn: boolean }) {
 
         <nav className="hidden items-center gap-6 text-sm text-ink-soft sm:flex">
           {NAV.map((item) => (
-            <Link key={item.href} href={item.href} className="hover:text-ink">
-              {item.label}
-            </Link>
+            <NavLink key={item.href} href={item.href} label={item.label} />
           ))}
           <NotificationBell />
           {account}
@@ -98,13 +119,14 @@ export function Header({ signedIn }: { signedIn: boolean }) {
       </div>
 
       {open && (
-        <nav className="flex flex-col gap-1 border-t border-line px-6 py-3 text-sm text-ink-soft sm:hidden">
-          {NAV.map((item) => (
+        <nav className="flex origin-top animate-fade-up flex-col gap-1 border-t border-line px-6 py-3 text-sm text-ink-soft duration-200 sm:hidden">
+          {NAV.map((item, i) => (
             <Link
               key={item.href}
               href={item.href}
               onClick={() => setOpen(false)}
-              className="flex min-h-11 items-center rounded-lg px-2 hover:bg-surface hover:text-ink"
+              style={{ animationDelay: `${i * 40}ms` }}
+              className="flex min-h-11 animate-fade-up items-center rounded-lg px-2 opacity-0 transition-colors hover:bg-surface hover:text-ink"
             >
               {item.label}
             </Link>

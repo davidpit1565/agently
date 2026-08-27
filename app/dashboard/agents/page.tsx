@@ -4,6 +4,7 @@ import { getMyAgents, getPurchaseCounts } from "@/lib/catalog";
 import { TrustRing } from "@/app/components/trust-ring";
 import { Notice } from "@/app/components/form-field";
 import { DelistButton } from "@/app/components/delist-button";
+import { Reveal } from "@/app/components/reveal";
 
 const STATUS_LABEL: Record<string, string> = {
   approved: "Live",
@@ -51,18 +52,18 @@ export default async function MyAgentsPage({
           Removed from the catalog. Buyers who already own it keep access.
         </div>
       )}
-      <div className="mb-8 flex items-center justify-between gap-4">
+      <div className="mb-8 flex animate-fade-up items-center justify-between gap-4">
         <h1 className="text-balance font-display text-2xl font-semibold">Your agents</h1>
         <div className="flex shrink-0 items-center gap-3">
-          <Link href="/dashboard/payouts" className="text-sm text-ink-soft hover:text-accent">
+          <Link href="/dashboard/payouts" className="text-sm text-ink-soft transition-colors hover:text-accent">
             Payouts
           </Link>
-          <Link href="/dashboard/request" className="text-sm text-ink-soft hover:text-accent">
+          <Link href="/dashboard/request" className="text-sm text-ink-soft transition-colors hover:text-accent">
             Request an agent
           </Link>
           <Link
             href="/dashboard/upload"
-            className="rounded-full bg-accent px-4 py-2 text-sm font-medium text-[#04140f] hover:opacity-90"
+            className="shine-sweep rounded-full bg-accent px-4 py-2 text-sm font-medium text-[#04140f] transition-transform duration-200 hover:-translate-y-0.5 hover:opacity-90"
           >
             Upload an agent
           </Link>
@@ -79,10 +80,11 @@ export default async function MyAgentsPage({
         </p>
       ) : (
         <div className="flex flex-col gap-3">
-          {agents.map((agent) => (
-            <div
+          {agents.map((agent, i) => (
+            <Reveal
               key={agent.id}
-              className="flex items-center gap-4 rounded-xl border border-line bg-surface p-4"
+              delay={Math.min(i, 6) * 60}
+              className="flex items-center gap-4 rounded-xl border border-line bg-surface p-4 transition-all duration-200 hover:border-accent/30 hover:bg-surface-raised"
             >
               <TrustRing score={agent.trust_score} />
 
@@ -130,7 +132,7 @@ export default async function MyAgentsPage({
                   <DelistButton agentId={agent.id} agentName={agent.name} />
                 )}
               </div>
-            </div>
+            </Reveal>
           ))}
         </div>
       )}
