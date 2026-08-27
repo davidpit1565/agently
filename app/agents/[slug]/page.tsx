@@ -8,6 +8,13 @@ import { CATEGORIES_FALLBACK } from "@/data/categories";
 import { agentCode } from "@/lib/agent-code";
 import { TrustRing } from "@/app/components/trust-ring";
 import { ReviewForm } from "@/app/components/review-form";
+import { getAgentFiles, getReadmeHtml, getSignedFileUrl } from "@/lib/agent-files";
+
+function formatSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 function Stars({ value }: { value: number }) {
   return (
@@ -104,6 +111,19 @@ export default async function AgentPage({
   const cat = category(agent.category_slug);
   const { reviews, average, count } = await getReviewsForAgent(agent.id);
   const creator = await getCreatorProfile(agent.creator_id);
+
+  // The README is documentation, not the paid deliverable — shown to any
+  // visitor, same as a README on GitHub or npm before you install anything.
+  const readmeHtml = await getReadmeHtml(agent.id);
+
+  // The files themselves ARE the deliverable — same gate as delivery_url
+  // below, and each download link is signed fresh for this render only.
+  const files = hasPurchased || isOwner ? await getAgentFiles(agent.id) : [];
+  const downloadableFiles = await Promise.all(
+    files
+      .filter((f) => !f.is_readme)
+      .map(async (f) => ({ ...f, url: await getSignedFileUrl(f.storage_path) }))
+  );
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -243,6 +263,26 @@ export default async function AgentPage({
           </div>
         )}
 
+        {(hasPurchased || isOwner) && downloadableFiles.length > 0 && (
+          <div className="rounded-xl border border-line bg-surface p-5">
+            <h2 className="mb-3 font-display text-sm font-semibold text-accent">Files</h2>
+            <div className="flex flex-col gap-2">
+              {downloadableFiles.map((f) =>
+                f.url ? (
+                  <a
+                    key={f.id}
+                    href={f.url}
+                    className="flex items-center justify-between rounded-lg border border-line px-3 py-2 text-sm text-ink-soft hover:border-accent/50 hover:text-accent"
+                  >
+                    <span>{f.file_name}</span>
+                    <span className="font-mono text-xs text-ink-faint">{formatSize(f.size_bytes)}</span>
+                  </a>
+                ) : null
+              )}
+            </div>
+          </div>
+        )}
+
         <div className="rounded-xl border border-line bg-surface p-5">
           <h2 className="mb-2 font-display text-sm font-semibold text-accent">The problem this solves</h2>
           <p className="text-pretty text-sm leading-relaxed text-ink-soft">{agent.problem_solved}</p>
@@ -252,6 +292,16 @@ export default async function AgentPage({
           <h2 className="mb-2 font-display text-sm font-semibold text-accent">What it does</h2>
           <p className="whitespace-pre-line text-pretty leading-relaxed text-ink-soft">{agent.description}</p>
         </div>
+
+        {readmeHtml && (
+          <div className="rounded-xl border border-line bg-surface p-5">
+            <h2 className="mb-3 font-display text-sm font-semibold text-accent">README</h2>
+            <div
+              className="prose prose-sm max-w-none text-ink-soft [&_a]:text-accent [&_code]:text-ink [&_pre]:overflow-x-auto [&_pre]:rounded-lg [&_pre]:bg-surface-raised [&_pre]:p-3"
+              dangerouslySetInnerHTML={{ __html: readmeHtml }}
+            />
+          </div>
+        )}
 
         <div className="border-t border-line pt-6">
           <div className="mb-4 flex items-center gap-3">

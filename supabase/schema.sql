@@ -191,6 +191,35 @@ create trigger agent_requests_touch_updated_at
   before update on agent_requests
   for each row execute function touch_updated_at();
 
+-- Real files attached to a listing (README, the delivered package, docs) —
+-- not just the single delivery_url text field a creator can also still
+-- set. Stored in the private 'agent-files' Storage bucket below: never
+-- public, because a paid agent's file must not be downloadable by
+-- copy-pasting a guessed URL — a gap delivery_url as a plain link already
+-- couldn't prevent, so this doesn't repeat it. Every read/write to both
+-- this table and the bucket goes through the service-role client
+-- (lib/supabase/admin.ts, see lib/agent-files.ts) from server code that
+-- has already checked ownership or purchase itself — same reasoning as
+-- the Stripe webhook and the agent-request admin routes: there's no single
+-- auth.uid() a Storage RLS policy could check that covers "the buyer of
+-- this specific paid agent," so the app enforces it before ever touching
+-- Storage, not Storage's own RLS.
+create table if not exists agent_files (
+  id uuid primary key default gen_random_uuid(),
+  agent_id uuid not null references agents(id) on delete cascade,
+  file_name text not null,
+  storage_path text not null unique,
+  size_bytes integer not null,
+  is_readme boolean not null default false,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists agent_files_agent_idx on agent_files (agent_id);
+
+insert into storage.buckets (id, name, public)
+values ('agent-files', 'agent-files', false)
+on conflict (id) do nothing;
+
 -- Row Level Security: catalog is public to read; writes are locked to owners.
 alter table profiles enable row level security;
 alter table agents enable row level security;
@@ -198,6 +227,9 @@ alter table purchases enable row level security;
 alter table reviews enable row level security;
 alter table notifications enable row level security;
 alter table agent_requests enable row level security;
+-- No direct-access policies on agent_files — see the comment above the
+-- table: every access goes through the service-role client instead.
+alter table agent_files enable row level security;
 
 create policy "profiles are self-readable" on profiles for select using (auth.uid() = id);
 create policy "profiles are self-updatable" on profiles for update using (auth.uid() = id);

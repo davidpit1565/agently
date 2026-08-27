@@ -40,12 +40,23 @@ upload — see the market research report, chapters 12 and 14, for why.
   `ANTHROPIC_API_KEY` configured) leaves it `pending_review` for a human,
   same as before this existed. It judges what's *written*, not the agent's
   actual code — that's still a real limit, not solved by this.
+- **Semantic search** (`lib/embeddings.ts`, `app/api/search`) — `/browse`
+  ranks by meaning (Voyage AI embeddings + cosine similarity) when
+  `VOYAGE_API_KEY` is set, falling back to substring matching otherwise —
+  same "missing key means fall back, not break" pattern as the safety
+  review. `/dashboard/admin/requests` has a one-time button to embed any
+  listing that predates this.
+- **File attachments** (`lib/agent-files.ts`, upload/edit forms) — a
+  listing can carry real files (the package, docs), not just the
+  `delivery_url` text field. Stored in a private Supabase Storage bucket;
+  download links are signed fresh per page render for the buyer or the
+  creator only, never public. A file named `README.md` (or `.txt`) renders
+  on the listing page automatically — sanitized (`sanitize-html`) before
+  it's ever set as HTML, since it's a creator's own upload, not reviewed
+  text.
 
 ## Not built yet (intentionally — see report ch. 13-14)
 
-- The concierge/matching agent — /browse search today is real text
-  matching (see app/browse/browse-client.tsx), not semantic matching by
-  meaning. That's still phase 2.
 - Any hosted execution / sandboxing — that's phase 2, not part of this MVP.
 
 ## What I need from you before this goes live
@@ -68,9 +79,14 @@ yet. Three things only you can do:
 4. **Optional** — add `ANTHROPIC_API_KEY` to Vercel to turn on automated
    safety review for new submissions. Skip it and everything still works
    exactly as it does today: every submission just waits for you.
+5. **Optional** — add `VOYAGE_API_KEY` (voyageai.com) to Vercel to turn on
+   semantic search. Skip it and `/browse` keeps working with substring
+   matching, same as today.
 
-Nothing here needs a decision from you beyond creating those two accounts —
-the code already assumes the schema and env var names above.
+Nothing here needs a decision from you beyond creating those accounts —
+the code already assumes the schema and env var names above. File
+attachments need nothing extra: `supabase/schema.sql` creates the private
+Storage bucket itself when you run it.
 
 ## Stack
 

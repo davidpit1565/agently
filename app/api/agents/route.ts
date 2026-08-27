@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { MEMBERSHIP_TIERS, canUpload } from "@/lib/membership";
 import { reviewAgentSubmission } from "@/lib/safety-review";
 import { getEmbedding, embeddableText } from "@/lib/embeddings";
+import { uploadAgentFiles } from "@/lib/agent-files";
 import type { MembershipTier } from "@/lib/types";
 
 // Handles the upload form (app/dashboard/upload). A "low" risk verdict from
@@ -64,6 +65,10 @@ export async function POST(request: Request) {
   const problemSolved = String(form.get("problem_solved"));
   const description = String(form.get("description"));
   const deliveryUrl = (form.get("delivery_url") as string) || null;
+  // A file input still submits one zero-size entry when nothing was
+  // picked — filtered out in uploadAgentFiles, not here, so this stays
+  // the single place that decides what counts as "no file."
+  const files = form.getAll("files").filter((f): f is File => f instanceof File);
 
   const verdict = await reviewAgentSubmission({
     name,
@@ -82,25 +87,33 @@ export async function POST(request: Request) {
   // substring matching for any listing with no embedding, same as today.
   const embedding = await getEmbedding(embeddableText({ name, tagline, problem_solved: problemSolved }));
 
-  const { error } = await supabase.from("agents").insert({
-    creator_id: user.id,
-    slug: slugify(name),
-    name,
-    tagline,
-    problem_solved: problemSolved,
-    description,
-    embedding,
-    category_slug: form.get("category_slug"),
-    pricing_model: pricingModel,
-    price_cents: pricingModel === "free" ? null : Math.round(Number(priceEur) * 100),
-    delivery_url: deliveryUrl,
-    status,
-    trust_score: trustScore,
-    review_notes: verdict ? `[${verdict.risk}] ${verdict.summary}${verdict.flags.length ? ` — flags: ${verdict.flags.join("; ")}` : ""}` : null,
-  });
+  const { data: inserted, error } = await supabase
+    .from("agents")
+    .insert({
+      creator_id: user.id,
+      slug: slugify(name),
+      name,
+      tagline,
+      problem_solved: problemSolved,
+      description,
+      embedding,
+      category_slug: form.get("category_slug"),
+      pricing_model: pricingModel,
+      price_cents: pricingModel === "free" ? null : Math.round(Number(priceEur) * 100),
+      delivery_url: deliveryUrl,
+      status,
+      trust_score: trustScore,
+      review_notes: verdict ? `[${verdict.risk}] ${verdict.summary}${verdict.flags.length ? ` — flags: ${verdict.flags.join("; ")}` : ""}` : null,
+    })
+    .select("id")
+    .single();
 
-  if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+  if (error || !inserted) {
+    return NextResponse.json({ error: error?.message ?? "Could not save the listing." }, { status: 400 });
+  }
+
+  if (files.length > 0) {
+    await uploadAgentFiles(inserted.id, files);
   }
 
   return NextResponse.redirect(new URL("/dashboard/upload?submitted=1", request.url));

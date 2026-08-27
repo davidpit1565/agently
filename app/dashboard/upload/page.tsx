@@ -87,7 +87,7 @@ export default async function UploadPage({
         </p>
       )}
 
-      <form action="/api/agents" method="POST" className="flex flex-col gap-4">
+      <form action="/api/agents" method="POST" encType="multipart/form-data" className="flex flex-col gap-4">
         <Field label="Name" name="name" required />
         <Field label="One-line tagline" name="tagline" required />
         <Field
@@ -132,7 +132,24 @@ export default async function UploadPage({
           label="Delivery link (repo, file, or API endpoint)"
           name="delivery_url"
           type="url"
+          hint="Optional if you're attaching the files below instead."
         />
+
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium">Files (optional)</span>
+          <input
+            type="file"
+            name="files"
+            multiple
+            className="rounded-lg border border-line bg-surface px-4 py-2.5 text-ink outline-none file:mr-3 file:rounded-full file:border-0 file:bg-accent-soft file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-accent"
+          />
+          <span className="text-xs text-ink-faint">
+            The actual package, docs, anything a buyer should get. A file named{" "}
+            <code className="text-ink-soft">README.md</code> (or <code className="text-ink-soft">.txt</code>)
+            is shown on the listing page automatically. Only the buyer and you can download these —
+            never public.
+          </span>
+        </label>
 
         <button
           type="submit"
