@@ -138,6 +138,10 @@ alter table agently_agents add column if not exists embedding jsonb;
 
 create index if not exists agently_agents_status_idx on agently_agents (status);
 create index if not exists agently_agents_category_idx on agently_agents (category_slug);
+-- getAgentsByCreator/getMyAgents (lib/catalog.ts) and the active-listing-limit
+-- count in app/api/agents/route.ts all filter on creator_id — every creator
+-- profile page and dashboard load was a sequential scan without this.
+create index if not exists agently_agents_creator_id_idx on agently_agents (creator_id, status);
 
 create table if not exists agently_purchases (
   id uuid primary key default gen_random_uuid(),
@@ -150,6 +154,12 @@ create table if not exists agently_purchases (
   created_at timestamptz not null default now()
 );
 
+-- app/agents/[slug]/page.tsx checks agent_id+buyer_id+status on every single
+-- agent page view (to decide whether to show buy/review UI), and
+-- notifyBuyersOfUpdate() (lib/notifications.ts) filters by agent_id+status
+-- on every listing edit — both were sequential scans without this.
+create index if not exists agently_purchases_agent_buyer_idx on agently_purchases (agent_id, buyer_id, status);
+
 create table if not exists agently_reviews (
   id uuid primary key default gen_random_uuid(),
   agent_id uuid not null references agently_agents(id) on delete cascade,
@@ -159,6 +169,11 @@ create table if not exists agently_reviews (
   created_at timestamptz not null default now(),
   unique (agent_id, buyer_id)
 );
+
+-- getReviewsForAgent (lib/reviews.ts) filters/orders by agent_id+created_at
+-- on every agent detail page load; the unique(agent_id, buyer_id) above
+-- doesn't serve an agent_id-only filter as well as a dedicated index does.
+create index if not exists agently_reviews_agent_id_idx on agently_reviews (agent_id, created_at desc);
 
 -- Keeps agently_agents.updated_at honest on every edit, so "when was this last
 -- changed" is never something the app has to remember to set by hand.

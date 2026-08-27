@@ -11,7 +11,14 @@ const config: Config = {
         line: "#242b26",
         ink: "#edf3ee",
         "ink-soft": "#a6b3ac",
-        "ink-faint": "#5f6b64",
+        // Was #5f6b64 — ~3.3:1 against `surface` and ~3.5:1 against `ground`,
+        // both below the 4.5:1 WCAG AA minimum for body text. This color
+        // backs footer copy, form hints, and every agent's metadata line
+        // (30+ call sites), so the old value was a real, widespread
+        // contrast failure, not a decorative edge case. #8a978f clears
+        // 6:1 against both surfaces while staying visually "faint" next to
+        // `ink-soft` (#a6b3ac).
+        "ink-faint": "#8a978f",
         accent: "#2fe0ad",
         "accent-strong": "#8ff5d8",
         "accent-soft": "#132821",

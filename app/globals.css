@@ -82,3 +82,24 @@ body {
   background-image: radial-gradient(rgba(237, 243, 238, 0.035) 1px, transparent 1px);
   background-size: 22px 22px;
 }
+
+/* .hero-glow-a/b and <Reveal> already gate themselves on this preference —
+   everything else added alongside them (animate-fade-up, animate-pop-in,
+   animate-shake, animate-pulse-dot, .shine-sweep's hover sweep) didn't,
+   including the shake on a sign-in error and the fade-up on every hero/form
+   element — exactly the pages someone with a vestibular disorder hits
+   first. Forcing the end state rather than just `animation: none` avoids a
+   fade-up element getting stuck at its pre-animation opacity: 0. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up,
+  .animate-pop-in,
+  .animate-shake,
+  .animate-pulse-dot {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .shine-sweep::after {
+    animation: none !important;
+  }
+}
