@@ -20,7 +20,7 @@ export async function getReviewsForAgent(agentId: string): Promise<ReviewSummary
 
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("reviews")
+    .from("agently_reviews")
     .select("id, rating, comment, created_at")
     .eq("agent_id", agentId)
     .order("created_at", { ascending: false });

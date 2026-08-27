@@ -13,6 +13,6 @@ export async function POST() {
 
   if (!user) return NextResponse.json({ error: "Not signed in" }, { status: 401 });
 
-  await supabase.from("notifications").update({ read: true }).eq("user_id", user.id).eq("read", false);
+  await supabase.from("agently_notifications").update({ read: true }).eq("user_id", user.id).eq("read", false);
   return NextResponse.json({ ok: true });
 }

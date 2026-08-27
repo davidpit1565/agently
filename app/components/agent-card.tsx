@@ -14,7 +14,7 @@ function category(slug: string) {
   return CATEGORIES_FALLBACK.find((c) => c.slug === slug) ?? CATEGORIES_FALLBACK[CATEGORIES_FALLBACK.length - 1];
 }
 
-export function AgentCard({ agent }: { agent: Agent }) {
+export function AgentCard({ agent, hasFiles }: { agent: Agent; hasFiles?: boolean }) {
   const cat = category(agent.category_slug);
   return (
     <Link
@@ -39,7 +39,19 @@ export function AgentCard({ agent }: { agent: Agent }) {
           <span className="h-1.5 w-1.5 rounded-full" style={{ background: cat.color }} aria-hidden />
           {cat.name}
         </span>
-        <span className="font-mono font-medium tabular-nums text-accent">{priceLabel(agent)}</span>
+        <div className="flex items-center gap-2">
+          {hasFiles && (
+            <span
+              className="flex items-center gap-1 text-ink-faint"
+              title="This listing has a downloadable file attached"
+            >
+              <svg viewBox="0 0 20 20" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6">
+                <path d="M10 3v10m0 0l-3.5-3.5M10 13l3.5-3.5M4 15.5v1a1 1 0 001 1h10a1 1 0 001-1v-1" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </span>
+          )}
+          <span className="font-mono font-medium tabular-nums text-accent">{priceLabel(agent)}</span>
+        </div>
       </div>
     </Link>
   );

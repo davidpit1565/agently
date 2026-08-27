@@ -7,9 +7,9 @@ import { Field, Notice } from "@/app/components/form-field";
 export default async function UploadPage({
   searchParams,
 }: {
-  searchParams: Promise<{ submitted?: string }>;
+  searchParams: Promise<{ submitted?: string; skipped_files?: string }>;
 }) {
-  const { submitted } = await searchParams;
+  const { submitted, skipped_files: skippedFiles } = await searchParams;
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return (
@@ -39,7 +39,7 @@ export default async function UploadPage({
   }
 
   const { data: profile } = await supabase
-    .from("profiles")
+    .from("agently_profiles")
     .select("membership_tier, membership_status, stripe_connect_ready")
     .eq("id", user.id)
     .single();
@@ -78,6 +78,13 @@ export default async function UploadPage({
         </p>
       )}
 
+      {skippedFiles && (
+        <p className="mb-6 rounded-lg border border-line bg-surface px-4 py-3 text-sm text-ink-soft">
+          Everything else made it, but this didn&apos;t upload: <strong>{skippedFiles}</strong> (over the 50MB
+          limit, or the upload failed). Try again from the edit page once your listing is saved.
+        </p>
+      )}
+
       {!profile?.stripe_connect_ready && (
         <p className="mb-8 rounded-lg border border-line bg-surface p-4 text-sm text-ink-soft">
           You can list a free agent without this, but a paid one won&apos;t be
@@ -92,6 +99,7 @@ export default async function UploadPage({
       <form
         action="/api/agents"
         method="POST"
+        encType="multipart/form-data"
         className="flex animate-fade-up flex-col gap-4"
         style={{ animationDelay: "90ms" }}
       >
@@ -139,7 +147,24 @@ export default async function UploadPage({
           label="Delivery link (repo, file, or API endpoint)"
           name="delivery_url"
           type="url"
+          hint="Optional if you're attaching the files below instead."
         />
+
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium">Files (optional)</span>
+          <input
+            type="file"
+            name="files"
+            multiple
+            className="rounded-lg border border-line bg-surface px-4 py-2.5 text-ink outline-none file:mr-3 file:rounded-full file:border-0 file:bg-accent-soft file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-accent"
+          />
+          <span className="text-xs text-ink-faint">
+            The actual package, docs, anything a buyer should get. A file named{" "}
+            <code className="text-ink-soft">README.md</code> (or <code className="text-ink-soft">.txt</code>)
+            is shown on the listing page automatically. Only the buyer and you can download these —
+            never public.
+          </span>
+        </label>
 
         <button
           type="submit"

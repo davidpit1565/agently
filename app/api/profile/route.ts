@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   }
 
   const { error } = await supabase
-    .from("profiles")
+    .from("agently_profiles")
     .update({ display_name: displayName, account_type: accountType, company_name: companyName })
     .eq("id", user.id);
 

@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   }
 
   const { error } = await supabase
-    .from("reviews")
+    .from("agently_reviews")
     .upsert(
       { agent_id: agentId, buyer_id: user.id, rating, comment: comment || null },
       { onConflict: "agent_id,buyer_id" }
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
-  const agent = await supabase.from("agents").select("slug").eq("id", agentId).single();
+  const agent = await supabase.from("agently_agents").select("slug").eq("id", agentId).single();
   const redirectTo = agent.data?.slug ? `/agents/${agent.data.slug}?reviewed=1` : "/browse";
   return NextResponse.redirect(new URL(redirectTo, request.url));
 }

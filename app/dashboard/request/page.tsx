@@ -37,7 +37,7 @@ export default async function RequestAgentPage({
   }
 
   const { data: profile } = await supabase
-    .from("profiles")
+    .from("agently_profiles")
     .select("membership_tier")
     .eq("id", user.id)
     .single();

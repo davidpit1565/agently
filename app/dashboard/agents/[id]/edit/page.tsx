@@ -2,6 +2,13 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { CATEGORIES_FALLBACK } from "@/data/categories";
 import { Field, Notice } from "@/app/components/form-field";
+import { getAgentFiles } from "@/lib/agent-files";
+
+function formatSize(bytes: number) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
 
 export default async function EditAgentPage({
   params,
@@ -23,11 +30,13 @@ export default async function EditAgentPage({
     return <Notice title="Sign in first">You need an account to edit an agent.</Notice>;
   }
 
-  const { data: agent } = await supabase.from("agents").select("*").eq("id", id).single();
+  const { data: agent } = await supabase.from("agently_agents").select("*").eq("id", id).single();
 
   if (!agent || agent.creator_id !== user.id) {
     notFound();
   }
+
+  const files = await getAgentFiles(agent.id);
 
   return (
     <main className="mx-auto max-w-xl px-6 py-16">
@@ -41,7 +50,35 @@ export default async function EditAgentPage({
         count as a new version.
       </p>
 
-      <form action={`/api/agents/${agent.id}`} method="POST" className="flex flex-col gap-4">
+      {files.length > 0 && (
+        <div className="mb-6 flex flex-col gap-2">
+          <span className="text-sm font-medium">Files on this listing</span>
+          {files.map((f) => (
+            <div
+              key={f.id}
+              className="flex items-center justify-between rounded-lg border border-line bg-surface px-4 py-2.5 text-sm"
+            >
+              <span className="text-ink-soft">
+                {f.file_name}
+                {f.is_readme && <span className="ml-2 text-xs text-accent">README</span>}
+                <span className="ml-2 text-xs text-ink-faint">{formatSize(f.size_bytes)}</span>
+              </span>
+              <form action={`/api/agents/${agent.id}/files/${f.id}`} method="POST">
+                <button type="submit" className="text-xs text-ink-faint hover:text-red-400">
+                  Remove
+                </button>
+              </form>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <form
+        action={`/api/agents/${agent.id}`}
+        method="POST"
+        encType="multipart/form-data"
+        className="flex flex-col gap-4"
+      >
         <Field label="Name" name="name" required defaultValue={agent.name} />
         <Field label="One-line tagline" name="tagline" required defaultValue={agent.tagline} />
         <Field
@@ -95,6 +132,17 @@ export default async function EditAgentPage({
           type="url"
           defaultValue={agent.delivery_url ?? undefined}
         />
+
+        <label className="flex flex-col gap-1 text-sm">
+          <span className="font-medium">Add files</span>
+          <input
+            type="file"
+            name="files"
+            multiple
+            className="rounded-lg border border-line bg-surface px-4 py-2.5 text-ink outline-none file:mr-3 file:rounded-full file:border-0 file:bg-accent-soft file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-accent"
+          />
+          <span className="text-xs text-ink-faint">Adds to the files above — remove one first if you're replacing it.</span>
+        </label>
 
         <button
           type="submit"

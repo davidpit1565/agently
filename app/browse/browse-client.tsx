@@ -7,9 +7,27 @@ import { AgentCard } from "@/app/components/agent-card";
 import { Reveal } from "@/app/components/reveal";
 import type { Agent } from "@/lib/types";
 
-export function BrowseClient({ agents }: { agents: Agent[] }) {
+type SortOption = "newest" | "trust" | "price_low" | "price_high";
+
+const SORT_LABELS: Record<SortOption, string> = {
+  newest: "Newest",
+  trust: "Highest trust score",
+  price_low: "Price: low to high",
+  price_high: "Price: high to low",
+};
+
+function priceCents(agent: Agent) {
+  // A free agent sorts as 0 either direction — that's correct for "low to
+  // high" and an acceptable tradeoff for "high to low" (free listings
+  // cluster at the bottom either way, never in the middle).
+  return agent.price_cents ?? 0;
+}
+
+export function BrowseClient({ agents, idsWithFiles }: { agents: Agent[]; idsWithFiles: string[] }) {
+  const filesSet = useMemo(() => new Set(idsWithFiles), [idsWithFiles]);
   const [query, setQuery] = useState("");
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [sortBy, setSortBy] = useState<SortOption>("newest");
 
   // Agent ids in relevance order from /api/search, or null when semantic
   // ranking isn't available for this query (no VOYAGE_API_KEY, the call
@@ -48,9 +66,21 @@ export function BrowseClient({ agents }: { agents: Agent[] }) {
     const q = query.trim().toLowerCase();
     const byCategory = agents.filter((agent) => !activeCategory || agent.category_slug === activeCategory);
 
-    if (!q) return byCategory;
+    if (!q) {
+      // Nothing typed — this is browsing, not searching, so the sort
+      // control drives order. agents already arrive newest-first from
+      // getApprovedAgents(), so "newest" needs no re-sort of its own.
+      const sorted = [...byCategory];
+      if (sortBy === "trust") sorted.sort((a, b) => b.trust_score - a.trust_score);
+      else if (sortBy === "price_low") sorted.sort((a, b) => priceCents(a) - priceCents(b));
+      else if (sortBy === "price_high") sorted.sort((a, b) => priceCents(b) - priceCents(a));
+      return sorted;
+    }
 
     if (semanticIds) {
+      // A search is active — relevance to the query outranks the sort
+      // control, same reason a Google search box doesn't offer "sort by
+      // date" ahead of "how well this matches."
       const rank = new Map(semanticIds.map((id, i) => [id, i]));
       return byCategory
         .filter((agent) => rank.has(agent.id))
@@ -62,7 +92,7 @@ export function BrowseClient({ agents }: { agents: Agent[] }) {
       const haystack = `${agent.name} ${agent.tagline} ${agent.problem_solved}`.toLowerCase();
       return haystack.includes(q);
     });
-  }, [agents, query, activeCategory, semanticIds]);
+  }, [agents, query, activeCategory, semanticIds, sortBy]);
 
   const usedCategories = useMemo(
     () => CATEGORIES_FALLBACK.filter((c) => agents.some((a) => a.category_slug === c.slug)),
@@ -122,10 +152,29 @@ export function BrowseClient({ agents }: { agents: Agent[] }) {
         </div>
       </div>
 
-      <p className="mb-6 font-mono text-sm text-ink-faint">
-        {filtered.length} agent{filtered.length === 1 ? "" : "s"}
-        {query || activeCategory ? " match" : " · sorted newest first"}
-      </p>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
+        <p className="font-mono text-sm text-ink-faint">
+          {filtered.length} agent{filtered.length === 1 ? "" : "s"}
+          {query ? " match" : ""}
+        </p>
+
+        {!query && (
+          <label className="flex items-center gap-2 text-xs text-ink-faint">
+            Sort
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as SortOption)}
+              className="rounded-lg border border-line bg-surface px-2.5 py-1.5 text-ink outline-none focus:border-accent/50"
+            >
+              {(Object.keys(SORT_LABELS) as SortOption[]).map((option) => (
+                <option key={option} value={option}>
+                  {SORT_LABELS[option]}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
 
       {filtered.length === 0 ? (
         <div className="flex animate-fade-up flex-col items-center gap-2 rounded-xl border border-dashed border-line py-20 text-center">
@@ -143,7 +192,7 @@ export function BrowseClient({ agents }: { agents: Agent[] }) {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((agent, i) => (
             <Reveal key={agent.id} delay={Math.min(i, 8) * 60}>
-              <AgentCard agent={agent} />
+              <AgentCard agent={agent} hasFiles={filesSet.has(agent.id)} />
             </Reveal>
           ))}
         </div>

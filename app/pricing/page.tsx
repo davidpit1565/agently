@@ -33,7 +33,7 @@ export default async function PricingPage() {
     signedIn = !!user;
     if (user) {
       const { data: profile } = await supabase
-        .from("profiles")
+        .from("agently_profiles")
         .select("membership_tier, membership_status")
         .eq("id", user.id)
         .single();
