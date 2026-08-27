@@ -20,7 +20,7 @@ export async function POST(request: Request) {
   }
 
   const { data: profile } = await supabase
-    .from("profiles")
+    .from("agently_profiles")
     .select("membership_tier")
     .eq("id", user.id)
     .single();
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Describe what you need." }, { status: 400 });
   }
 
-  const { error } = await supabase.from("agent_requests").insert({
+  const { error } = await supabase.from("agently_agent_requests").insert({
     requester_id: user.id,
     description,
   });

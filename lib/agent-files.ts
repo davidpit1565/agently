@@ -2,7 +2,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { marked } from "marked";
 import sanitizeHtml from "sanitize-html";
 
-const BUCKET = "agent-files";
+const BUCKET = "agently-files";
 
 // Supabase's own hard ceiling on the free tier — a larger upload fails at
 // their end regardless of what this app allows, so check it here first
@@ -80,7 +80,7 @@ export async function uploadAgentFiles(agentId: string, files: File[]): Promise<
       continue; // one bad file shouldn't fail the whole submission
     }
 
-    const { error: insertError } = await admin.from("agent_files").insert({
+    const { error: insertError } = await admin.from("agently_agent_files").insert({
       agent_id: agentId,
       file_name: file.name,
       storage_path: path,
@@ -106,7 +106,7 @@ export async function getAgentFiles(agentId: string): Promise<AgentFile[]> {
   if (!admin) return [];
 
   const { data, error } = await admin
-    .from("agent_files")
+    .from("agently_agent_files")
     .select("*")
     .eq("agent_id", agentId)
     .order("is_readme", { ascending: false })
@@ -126,7 +126,7 @@ export async function getAgentIdsWithFiles(agentIds: string[]): Promise<Set<stri
   if (!admin || agentIds.length === 0) return new Set();
 
   const { data, error } = await admin
-    .from("agent_files")
+    .from("agently_agent_files")
     .select("agent_id")
     .in("agent_id", agentIds)
     .eq("is_readme", false);
@@ -140,7 +140,7 @@ export async function deleteAgentFile(fileId: string, agentId: string): Promise<
   if (!admin) return;
 
   const { data: file } = await admin
-    .from("agent_files")
+    .from("agently_agent_files")
     .select("storage_path")
     .eq("id", fileId)
     .eq("agent_id", agentId) // never delete a file by id alone — confirm it belongs to this agent
@@ -148,7 +148,7 @@ export async function deleteAgentFile(fileId: string, agentId: string): Promise<
   if (!file) return;
 
   await admin.storage.from(BUCKET).remove([file.storage_path]);
-  await admin.from("agent_files").delete().eq("id", fileId);
+  await admin.from("agently_agent_files").delete().eq("id", fileId);
 }
 
 /** Short-lived download link — generated fresh on every page render for an
@@ -191,7 +191,7 @@ export async function getReadmeHtml(agentId: string): Promise<string | null> {
   if (!admin) return null;
 
   const { data: readmeRow } = await admin
-    .from("agent_files")
+    .from("agently_agent_files")
     .select("storage_path")
     .eq("agent_id", agentId)
     .eq("is_readme", true)

@@ -30,7 +30,7 @@ export default async function EditAgentPage({
     return <Notice title="Sign in first">You need an account to edit an agent.</Notice>;
   }
 
-  const { data: agent } = await supabase.from("agents").select("*").eq("id", id).single();
+  const { data: agent } = await supabase.from("agently_agents").select("*").eq("id", id).single();
 
   if (!agent || agent.creator_id !== user.id) {
     notFound();

@@ -73,9 +73,12 @@ upload — see the market research report, chapters 12 and 14, for why.
 Everything above is written and ready — it just has nothing to connect to
 yet. Three things only you can do:
 
-1. **Create a Supabase project** (supabase.com, free tier is enough to
-   start) → run `supabase/schema.sql` in its SQL editor → copy the Project
-   URL and `anon` public key into Vercel's Environment Variables as
+1. **Use an existing Supabase project** — Supabase's free tier caps at 2
+   projects per account, so this reuses one rather than paying for Supabase
+   Pro. Open that project → SQL Editor → run `supabase/schema.sql` (every
+   table it creates is prefixed `agently_`, so it can't collide with
+   whatever else already lives in that project) → copy the Project URL and
+   `anon` public key into Vercel's Environment Variables as
    `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
 2. **Create a Stripe account**, enable Connect → copy the secret key into
    Vercel as `STRIPE_SECRET_KEY`. Once the account exists, add a webhook

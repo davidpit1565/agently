@@ -15,7 +15,7 @@ export async function getApprovedAgents(): Promise<Agent[]> {
 
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("agents")
+    .from("agently_agents")
     .select("*")
     .eq("status", "approved")
     .order("created_at", { ascending: false });
@@ -35,7 +35,7 @@ export async function getAgentBySlug(slug: string): Promise<Agent | null> {
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.from("agents").select("*").eq("slug", slug).single();
+  const { data, error } = await supabase.from("agently_agents").select("*").eq("slug", slug).single();
 
   if (error || !data) return SEED_AGENTS.find((a) => a.slug === slug) ?? null;
   return data as Agent;
@@ -60,7 +60,7 @@ export async function getCreatorProfile(creatorId: string): Promise<CreatorProfi
 
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("profiles")
+    .from("agently_profiles")
     .select("id, display_name, account_type")
     .eq("id", creatorId)
     .single();
@@ -76,7 +76,7 @@ export async function getAgentsByCreator(creatorId: string): Promise<Agent[]> {
 
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("agents")
+    .from("agently_agents")
     .select("*")
     .eq("creator_id", creatorId)
     .eq("status", "approved")
@@ -96,7 +96,7 @@ export async function getMyAgents(userId: string): Promise<Agent[]> {
 
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("agents")
+    .from("agently_agents")
     .select("*")
     .eq("creator_id", userId)
     .order("created_at", { ascending: false });
@@ -115,7 +115,7 @@ export async function getMyAgents(userId: string): Promise<Agent[]> {
 export function recordAgentView(agentId: string): void {
   const admin = createAdminClient();
   if (!admin) return;
-  void admin.rpc("increment_agent_view", { agent_id: agentId });
+  void admin.rpc("agently_increment_agent_view", { agent_id: agentId });
 }
 
 /** One batched query for a creator's whole dashboard instead of one COUNT
@@ -127,7 +127,7 @@ export async function getPurchaseCounts(agentIds: string[]): Promise<Map<string,
 
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("purchases")
+    .from("agently_purchases")
     .select("agent_id")
     .in("agent_id", agentIds)
     .eq("status", "paid");

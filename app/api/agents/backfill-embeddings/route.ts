@@ -31,7 +31,7 @@ export async function POST(request: Request) {
   }
 
   const { data: agents, error } = await admin
-    .from("agents")
+    .from("agently_agents")
     .select("id, name, tagline, problem_solved")
     .eq("status", "approved")
     .is("embedding", null);
@@ -51,7 +51,7 @@ export async function POST(request: Request) {
       skipped++;
       continue;
     }
-    await admin.from("agents").update({ embedding }).eq("id", agent.id);
+    await admin.from("agently_agents").update({ embedding }).eq("id", agent.id);
     embedded++;
   }
 

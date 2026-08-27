@@ -99,7 +99,7 @@ export default async function AgentPage({
 
     if (user && !isOwner) {
       const { data: purchase } = await supabase
-        .from("purchases")
+        .from("agently_purchases")
         .select("id")
         .eq("agent_id", agent.id)
         .eq("buyer_id", user.id)

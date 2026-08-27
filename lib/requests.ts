@@ -44,7 +44,7 @@ export async function getMyAgentRequests(userId: string): Promise<AgentRequest[]
 
   const supabase = await createClient();
   const { data, error } = await supabase
-    .from("agent_requests")
+    .from("agently_agent_requests")
     .select("*")
     .eq("requester_id", userId)
     .order("created_at", { ascending: false });
@@ -62,7 +62,7 @@ export async function getAllAgentRequests(): Promise<AgentRequest[]> {
   if (!supabase) return [];
 
   const { data, error } = await supabase
-    .from("agent_requests")
+    .from("agently_agent_requests")
     .select("*")
     .order("created_at", { ascending: false });
 

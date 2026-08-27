@@ -25,7 +25,7 @@ export async function POST(request: Request) {
   }
 
   const { data: profile } = await supabase
-    .from("profiles")
+    .from("agently_profiles")
     .select("membership_tier")
     .eq("id", user.id)
     .single();
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   // The plan page promises "up to N active listings" per tier — enforce it
   // here, not just in copy, or the tiers mean nothing.
   const { count } = await supabase
-    .from("agents")
+    .from("agently_agents")
     .select("id", { count: "exact", head: true })
     .eq("creator_id", user.id)
     .in("status", ["pending_review", "approved"]);
@@ -88,7 +88,7 @@ export async function POST(request: Request) {
   const embedding = await getEmbedding(embeddableText({ name, tagline, problem_solved: problemSolved }));
 
   const { data: inserted, error } = await supabase
-    .from("agents")
+    .from("agently_agents")
     .insert({
       creator_id: user.id,
       slug: slugify(name),

@@ -39,7 +39,7 @@ export default async function UploadPage({
   }
 
   const { data: profile } = await supabase
-    .from("profiles")
+    .from("agently_profiles")
     .select("membership_tier, membership_status, stripe_connect_ready")
     .eq("id", user.id)
     .single();

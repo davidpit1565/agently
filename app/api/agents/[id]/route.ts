@@ -29,7 +29,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.redirect(new URL("/auth/sign-in", request.url));
   }
 
-  const { data: existing } = await supabase.from("agents").select("*").eq("id", id).single();
+  const { data: existing } = await supabase.from("agently_agents").select("*").eq("id", id).single();
   if (!existing || existing.creator_id !== user.id) {
     return NextResponse.json({ error: "Agent not found, or you don't own it." }, { status: 404 });
   }
@@ -81,7 +81,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const { error } = await supabase
-    .from("agents")
+    .from("agently_agents")
     .update({
       name,
       tagline,

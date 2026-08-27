@@ -23,7 +23,7 @@ export async function POST(
     return NextResponse.redirect(new URL("/auth/sign-in", request.url));
   }
 
-  const { data: agent } = await supabase.from("agents").select("id, creator_id").eq("id", id).single();
+  const { data: agent } = await supabase.from("agently_agents").select("id, creator_id").eq("id", id).single();
   if (!agent || agent.creator_id !== user.id) {
     return NextResponse.json({ error: "Agent not found, or you don't own it." }, { status: 404 });
   }
