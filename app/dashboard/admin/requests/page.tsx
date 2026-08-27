@@ -73,6 +73,7 @@ export default async function AdminRequestsPage({
                 <select
                   name="status"
                   defaultValue={r.status}
+                  aria-label="Request status"
                   className="rounded-lg border border-line bg-surface-raised px-3 py-2 text-sm text-ink outline-none focus:border-accent"
                 >
                   <option value="pending">Pending</option>

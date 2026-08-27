@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { PLATFORM_FEE_PERCENT } from "@/lib/membership";
 
 // Point this route at Stripe's dashboard (or `stripe listen` locally) once
 // STRIPE_WEBHOOK_SECRET is set. Handles both one-time agent purchases and
@@ -49,16 +50,37 @@ export async function POST(request: Request) {
       const { agent_id, buyer_id, user_id, membership_tier } = session.metadata ?? {};
 
       if (agent_id && buyer_id) {
-        await supabase.from("agently_purchases").insert({
+        const { error } = await supabase.from("agently_purchases").insert({
           agent_id,
           buyer_id,
           stripe_checkout_session_id: session.id,
           amount_cents: session.amount_total ?? 0,
-          platform_fee_cents: Math.round((session.amount_total ?? 0) * 0.15),
+          // Was a second hard-coded 0.15 — drifted from PLATFORM_FEE_PERCENT
+          // the moment anyone changed the real fee, silently misreporting
+          // actual platform revenue with no error anywhere.
+          platform_fee_cents: Math.round((session.amount_total ?? 0) * (PLATFORM_FEE_PERCENT / 100)),
           status: "paid",
         });
+        // stripe_checkout_session_id is unique, so Stripe retrying this same
+        // event throws a constraint violation here — that's not a failure,
+        // it's this handler already having run once; anything else means the
+        // charge succeeded but the purchase row never landed, silently, with
+        // no trace. Log it either way and only fail loudly (so Stripe
+        // retries) on the second case.
+        if (error) {
+          console.error("[stripe/webhook] purchases insert failed", {
+            eventId: event.id,
+            agentId: agent_id,
+            buyerId: buyer_id,
+            code: error.code,
+            message: error.message,
+          });
+          if (error.code !== "23505") {
+            return NextResponse.json({ error: "Failed to record purchase" }, { status: 500 });
+          }
+        }
       } else if (user_id && membership_tier) {
-        await supabase
+        const { error } = await supabase
           .from("agently_profiles")
           .update({
             membership_tier,
@@ -66,6 +88,33 @@ export async function POST(request: Request) {
             stripe_customer_id: session.customer,
           })
           .eq("id", user_id);
+        if (error) {
+          console.error("[stripe/webhook] membership update failed", { eventId: event.id, userId: user_id, message: error.message });
+          return NextResponse.json({ error: "Failed to record membership" }, { status: 500 });
+        }
+      }
+      break;
+    }
+    case "charge.refunded": {
+      // Without this, a refunded buyer's purchases row stays status='paid'
+      // forever — app/agents/[slug]/page.tsx keeps showing them as having
+      // bought it, and schema.sql's review policy keeps letting them post or
+      // keep a "verified buyer" review for an agent they got their money
+      // back on.
+      const charge = event.data.object as { payment_intent: string | null };
+      if (charge.payment_intent) {
+        const session = await stripe.checkout.sessions.list({ payment_intent: charge.payment_intent, limit: 1 });
+        const checkoutSessionId = session.data[0]?.id;
+        if (checkoutSessionId) {
+          const { error } = await supabase
+            .from("agently_purchases")
+            .update({ status: "refunded" })
+            .eq("stripe_checkout_session_id", checkoutSessionId);
+          if (error) {
+            console.error("[stripe/webhook] refund update failed", { eventId: event.id, checkoutSessionId, message: error.message });
+            return NextResponse.json({ error: "Failed to record refund" }, { status: 500 });
+          }
+        }
       }
       break;
     }
@@ -94,13 +143,16 @@ export async function POST(request: Request) {
       // tier it last had. Reset the tier itself back to 'free' the moment
       // the subscription stops being active.
       const active = subscription.status === "active";
-      await supabase
+      const { error: subError } = await supabase
         .from("agently_profiles")
         .update({
           membership_status: active ? "active" : "canceled",
           ...(active ? {} : { membership_tier: "free" }),
         })
         .eq("stripe_customer_id", subscription.customer);
+      if (subError) {
+        console.error("[stripe/webhook] subscription status update failed", { eventId: event.id, message: subError.message });
+      }
       break;
     }
     case "account.updated": {
@@ -108,10 +160,13 @@ export async function POST(request: Request) {
       // charges_enabled means Stripe will actually let money reach them —
       // details_submitted alone can still mean "pending verification".
       const account = event.data.object as { id: string; charges_enabled: boolean };
-      await supabase
+      const { error: acctError } = await supabase
         .from("agently_profiles")
         .update({ stripe_connect_ready: account.charges_enabled })
         .eq("stripe_connect_id", account.id);
+      if (acctError) {
+        console.error("[stripe/webhook] connect status update failed", { eventId: event.id, message: acctError.message });
+      }
       break;
     }
   }

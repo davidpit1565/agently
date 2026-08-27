@@ -118,6 +118,7 @@ export function BrowseClient({ agents, idsWithFiles }: { agents: Agent[]; idsWit
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="What are you stuck on? e.g. “my captions get cut off on Instagram”"
+            aria-label="Search agents"
             className="w-full rounded-xl border border-line bg-surface py-3 pl-11 pr-4 text-sm text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-accent/50"
           />
         </div>
@@ -126,6 +127,7 @@ export function BrowseClient({ agents, idsWithFiles }: { agents: Agent[]; idsWit
           <button
             type="button"
             onClick={() => setActiveCategory(null)}
+            aria-pressed={activeCategory === null}
             className={`rounded-full border px-3 py-1 text-xs transition-all duration-200 ${
               activeCategory === null
                 ? "border-accent/50 bg-accent-soft text-accent"
@@ -139,6 +141,7 @@ export function BrowseClient({ agents, idsWithFiles }: { agents: Agent[]; idsWit
               key={c.slug}
               type="button"
               onClick={() => setActiveCategory(activeCategory === c.slug ? null : c.slug)}
+              aria-pressed={activeCategory === c.slug}
               className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-all duration-200 ${
                 activeCategory === c.slug
                   ? "border-accent/50 bg-accent-soft text-accent"

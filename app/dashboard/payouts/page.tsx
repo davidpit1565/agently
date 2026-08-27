@@ -1,5 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { Reveal } from "@/app/components/reveal";
+import { Notice } from "@/app/components/form-field";
+import { PLATFORM_FEE_PERCENT } from "@/lib/membership";
 
 export default async function PayoutsPage({
   searchParams,
@@ -40,7 +42,7 @@ export default async function PayoutsPage({
         <p className="mb-8 text-pretty text-sm leading-relaxed text-ink-soft">
           Every agent you sell pays through Stripe. This is where that money
           actually reaches you — {" "}
-          <span className="tabular-nums text-ink">{100 - 15}%</span> of each sale, the rest is
+          <span className="tabular-nums text-ink">{100 - PLATFORM_FEE_PERCENT}%</span> of each sale, the rest is
           the platform fee.
         </p>
       </div>
@@ -81,15 +83,6 @@ export default async function PayoutsPage({
           </>
         )}
       </Reveal>
-    </main>
-  );
-}
-
-function Notice({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <main className="mx-auto max-w-md px-6 py-24 text-center">
-      <h1 className="text-balance mb-2 font-display text-xl font-semibold">{title}</h1>
-      <p className="text-sm text-ink-soft">{children}</p>
     </main>
   );
 }

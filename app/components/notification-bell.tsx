@@ -59,7 +59,9 @@ export function NotificationBell() {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-[52px] z-10 w-72 rounded-xl border border-line bg-surface-raised p-2 shadow-[0_12px_32px_-8px_rgba(0,0,0,0.5)]">
+        <div
+          className="absolute right-0 top-[52px] z-10 w-[min(18rem,calc(100vw-2rem))] rounded-xl border border-line bg-surface-raised p-2 shadow-[0_12px_32px_-8px_rgba(0,0,0,0.5)]"
+        >
           {notifications.map((n) => (
             <Link
               key={n.id}

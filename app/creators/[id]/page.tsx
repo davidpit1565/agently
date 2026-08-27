@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getCreatorProfile, getAgentsByCreator } from "@/lib/catalog";
 import { AgentCard } from "@/app/components/agent-card";
+import { Reveal } from "@/app/components/reveal";
 
 export async function generateMetadata({
   params,
@@ -69,8 +70,10 @@ export default async function CreatorPage({
         <p className="text-sm text-ink-soft">Nothing listed yet.</p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {agents.map((agent) => (
-            <AgentCard key={agent.id} agent={agent} />
+          {agents.map((agent, i) => (
+            <Reveal key={agent.id} delay={Math.min(i, 8) * 60}>
+              <AgentCard agent={agent} />
+            </Reveal>
           ))}
         </div>
       )}
