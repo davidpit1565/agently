@@ -21,12 +21,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.redirect(new URL("/auth/sign-in", request.url));
   }
 
-  const { data: existing } = await supabase.from("agents").select("creator_id, slug").eq("id", id).single();
+  const { data: existing } = await supabase.from("agently_agents").select("creator_id, slug").eq("id", id).single();
   if (!existing || existing.creator_id !== user.id) {
     return NextResponse.json({ error: "Agent not found, or you don't own it." }, { status: 404 });
   }
 
-  const { error } = await supabase.from("agents").update({ status: "delisted" }).eq("id", id);
+  const { error } = await supabase.from("agently_agents").update({ status: "delisted" }).eq("id", id);
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
   }

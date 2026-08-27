@@ -49,7 +49,7 @@ export async function POST(request: Request) {
       const { agent_id, buyer_id, user_id, membership_tier } = session.metadata ?? {};
 
       if (agent_id && buyer_id) {
-        await supabase.from("purchases").insert({
+        await supabase.from("agently_purchases").insert({
           agent_id,
           buyer_id,
           stripe_checkout_session_id: session.id,
@@ -59,7 +59,7 @@ export async function POST(request: Request) {
         });
       } else if (user_id && membership_tier) {
         await supabase
-          .from("profiles")
+          .from("agently_profiles")
           .update({
             membership_tier,
             membership_status: "active",
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
       // the subscription stops being active.
       const active = subscription.status === "active";
       await supabase
-        .from("profiles")
+        .from("agently_profiles")
         .update({
           membership_status: active ? "active" : "canceled",
           ...(active ? {} : { membership_tier: "free" }),
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
       // details_submitted alone can still mean "pending verification".
       const account = event.data.object as { id: string; charges_enabled: boolean };
       await supabase
-        .from("profiles")
+        .from("agently_profiles")
         .update({ stripe_connect_ready: account.charges_enabled })
         .eq("stripe_connect_id", account.id);
       break;

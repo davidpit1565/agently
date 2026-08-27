@@ -11,7 +11,7 @@ export type Notification = {
 export async function getNotifications(userId: string): Promise<{ notifications: Notification[]; unreadCount: number }> {
   const supabase = await createClient();
   const { data } = await supabase
-    .from("notifications")
+    .from("agently_notifications")
     .select("id, message, read, created_at, agents(slug)")
     .eq("user_id", userId)
     .order("created_at", { ascending: false })
@@ -38,7 +38,7 @@ export async function notifyBuyersOfUpdate(agentId: string, agentName: string, v
   const supabase = await createClient();
 
   const { data: purchases } = await supabase
-    .from("purchases")
+    .from("agently_purchases")
     .select("buyer_id")
     .eq("agent_id", agentId)
     .eq("status", "paid");
@@ -46,7 +46,7 @@ export async function notifyBuyersOfUpdate(agentId: string, agentName: string, v
   const buyerIds = [...new Set((purchases ?? []).map((p) => p.buyer_id))];
   if (buyerIds.length === 0) return;
 
-  await supabase.from("notifications").insert(
+  await supabase.from("agently_notifications").insert(
     buyerIds.map((buyerId) => ({
       user_id: buyerId,
       agent_id: agentId,

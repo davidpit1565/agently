@@ -26,7 +26,7 @@ export default async function SettingsPage({
   }
 
   const { data: profile } = await supabase
-    .from("profiles")
+    .from("agently_profiles")
     .select("display_name, account_type, company_name, bio, website_url")
     .eq("id", user.id)
     .single();

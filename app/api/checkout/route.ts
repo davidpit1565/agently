@@ -29,8 +29,8 @@ export async function POST(request: Request) {
   }
 
   const { data: agent } = await supabase
-    .from("agents")
-    .select("*, profiles!agents_creator_id_fkey(stripe_connect_id, stripe_connect_ready)")
+    .from("agently_agents")
+    .select("*, profiles:agently_profiles!agently_agents_creator_id_fkey(stripe_connect_id, stripe_connect_ready)")
     .eq("id", agentId)
     .single();
 
@@ -42,7 +42,7 @@ export async function POST(request: Request) {
   // buyer shows up as owning it (unlocks reviewing it, matches paid agents'
   // "you already got this" state) and send them straight to the delivery link.
   if (agent.pricing_model === "free") {
-    await supabase.from("purchases").upsert(
+    await supabase.from("agently_purchases").upsert(
       {
         agent_id: agent.id,
         buyer_id: user.id,

@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   }
 
   const { data: profile } = await supabase
-    .from("profiles")
+    .from("agently_profiles")
     .select("stripe_customer_id")
     .eq("id", user.id)
     .single();

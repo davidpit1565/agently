@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { getApprovedAgents } from "@/lib/catalog";
+import { getAgentIdsWithFiles } from "@/lib/agent-files";
 import { BrowseClient } from "./browse-client";
 
 const title = "Browse agents — Agently";
@@ -14,13 +15,14 @@ export const metadata: Metadata = {
 
 export default async function BrowsePage() {
   const agents = await getApprovedAgents();
+  const idsWithFiles = await getAgentIdsWithFiles(agents.map((a) => a.id));
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-16">
       <div className="mb-8">
         <h1 className="text-balance font-display text-2xl font-semibold">Browse agents</h1>
       </div>
-      <BrowseClient agents={agents} />
+      <BrowseClient agents={agents} idsWithFiles={[...idsWithFiles]} />
     </main>
   );
 }

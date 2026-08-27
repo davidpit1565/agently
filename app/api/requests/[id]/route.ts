@@ -41,17 +41,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   let fulfilledAgentId: string | null = null;
   if (status === "fulfilled" && fulfilledAgentSlug) {
-    const { data: agent } = await admin.from("agents").select("id").eq("slug", fulfilledAgentSlug).single();
+    const { data: agent } = await admin.from("agently_agents").select("id").eq("slug", fulfilledAgentSlug).single();
     fulfilledAgentId = agent?.id ?? null;
   }
 
-  const { data: existing } = await admin.from("agent_requests").select("requester_id, status").eq("id", id).single();
+  const { data: existing } = await admin.from("agently_agent_requests").select("requester_id, status").eq("id", id).single();
   if (!existing) {
     return NextResponse.json({ error: "Request not found." }, { status: 404 });
   }
 
   const { error } = await admin
-    .from("agent_requests")
+    .from("agently_agent_requests")
     .update({ status, admin_notes: adminNotes, fulfilled_agent_id: fulfilledAgentId })
     .eq("id", id);
 
@@ -60,7 +60,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   if (status === "fulfilled" && existing.status !== "fulfilled") {
-    await admin.from("notifications").insert({
+    await admin.from("agently_notifications").insert({
       user_id: existing.requester_id,
       agent_id: fulfilledAgentId,
       type: "agent_request_fulfilled",

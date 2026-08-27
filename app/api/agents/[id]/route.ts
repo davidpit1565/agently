@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { reviewAgentSubmission } from "@/lib/safety-review";
 import { notifyBuyersOfUpdate } from "@/lib/notifications";
 import { getEmbedding, embeddableText } from "@/lib/embeddings";
+import { uploadAgentFiles } from "@/lib/agent-files";
 
 // Edits an existing listing. When the edit is a real new version — the
 // delivery link or the buyer-facing content actually changed, not just
@@ -28,7 +29,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.redirect(new URL("/auth/sign-in", request.url));
   }
 
-  const { data: existing } = await supabase.from("agents").select("*").eq("id", id).single();
+  const { data: existing } = await supabase.from("agently_agents").select("*").eq("id", id).single();
   if (!existing || existing.creator_id !== user.id) {
     return NextResponse.json({ error: "Agent not found, or you don't own it." }, { status: 404 });
   }
@@ -42,6 +43,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const pricingModel = String(form.get("pricing_model"));
   const priceEur = form.get("price");
   const deliveryUrl = (form.get("delivery_url") as string) || null;
+  const newFiles = form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
 
   // Content changed enough to matter for trust/safety re-run only if the
   // parts a buyer actually reads changed — not just price or category.
@@ -51,9 +53,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   // A real new version — something a buyer running the delivered code
   // would actually want to know about — only when the code's own
-  // location changed or its description changed enough to re-review.
-  // A price or category edit isn't that.
-  const isNewVersion = contentChanged || deliveryUrl !== existing.delivery_url;
+  // location changed, new files were attached, or its description changed
+  // enough to re-review. A price or category edit isn't that.
+  const isNewVersion = contentChanged || deliveryUrl !== existing.delivery_url || newFiles.length > 0;
   const version = isNewVersion ? existing.version + 1 : existing.version;
 
   let status = existing.status;
@@ -79,7 +81,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const { error } = await supabase
-    .from("agents")
+    .from("agently_agents")
     .update({
       name,
       tagline,
@@ -101,6 +103,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
+  let rejectedNames: string[] = [];
+  if (newFiles.length > 0) {
+    const uploadResult = await uploadAgentFiles(id, newFiles);
+    rejectedNames = uploadResult.rejected.map((r) => r.name);
+  }
+
   // Only for a real new version — a price/category-only edit isn't
   // something someone running the delivered code needs to hear about.
   if (isNewVersion) {
@@ -108,5 +116,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const successParam = isNewVersion ? "updated=1" : "saved=1";
-  return NextResponse.redirect(new URL(`/agents/${existing.slug}?${successParam}`, request.url), 303);
+  const redirectUrl = new URL(`/agents/${existing.slug}?${successParam}`, request.url);
+  if (rejectedNames.length > 0) {
+    redirectUrl.searchParams.set("skipped_files", rejectedNames.join(", "));
+  }
+  return NextResponse.redirect(redirectUrl, 303);
 }

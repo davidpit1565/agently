@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   const origin = new URL(request.url).origin;
 
   const { data: profile } = await supabase
-    .from("profiles")
+    .from("agently_profiles")
     .select("stripe_connect_id")
     .eq("id", user.id)
     .single();
@@ -44,7 +44,7 @@ export async function POST(request: Request) {
       },
     });
     accountId = account.id;
-    await supabase.from("profiles").update({ stripe_connect_id: accountId }).eq("id", user.id);
+    await supabase.from("agently_profiles").update({ stripe_connect_id: accountId }).eq("id", user.id);
   }
 
   const link = await stripe.accountLinks.create({

@@ -6,9 +6,9 @@ import { Notice } from "@/app/components/form-field";
 export default async function AdminRequestsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string }>;
+  searchParams: Promise<{ saved?: string; embedded?: string; skipped?: string }>;
 }) {
-  const { saved } = await searchParams;
+  const { saved, embedded, skipped } = await searchParams;
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return <Notice title="Not connected yet">This page needs Supabase configured.</Notice>;
@@ -34,6 +34,26 @@ export default async function AdminRequestsPage({
           Saved.
         </p>
       )}
+
+      {embedded !== undefined && (
+        <p className="mb-6 rounded-lg border border-accent/30 bg-accent-soft px-4 py-3 text-sm text-accent">
+          Embedded {embedded} listing{embedded === "1" ? "" : "s"}
+          {skipped && skipped !== "0" ? ` — skipped ${skipped} (no VOYAGE_API_KEY, or the call failed).` : "."}
+        </p>
+      )}
+
+      <form action="/api/agents/backfill-embeddings" method="POST" className="mb-8">
+        <button
+          type="submit"
+          className="w-fit rounded-full border border-line px-4 py-2 text-xs font-medium text-ink-soft hover:border-accent/50 hover:text-accent"
+        >
+          Embed listings for semantic search
+        </button>
+        <p className="mt-1 text-xs text-ink-faint">
+          Catches up any approved listing that predates semantic search (lib/embeddings.ts) — new
+          listings get this automatically on upload or edit.
+        </p>
+      </form>
 
       {requests.length === 0 ? (
         <p className="text-sm text-ink-soft">Nothing requested yet.</p>

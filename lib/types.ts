@@ -29,6 +29,7 @@ export type Agent = {
   trust_score: number;
   version: number;
   embedding: number[] | null;
+  view_count: number;
   created_at: string;
   updated_at: string;
 };

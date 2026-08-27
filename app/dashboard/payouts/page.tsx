@@ -25,7 +25,7 @@ export default async function PayoutsPage({
   }
 
   const { data: profile } = await supabase
-    .from("profiles")
+    .from("agently_profiles")
     .select("stripe_connect_id, stripe_connect_ready")
     .eq("id", user.id)
     .single();
