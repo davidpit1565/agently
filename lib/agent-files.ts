@@ -68,6 +68,25 @@ export async function getAgentFiles(agentId: string): Promise<AgentFile[]> {
   return data as AgentFile[];
 }
 
+/** One batched query for a whole listing grid (browse, a creator's own
+ *  agents) instead of one query per card — which file a listing has
+ *  doesn't matter here, only whether it has any real deliverable
+ *  attached, so a buyer can tell a completed listing from a bare
+ *  description before ever clicking in. */
+export async function getAgentIdsWithFiles(agentIds: string[]): Promise<Set<string>> {
+  const admin = createAdminClient();
+  if (!admin || agentIds.length === 0) return new Set();
+
+  const { data, error } = await admin
+    .from("agent_files")
+    .select("agent_id")
+    .in("agent_id", agentIds)
+    .eq("is_readme", false);
+
+  if (error || !data) return new Set();
+  return new Set(data.map((row) => row.agent_id as string));
+}
+
 export async function deleteAgentFile(fileId: string, agentId: string): Promise<void> {
   const admin = createAdminClient();
   if (!admin) return;
