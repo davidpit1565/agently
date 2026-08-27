@@ -4,6 +4,12 @@ import sanitizeHtml from "sanitize-html";
 
 const BUCKET = "agent-files";
 
+// Supabase's own hard ceiling on the free tier — a larger upload fails at
+// their end regardless of what this app allows, so check it here first
+// and say why in a way a creator can actually act on, instead of letting
+// it fail silently inside uploadAgentFiles below.
+const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
+
 // A creator can upload a listing's files without ever seeing another
 // listing's — random per-file path segment, not the file name, so two
 // creators uploading a file named the same thing (README.md is common)
@@ -27,30 +33,59 @@ export type AgentFile = {
   created_at: string;
 };
 
+export type FileUploadResult = {
+  uploaded: number;
+  /** File name + why it didn't make it — a creator who picked a 200MB
+   *  video should be told that, not left assuming it's sitting on the
+   *  listing when it silently never arrived. */
+  rejected: { name: string; reason: string }[];
+};
+
 /** Uploads every file in the list to the private bucket and records each
  *  one. Called only from server routes that already checked the caller
  *  owns `agentId` — see the schema.sql comment on agent_files for why this
  *  uses the service-role client instead of Storage RLS. */
-export async function uploadAgentFiles(agentId: string, files: File[]): Promise<void> {
+export async function uploadAgentFiles(agentId: string, files: File[]): Promise<FileUploadResult> {
+  const result: FileUploadResult = { uploaded: 0, rejected: [] };
   const admin = createAdminClient();
-  if (!admin || files.length === 0) return;
+  if (!admin || files.length === 0) return result;
 
   for (const file of files) {
     if (file.size === 0) continue; // an empty <input type="file"> still submits one zero-byte entry
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      result.rejected.push({ name: file.name, reason: "over the 50MB limit" });
+      continue;
+    }
+
     const path = storagePath(agentId, file.name);
     const { error: uploadError } = await admin.storage
       .from(BUCKET)
       .upload(path, file, { contentType: file.type || "application/octet-stream" });
-    if (uploadError) continue; // one bad file shouldn't fail the whole submission
+    if (uploadError) {
+      result.rejected.push({ name: file.name, reason: "upload failed" });
+      continue; // one bad file shouldn't fail the whole submission
+    }
 
-    await admin.from("agent_files").insert({
+    const { error: insertError } = await admin.from("agent_files").insert({
       agent_id: agentId,
       file_name: file.name,
       storage_path: path,
       size_bytes: file.size,
       is_readme: looksLikeReadme(file.name),
     });
+    if (insertError) {
+      // The blob is already in Storage but with no row pointing at it —
+      // clean it up rather than leaving an orphaned file no UI ever lists.
+      await admin.storage.from(BUCKET).remove([path]);
+      result.rejected.push({ name: file.name, reason: "upload failed" });
+      continue;
+    }
+
+    result.uploaded++;
   }
+
+  return result;
 }
 
 export async function getAgentFiles(agentId: string): Promise<AgentFile[]> {

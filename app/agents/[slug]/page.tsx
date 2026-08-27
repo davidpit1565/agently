@@ -75,10 +75,16 @@ export default async function AgentPage({
   searchParams,
 }: {
   params: Promise<{ slug: string }>;
-  searchParams: Promise<{ purchased?: string; reviewed?: string; updated?: string; saved?: string }>;
+  searchParams: Promise<{
+    purchased?: string;
+    reviewed?: string;
+    updated?: string;
+    saved?: string;
+    skipped_files?: string;
+  }>;
 }) {
   const { slug } = await params;
-  const { purchased, reviewed, updated, saved } = await searchParams;
+  const { purchased, reviewed, updated, saved, skipped_files: skippedFiles } = await searchParams;
   const agent = await getAgentBySlug(slug);
   if (!agent) notFound();
 
@@ -177,6 +183,12 @@ export default async function AgentPage({
                 : updated
                   ? "Saved as a new version. Every buyer who owns this agent has been notified, and its version-check endpoint now reports it."
                   : "Saved."}
+          </div>
+        )}
+        {skippedFiles && (
+          <div className="rounded-lg border border-line bg-surface px-4 py-2.5 text-sm text-ink-soft">
+            Everything else was saved, but this didn&apos;t upload: <strong>{skippedFiles}</strong> (over
+            the 50MB limit, or the upload failed). Try again from the edit page.
           </div>
         )}
         {isOwner && agent.status !== "approved" && (

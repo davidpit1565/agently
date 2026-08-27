@@ -7,9 +7,9 @@ import { Field, Notice } from "@/app/components/form-field";
 export default async function UploadPage({
   searchParams,
 }: {
-  searchParams: Promise<{ submitted?: string }>;
+  searchParams: Promise<{ submitted?: string; skipped_files?: string }>;
 }) {
-  const { submitted } = await searchParams;
+  const { submitted, skipped_files: skippedFiles } = await searchParams;
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return (
@@ -73,6 +73,13 @@ export default async function UploadPage({
           Submitted. Check <Link href="/dashboard/agents" className="underline">your listings</Link> for
           the review result — approved ones go live right away, others wait on a
           quick human look.
+        </p>
+      )}
+
+      {skippedFiles && (
+        <p className="mb-6 rounded-lg border border-line bg-surface px-4 py-3 text-sm text-ink-soft">
+          Everything else made it, but this didn&apos;t upload: <strong>{skippedFiles}</strong> (over the 50MB
+          limit, or the upload failed). Try again from the edit page once your listing is saved.
         </p>
       )}
 

@@ -103,8 +103,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: error.message }, { status: 400 });
   }
 
+  let rejectedNames: string[] = [];
   if (newFiles.length > 0) {
-    await uploadAgentFiles(id, newFiles);
+    const uploadResult = await uploadAgentFiles(id, newFiles);
+    rejectedNames = uploadResult.rejected.map((r) => r.name);
   }
 
   // Only for a real new version — a price/category-only edit isn't
@@ -114,5 +116,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   const successParam = isNewVersion ? "updated=1" : "saved=1";
-  return NextResponse.redirect(new URL(`/agents/${existing.slug}?${successParam}`, request.url), 303);
+  const redirectUrl = new URL(`/agents/${existing.slug}?${successParam}`, request.url);
+  if (rejectedNames.length > 0) {
+    redirectUrl.searchParams.set("skipped_files", rejectedNames.join(", "));
+  }
+  return NextResponse.redirect(redirectUrl, 303);
 }

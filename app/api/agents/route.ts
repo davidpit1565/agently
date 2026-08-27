@@ -112,11 +112,17 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: error?.message ?? "Could not save the listing." }, { status: 400 });
   }
 
+  let rejectedNames: string[] = [];
   if (files.length > 0) {
-    await uploadAgentFiles(inserted.id, files);
+    const uploadResult = await uploadAgentFiles(inserted.id, files);
+    rejectedNames = uploadResult.rejected.map((r) => r.name);
   }
 
-  return NextResponse.redirect(new URL("/dashboard/upload?submitted=1", request.url));
+  const redirectUrl = new URL("/dashboard/upload?submitted=1", request.url);
+  if (rejectedNames.length > 0) {
+    redirectUrl.searchParams.set("skipped_files", rejectedNames.join(", "));
+  }
+  return NextResponse.redirect(redirectUrl);
 }
 
 function slugify(name: string) {
