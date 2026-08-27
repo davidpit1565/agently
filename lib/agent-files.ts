@@ -15,8 +15,21 @@ const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024;
 // creators uploading a file named the same thing (README.md is common)
 // never collide, and nothing about a path can be guessed from another
 // agent's known id.
+//
+// fileName comes straight from the browser (File.name) — a crafted name
+// like "x/../../other-agent-id/secret" would insert extra "/" segments
+// into the key and could write or collide outside this agent's own
+// folder in the bucket. Strip it to a bare basename with no path
+// separators before it ever reaches the storage key; the original name
+// (with those characters) is still what's shown in the UI, since that's
+// just text, not a path.
+function safeBaseName(fileName: string): string {
+  const base = fileName.split(/[\\/]/).pop() || "file";
+  return base.replace(/[^a-zA-Z0-9_.-]/g, "_");
+}
+
 function storagePath(agentId: string, fileName: string) {
-  return `${agentId}/${crypto.randomUUID()}-${fileName}`;
+  return `${agentId}/${crypto.randomUUID()}-${safeBaseName(fileName)}`;
 }
 
 function looksLikeReadme(fileName: string) {
