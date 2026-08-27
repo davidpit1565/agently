@@ -54,6 +54,15 @@ upload — see the market research report, chapters 12 and 14, for why.
   on the listing page automatically — sanitized (`sanitize-html`) before
   it's ever set as HTML, since it's a creator's own upload, not reviewed
   text.
+- **Browse sort + a "has files" signal** — `/browse` sorts by trust score
+  or price, not just newest, and a card shows whether a listing has a real
+  file attached before you ever click in (relevance still wins while
+  actively searching by text).
+- **Creator stats** (`/dashboard/agents`) — raw page-view count per
+  listing (`increment_agent_view`, atomic, excludes the creator's own
+  visits) and a real sale count from `purchases`. Called a page-view count
+  on purpose, not "visitors" — there's no dedup or bot filtering, and the
+  dashboard says so.
 
 ## Not built yet (intentionally — see report ch. 13-14)
 

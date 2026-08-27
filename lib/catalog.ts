@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { SEED_AGENTS } from "@/data/seed-agents";
 import type { Agent } from "@/lib/types";
 
@@ -102,4 +103,38 @@ export async function getMyAgents(userId: string): Promise<Agent[]> {
 
   if (error || !data) return [];
   return data as Agent[];
+}
+
+/** Fire-and-forget — a visitor's page render shouldn't wait on this, and a
+ *  failed increment (Supabase not configured, the RPC erroring) shouldn't
+ *  break the page. Uses the admin client because most viewers are signed
+ *  out, and the ones who aren't still don't own this row — the same
+ *  "no auth.uid() a policy could check" reasoning as elsewhere in this
+ *  codebase for a service-role write. Caller decides who counts as a
+ *  view (see app/agents/[slug]/page.tsx: not the listing's own creator). */
+export function recordAgentView(agentId: string): void {
+  const admin = createAdminClient();
+  if (!admin) return;
+  void admin.rpc("increment_agent_view", { agent_id: agentId });
+}
+
+/** One batched query for a creator's whole dashboard instead of one COUNT
+ *  per listing. Only `status = 'paid'` counts — a pending or refunded
+ *  checkout was never a real sale. */
+export async function getPurchaseCounts(agentIds: string[]): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  if (!supabaseConfigured() || agentIds.length === 0) return counts;
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("purchases")
+    .select("agent_id")
+    .in("agent_id", agentIds)
+    .eq("status", "paid");
+
+  if (error || !data) return counts;
+  for (const row of data) {
+    counts.set(row.agent_id, (counts.get(row.agent_id) ?? 0) + 1);
+  }
+  return counts;
 }

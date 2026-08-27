@@ -97,6 +97,23 @@ create table if not exists agents (
 -- `version` existed — `create table if not exists` above wouldn't add it.
 alter table agents add column if not exists version integer not null default 1;
 
+-- Raw pageview count for the creator's own dashboard — every render of an
+-- approved listing by someone other than its own creator, no dedup, no
+-- bot filtering. That's a real limit, said plainly here and in the
+-- dashboard copy, not smoothed into "visitors" or "unique views."
+alter table agents add column if not exists view_count integer not null default 0;
+
+-- A plain `update agents set view_count = view_count + 1` from application
+-- code is a read-modify-write race under real concurrent traffic — two
+-- visitors landing in the same instant can both read the same old count
+-- and both write old+1, silently dropping a view. This function makes the
+-- increment one atomic statement instead.
+create or replace function increment_agent_view(agent_id uuid) returns void as $$
+begin
+  update agents set view_count = view_count + 1 where id = agent_id;
+end;
+$$ language plpgsql;
+
 -- Semantic search (lib/embeddings.ts) — a listing's name+tagline+problem_solved
 -- run through Voyage AI, stored as a plain JSON float array rather than
 -- pgvector so this file stays a single SQL Editor paste with no extension

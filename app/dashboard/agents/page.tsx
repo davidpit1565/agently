@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
-import { getMyAgents } from "@/lib/catalog";
+import { getMyAgents, getPurchaseCounts } from "@/lib/catalog";
 import { TrustRing } from "@/app/components/trust-ring";
 import { Notice } from "@/app/components/form-field";
 import { DelistButton } from "@/app/components/delist-button";
@@ -37,6 +37,7 @@ export default async function MyAgentsPage({
   }
 
   const agents = await getMyAgents(user.id);
+  const purchaseCounts = await getPurchaseCounts(agents.map((a) => a.id));
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
@@ -104,6 +105,17 @@ export default async function MyAgentsPage({
                 <p className="mt-0.5 truncate text-sm text-ink-faint">{agent.tagline}</p>
                 {agent.review_notes && agent.status !== "approved" && (
                   <p className="mt-1 truncate text-xs text-ink-faint">{agent.review_notes}</p>
+                )}
+                {agent.status === "approved" && (
+                  <p className="mt-1.5 flex items-center gap-3 font-mono text-[11px] tabular-nums text-ink-faint">
+                    <span title="Page views — not unique visitors, no bot filtering">
+                      {agent.view_count} view{agent.view_count === 1 ? "" : "s"}
+                    </span>
+                    <span>·</span>
+                    <span>
+                      {purchaseCounts.get(agent.id) ?? 0} sale{(purchaseCounts.get(agent.id) ?? 0) === 1 ? "" : "s"}
+                    </span>
+                  </p>
                 )}
               </div>
 

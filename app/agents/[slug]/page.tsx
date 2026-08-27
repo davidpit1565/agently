@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import Link from "next/link";
-import { getAgentBySlug, getCreatorProfile } from "@/lib/catalog";
+import { getAgentBySlug, getCreatorProfile, recordAgentView } from "@/lib/catalog";
 import { getReviewsForAgent } from "@/lib/reviews";
 import { createClient } from "@/lib/supabase/server";
 import { CATEGORIES_FALLBACK } from "@/data/categories";
@@ -107,6 +107,10 @@ export default async function AgentPage({
   // getAgentBySlug no longer filters by status so the creator can preview
   // one before it's approved; everyone else still gets a 404.
   if (agent.status !== "approved" && !isOwner) notFound();
+
+  // Not the creator's own preview visits — those would inflate the count
+  // with clicks that say nothing about buyer interest.
+  if (!isOwner) recordAgentView(agent.id);
 
   const cat = category(agent.category_slug);
   const { reviews, average, count } = await getReviewsForAgent(agent.id);
