@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Reveal } from "@/app/components/reveal";
 
 /** Same three real accounts as the Actually Works site (videos-ai/studio/app/site-social.tsx)
  *  — one source of truth for the icons, kept in sync by hand until these two sites share a
@@ -25,7 +26,7 @@ const SOCIAL_LINKS = [
 export function Footer() {
   return (
     <footer className="border-t border-line px-6 py-8 text-center text-xs text-ink-faint">
-      <div className="mb-4 flex items-center justify-center gap-4">
+      <Reveal className="mb-4 flex items-center justify-center gap-4">
         {SOCIAL_LINKS.map((l) => (
           <a
             key={l.name}
@@ -33,14 +34,14 @@ export function Footer() {
             target="_blank"
             rel="noopener noreferrer"
             aria-label={l.name}
-            className="text-ink-faint hover:text-accent"
+            className="text-ink-faint transition-all duration-200 hover:-translate-y-0.5 hover:text-accent"
           >
             <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
               <path d={l.path} />
             </svg>
           </a>
         ))}
-      </div>
+      </Reveal>
       <p>
         Agently is part of{" "}
         <a

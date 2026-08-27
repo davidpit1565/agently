@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { CATEGORIES_FALLBACK } from "@/data/categories";
 import { AgentCard } from "@/app/components/agent-card";
+import { Reveal } from "@/app/components/reveal";
 import type { Agent } from "@/lib/types";
 
 export function BrowseClient({ agents }: { agents: Agent[] }) {
@@ -87,7 +88,7 @@ export function BrowseClient({ agents }: { agents: Agent[] }) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="What are you stuck on? e.g. “my captions get cut off on Instagram”"
-            className="w-full rounded-xl border border-line bg-surface py-3 pl-11 pr-4 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-accent/50"
+            className="w-full rounded-xl border border-line bg-surface py-3 pl-11 pr-4 text-sm text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-accent/50"
           />
         </div>
 
@@ -95,10 +96,10 @@ export function BrowseClient({ agents }: { agents: Agent[] }) {
           <button
             type="button"
             onClick={() => setActiveCategory(null)}
-            className={`rounded-full border px-3 py-1 text-xs transition ${
+            className={`rounded-full border px-3 py-1 text-xs transition-all duration-200 ${
               activeCategory === null
                 ? "border-accent/50 bg-accent-soft text-accent"
-                : "border-line text-ink-faint hover:border-accent/30"
+                : "border-line text-ink-faint hover:-translate-y-0.5 hover:border-accent/30"
             }`}
           >
             All
@@ -108,10 +109,10 @@ export function BrowseClient({ agents }: { agents: Agent[] }) {
               key={c.slug}
               type="button"
               onClick={() => setActiveCategory(activeCategory === c.slug ? null : c.slug)}
-              className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition ${
+              className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-all duration-200 ${
                 activeCategory === c.slug
                   ? "border-accent/50 bg-accent-soft text-accent"
-                  : "border-line text-ink-faint hover:border-accent/30"
+                  : "border-line text-ink-faint hover:-translate-y-0.5 hover:border-accent/30"
               }`}
             >
               <span className="h-1.5 w-1.5 rounded-full" style={{ background: c.color }} aria-hidden />
@@ -127,7 +128,7 @@ export function BrowseClient({ agents }: { agents: Agent[] }) {
       </p>
 
       {filtered.length === 0 ? (
-        <div className="flex flex-col items-center gap-2 rounded-xl border border-dashed border-line py-20 text-center">
+        <div className="flex animate-fade-up flex-col items-center gap-2 rounded-xl border border-dashed border-line py-20 text-center">
           <span className="h-2 w-2 rounded-full bg-ink-faint" aria-hidden />
           <p className="font-display text-lg font-semibold">Nothing matches that yet</p>
           <p className="max-w-sm text-sm text-ink-soft">
@@ -140,8 +141,10 @@ export function BrowseClient({ agents }: { agents: Agent[] }) {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((agent) => (
-            <AgentCard key={agent.id} agent={agent} />
+          {filtered.map((agent, i) => (
+            <Reveal key={agent.id} delay={Math.min(i, 8) * 60}>
+              <AgentCard agent={agent} />
+            </Reveal>
           ))}
         </div>
       )}
