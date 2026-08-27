@@ -1,4 +1,5 @@
 import { createClient } from "@/lib/supabase/server";
+import { Reveal } from "@/app/components/reveal";
 
 export default async function PayoutsPage({
   searchParams,
@@ -34,22 +35,24 @@ export default async function PayoutsPage({
 
   return (
     <main className="mx-auto max-w-lg px-6 py-16">
-      <h1 className="text-balance mb-2 font-display text-2xl font-semibold">Payouts</h1>
-      <p className="mb-8 text-pretty text-sm leading-relaxed text-ink-soft">
-        Every agent you sell pays through Stripe. This is where that money
-        actually reaches you — {" "}
-        <span className="tabular-nums text-ink">{100 - 15}%</span> of each sale, the rest is
-        the platform fee.
-      </p>
+      <div className="animate-fade-up">
+        <h1 className="text-balance mb-2 font-display text-2xl font-semibold">Payouts</h1>
+        <p className="mb-8 text-pretty text-sm leading-relaxed text-ink-soft">
+          Every agent you sell pays through Stripe. This is where that money
+          actually reaches you — {" "}
+          <span className="tabular-nums text-ink">{100 - 15}%</span> of each sale, the rest is
+          the platform fee.
+        </p>
+      </div>
 
       {onboarded && !ready && (
-        <p className="mb-6 rounded-lg border border-line bg-surface px-4 py-3 text-sm text-ink-soft">
+        <p className="mb-6 animate-fade-up rounded-lg border border-line bg-surface px-4 py-3 text-sm text-ink-soft">
           You're back from Stripe — this can take a minute to update below
           while they finish verifying your details.
         </p>
       )}
 
-      <div className="rounded-xl border border-line bg-surface p-6">
+      <Reveal delay={80} className="rounded-xl border border-line bg-surface p-6">
         <div className="mb-4 flex items-center gap-2">
           <span
             className={`h-2 w-2 rounded-full ${ready ? "animate-pulse-dot bg-accent" : "bg-ink-faint"}`}
@@ -70,14 +73,14 @@ export default async function PayoutsPage({
             <form action="/api/stripe/connect" method="POST">
               <button
                 type="submit"
-                className="rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-[#04140f] hover:opacity-90"
+                className="shine-sweep rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-[#04140f] transition-transform duration-200 hover:-translate-y-0.5 hover:opacity-90"
               >
                 {profile?.stripe_connect_id ? "Finish setup on Stripe" : "Connect Stripe"}
               </button>
             </form>
           </>
         )}
-      </div>
+      </Reveal>
     </main>
   );
 }
