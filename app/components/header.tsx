@@ -16,7 +16,7 @@ function NavLink({ href, label, onClick }: { href: string; label: string; onClic
   return (
     <Link href={href} onClick={onClick} className="group relative transition-colors duration-200 hover:text-ink">
       {label}
-      <span className="absolute -bottom-1 left-0 h-px w-0 bg-accent transition-all duration-300 ease-out group-hover:w-full" />
+      <span className="absolute -bottom-1 left-0 h-px w-0 bg-accent transition-all duration-300 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] group-hover:w-full" />
     </Link>
   );
 }
@@ -43,7 +43,7 @@ export function Header({ signedIn }: { signedIn: boolean }) {
       <form action="/auth/sign-out" method="POST">
         <button
           type="submit"
-          className="rounded-full border border-line px-3 py-1.5 hover:border-accent/50 hover:text-ink"
+          className="magnetic-btn rounded-full border border-line px-3 py-1.5 transition-colors duration-200 hover:border-accent/50 hover:text-ink"
         >
           Sign out
         </button>
@@ -52,7 +52,7 @@ export function Header({ signedIn }: { signedIn: boolean }) {
   ) : (
     <Link
       href="/auth/sign-in"
-      className="rounded-full border border-line px-3 py-1.5 hover:border-accent/50 hover:text-ink"
+      className="magnetic-btn rounded-full border border-line px-3 py-1.5 transition-colors duration-200 hover:border-accent/50 hover:text-ink"
     >
       Sign in
     </Link>
@@ -102,18 +102,21 @@ export function Header({ signedIn }: { signedIn: boolean }) {
             aria-label={open ? "Close menu" : "Open menu"}
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line"
+            className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-line transition-colors duration-200 hover:border-accent/50"
           >
             <span className="sr-only">Menu</span>
-            {open ? (
-              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M5 5l10 10M15 5L5 15" strokeLinecap="round" />
-              </svg>
-            ) : (
-              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.5">
-                <path d="M3 6h14M3 10h14M3 14h14" strokeLinecap="round" />
-              </svg>
-            )}
+            <span className="relative block h-3.5 w-4" aria-hidden>
+              <span
+                className={`absolute left-0 top-0 h-px w-4 bg-current transition-transform duration-300 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] ${
+                  open ? "translate-y-[7px] rotate-45" : "translate-y-0 rotate-0"
+                }`}
+              />
+              <span
+                className={`absolute left-0 bottom-0 h-px w-4 bg-current transition-transform duration-300 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] ${
+                  open ? "-translate-y-[7px] -rotate-45" : "translate-y-0 rotate-0"
+                }`}
+              />
+            </span>
           </button>
         </div>
       </div>
@@ -125,8 +128,8 @@ export function Header({ signedIn }: { signedIn: boolean }) {
               key={item.href}
               href={item.href}
               onClick={() => setOpen(false)}
-              style={{ animationDelay: `${i * 40}ms` }}
-              className="flex min-h-11 animate-fade-up items-center rounded-lg px-2 opacity-0 transition-colors hover:bg-surface hover:text-ink"
+              style={{ animationDelay: `${i * 60}ms` }}
+              className="flex min-h-11 animate-menu-item-in items-center rounded-lg px-2 opacity-0 transition-colors hover:bg-surface hover:text-ink"
             >
               {item.label}
             </Link>

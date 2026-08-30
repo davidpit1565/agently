@@ -34,7 +34,7 @@ export function Footer() {
             target="_blank"
             rel="noopener noreferrer"
             aria-label={l.name}
-            className="text-ink-faint transition-all duration-200 hover:-translate-y-0.5 hover:text-accent"
+            className="text-ink-faint transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-1 hover:scale-110 hover:text-accent"
           >
             <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
               <path d={l.path} />

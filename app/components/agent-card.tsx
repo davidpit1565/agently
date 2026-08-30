@@ -19,38 +19,40 @@ export function AgentCard({ agent, hasFiles }: { agent: Agent; hasFiles?: boolea
   return (
     <Link
       href={`/agents/${agent.slug}`}
-      className="group flex flex-col gap-3 rounded-xl border border-line bg-surface p-5 transition duration-200 ease-out hover:-translate-y-1 hover:border-accent/40 hover:bg-surface-raised hover:shadow-[0_12px_32px_-12px_rgba(47,224,173,0.25)]"
+      className="bezel-shell group block transition duration-300 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-1.5 hover:shadow-[0_20px_48px_-16px_rgba(47,224,173,0.28)]"
     >
-      <div className="flex items-center justify-between">
-        <span className="flex items-center gap-1.5 font-mono text-xs text-ink-faint">
-          <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-accent" aria-hidden />
-          {agentCode(agent.id)}
-        </span>
-        <TrustRing score={agent.trust_score} />
-      </div>
+      <div className="bezel-core flex h-full flex-col gap-3 border border-line bg-surface p-5 transition-colors duration-300 group-hover:border-accent/40 group-hover:bg-surface-raised">
+        <div className="flex items-center justify-between">
+          <span className="flex items-center gap-1.5 font-mono text-xs text-ink-faint">
+            <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-accent" aria-hidden />
+            {agentCode(agent.id)}
+          </span>
+          <TrustRing score={agent.trust_score} />
+        </div>
 
-      <div>
-        <h2 className="text-balance font-display font-semibold">{agent.name}</h2>
-        <p className="mt-1 text-sm text-ink-soft">{agent.tagline}</p>
-      </div>
+        <div>
+          <h2 className="text-balance font-display font-semibold">{agent.name}</h2>
+          <p className="mt-1 text-sm text-ink-soft">{agent.tagline}</p>
+        </div>
 
-      <div className="mt-auto flex items-center justify-between pt-2 text-xs">
-        <span className="flex items-center gap-1.5 rounded-full border border-line px-2 py-0.5 text-ink-faint">
-          <span className="h-1.5 w-1.5 rounded-full" style={{ background: cat.color }} aria-hidden />
-          {cat.name}
-        </span>
-        <div className="flex items-center gap-2">
-          {hasFiles && (
-            <span
-              className="flex items-center gap-1 text-ink-faint"
-              title="This listing has a downloadable file attached"
-            >
-              <svg viewBox="0 0 20 20" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6">
-                <path d="M10 3v10m0 0l-3.5-3.5M10 13l3.5-3.5M4 15.5v1a1 1 0 001 1h10a1 1 0 001-1v-1" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </span>
-          )}
-          <span className="font-mono font-medium tabular-nums text-accent">{priceLabel(agent)}</span>
+        <div className="mt-auto flex items-center justify-between pt-2 text-xs">
+          <span className="flex items-center gap-1.5 rounded-full border border-line px-2 py-0.5 text-ink-faint">
+            <span className="h-1.5 w-1.5 rounded-full" style={{ background: cat.color }} aria-hidden />
+            {cat.name}
+          </span>
+          <div className="flex items-center gap-2">
+            {hasFiles && (
+              <span
+                className="flex items-center gap-1 text-ink-faint"
+                title="This listing has a downloadable file attached"
+              >
+                <svg viewBox="0 0 20 20" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="1.6">
+                  <path d="M10 3v10m0 0l-3.5-3.5M10 13l3.5-3.5M4 15.5v1a1 1 0 001 1h10a1 1 0 001-1v-1" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </span>
+            )}
+            <span className="font-mono font-medium tabular-nums text-accent">{priceLabel(agent)}</span>
+          </div>
         </div>
       </div>
     </Link>
