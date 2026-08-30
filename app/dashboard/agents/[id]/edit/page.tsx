@@ -39,7 +39,7 @@ export default async function EditAgentPage({
   const files = await getAgentFiles(agent.id);
 
   return (
-    <main className="mx-auto max-w-xl px-6 py-16">
+    <main className="mx-auto max-w-xl px-6 py-16 sm:py-20">
       <h1 className="text-balance mb-2 font-display text-2xl font-semibold">
         Edit {agent.name} <span className="text-ink-faint">· v{agent.version}</span>
       </h1>
@@ -96,7 +96,7 @@ export default async function EditAgentPage({
             name="category_slug"
             required
             defaultValue={agent.category_slug}
-            className="rounded-lg border border-line bg-surface px-4 py-2.5 text-ink outline-none focus:border-accent"
+            className="rounded-lg border border-line bg-surface px-4 py-2.5 text-ink outline-none transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] focus:border-accent focus:shadow-[0_0_0_3px_rgba(47,224,173,0.12)]"
           >
             {CATEGORIES_FALLBACK.map((c) => (
               <option key={c.slug} value={c.slug}>
@@ -112,7 +112,7 @@ export default async function EditAgentPage({
             name="pricing_model"
             required
             defaultValue={agent.pricing_model}
-            className="rounded-lg border border-line bg-surface px-4 py-2.5 text-ink outline-none focus:border-accent"
+            className="rounded-lg border border-line bg-surface px-4 py-2.5 text-ink outline-none transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] focus:border-accent focus:shadow-[0_0_0_3px_rgba(47,224,173,0.12)]"
           >
             <option value="one_time">One-time purchase</option>
             <option value="subscription">Monthly subscription</option>
@@ -146,7 +146,7 @@ export default async function EditAgentPage({
 
         <button
           type="submit"
-          className="mt-2 rounded-full bg-accent px-6 py-3 text-sm font-medium text-[#04140f] hover:opacity-90"
+          className="magnetic-btn mt-2 rounded-full bg-accent px-6 py-3 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
         >
           Save and notify buyers
         </button>

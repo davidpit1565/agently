@@ -36,9 +36,9 @@ export default async function CreatorPage({
   const agents = await getAgentsByCreator(id);
 
   return (
-    <main className="mx-auto max-w-5xl px-6 py-16">
-      <div className="mb-10 flex items-center gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-line bg-surface font-display text-lg font-semibold text-accent">
+    <main className="mx-auto max-w-5xl px-6 py-16 sm:py-20">
+      <Reveal className="mb-10 flex items-center gap-4">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-line bg-surface font-display text-lg font-semibold text-accent shadow-[inset_0_1px_0_0_rgba(237,243,238,0.05)]">
           {creator.display_name.slice(0, 1).toUpperCase()}
         </div>
         <div>
@@ -48,22 +48,22 @@ export default async function CreatorPage({
             {agents.length} agent{agents.length === 1 ? "" : "s"} listed
           </p>
         </div>
-      </div>
+      </Reveal>
 
       {(creator.bio || creator.website_url) && (
-        <div className="mb-10 flex flex-col gap-2 border-b border-line pb-8">
+        <Reveal delay={70} className="mb-10 flex flex-col gap-2 border-b border-line pb-8">
           {creator.bio && <p className="max-w-2xl text-pretty leading-relaxed text-ink-soft">{creator.bio}</p>}
           {creator.website_url && (
             <a
               href={creator.website_url}
               target="_blank"
               rel="noopener noreferrer nofollow"
-              className="w-fit text-sm text-accent hover:underline"
+              className="w-fit text-sm text-accent transition-colors duration-200 hover:underline"
             >
               {creator.website_url.replace(/^https?:\/\//, "")}
             </a>
           )}
-        </div>
+        </Reveal>
       )}
 
       {agents.length === 0 ? (

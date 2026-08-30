@@ -61,7 +61,7 @@ export default async function UploadPage({
   }
 
   return (
-    <main className="mx-auto max-w-xl px-6 py-16">
+    <main className="mx-auto max-w-xl px-6 py-16 sm:py-20">
       <div className="animate-fade-up">
         <h1 className="text-balance mb-2 font-display text-2xl font-semibold">Upload an agent</h1>
         <p className="mb-6 text-sm text-ink-faint">
@@ -119,7 +119,7 @@ export default async function UploadPage({
           <select
             name="category_slug"
             required
-            className="rounded-lg border border-line bg-surface px-4 py-2.5 text-ink outline-none focus:border-accent"
+            className="rounded-lg border border-line bg-surface px-4 py-2.5 text-ink outline-none transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] focus:border-accent focus:shadow-[0_0_0_3px_rgba(47,224,173,0.12)]"
           >
             {CATEGORIES_FALLBACK.map((c) => (
               <option key={c.slug} value={c.slug}>
@@ -134,7 +134,7 @@ export default async function UploadPage({
           <select
             name="pricing_model"
             required
-            className="rounded-lg border border-line bg-surface px-4 py-2.5 text-ink outline-none focus:border-accent"
+            className="rounded-lg border border-line bg-surface px-4 py-2.5 text-ink outline-none transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] focus:border-accent focus:shadow-[0_0_0_3px_rgba(47,224,173,0.12)]"
           >
             <option value="one_time">One-time purchase</option>
             <option value="subscription">Monthly subscription</option>
@@ -168,7 +168,7 @@ export default async function UploadPage({
 
         <button
           type="submit"
-          className="shine-sweep mt-2 rounded-full bg-accent px-6 py-3 text-sm font-medium text-[#04140f] transition-transform duration-200 hover:-translate-y-0.5 hover:opacity-90"
+          className="shine-sweep magnetic-btn mt-2 rounded-full bg-accent px-6 py-3 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
         >
           Submit for review
         </button>

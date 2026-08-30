@@ -38,7 +38,7 @@ export default async function SettingsPage({
   const displayName = profile?.display_name || user.email?.split("@")[0] || "";
 
   return (
-    <main className="mx-auto max-w-xl px-6 py-16">
+    <main className="mx-auto max-w-xl px-6 py-16 sm:py-20">
       <h1 className="text-balance mb-2 font-display text-2xl font-semibold">Your profile</h1>
       <p className="mb-8 text-sm text-ink-faint">
         This is what shows on your creator page — {" "}
@@ -59,7 +59,7 @@ export default async function SettingsPage({
           <select
             name="account_type"
             defaultValue={profile?.account_type ?? "individual"}
-            className="rounded-lg border border-line bg-surface px-4 py-2.5 text-ink outline-none focus:border-accent"
+            className="rounded-lg border border-line bg-surface px-4 py-2.5 text-ink outline-none transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] focus:border-accent focus:shadow-[0_0_0_3px_rgba(47,224,173,0.12)]"
           >
             <option value="individual">Individual</option>
             <option value="company">Company</option>
@@ -91,7 +91,7 @@ export default async function SettingsPage({
 
         <button
           type="submit"
-          className="mt-2 w-fit rounded-full bg-accent px-6 py-3 text-sm font-medium text-[#04140f] hover:opacity-90"
+          className="magnetic-btn mt-2 w-fit rounded-full bg-accent px-6 py-3 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
         >
           Save
         </button>
