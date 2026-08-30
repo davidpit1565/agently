@@ -44,8 +44,8 @@ export function Reveal({ children, delay = 0, className = "", as = "div" }: Reve
   return (
     <Tag
       ref={ref as never}
-      className={`transition-all duration-700 ease-out ${
-        shown ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"
+      className={`transition-all duration-[900ms] ease-out [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] ${
+        shown ? "translate-y-0 opacity-100 blur-none" : "translate-y-7 opacity-0 blur-[6px]"
       } ${className}`}
       style={{ transitionDelay: shown ? `${delay}ms` : "0ms" }}
     >

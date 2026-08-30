@@ -30,7 +30,7 @@ export default async function Home() {
         <div className="hero-glow-a" />
         <div className="hero-glow-b" />
       </div>
-      <div className="relative mx-auto flex max-w-3xl flex-col gap-14 px-6 py-24">
+      <div className="relative mx-auto flex max-w-3xl flex-col gap-16 px-6 py-24 sm:py-32">
         <div className="flex flex-col gap-6">
           <div
             className="flex w-fit animate-fade-up items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 font-mono text-xs uppercase tracking-wide text-ink-soft"
@@ -60,13 +60,16 @@ export default async function Home() {
           <div className="flex animate-fade-up flex-wrap gap-3 pt-2" style={{ animationDelay: "270ms" }}>
             <Link
               href="/browse"
-              className="shine-sweep rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-[#04140f] transition-transform duration-200 hover:-translate-y-0.5 hover:opacity-90"
+              className="shine-sweep magnetic-btn group flex items-center gap-2 rounded-full bg-accent py-1.5 pl-5 pr-1.5 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
             >
               Browse the catalog
+              <span className="magnetic-icon flex h-7 w-7 items-center justify-center rounded-full bg-black/10">
+                →
+              </span>
             </Link>
             <Link
               href="/pricing"
-              className="rounded-full border border-line px-5 py-2.5 text-sm font-medium text-ink transition-all duration-200 hover:-translate-y-0.5 hover:border-accent/50"
+              className="magnetic-btn rounded-full border border-line px-5 py-2.5 text-sm font-medium text-ink transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:border-accent/50"
             >
               Become a member
             </Link>

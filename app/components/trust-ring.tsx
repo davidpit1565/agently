@@ -47,7 +47,7 @@ export function TrustRing({ score }: { score: number }) {
           strokeDasharray={CIRCUMFERENCE}
           strokeDashoffset={offset}
           strokeLinecap="round"
-          className="text-accent transition-[stroke-dashoffset] duration-1000 ease-out"
+          className="text-accent transition-[stroke-dashoffset] duration-1000 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)]"
         />
       </svg>
       <span className="absolute font-mono text-[10px] font-medium tabular-nums text-ink-soft">{score}</span>

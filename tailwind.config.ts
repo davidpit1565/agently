@@ -28,6 +28,11 @@ const config: Config = {
         body: ["var(--font-body)", "sans-serif"],
         mono: ["var(--font-mono)", "monospace"],
       },
+      transitionTimingFunction: {
+        out: "cubic-bezier(0.23, 1, 0.32, 1)",
+        "in-out": "cubic-bezier(0.77, 0, 0.175, 1)",
+        drawer: "cubic-bezier(0.32, 0.72, 0, 1)",
+      },
       keyframes: {
         "pulse-dot": {
           "0%, 100%": { opacity: "1", transform: "scale(1)" },
@@ -54,6 +59,14 @@ const config: Config = {
           "20%, 60%": { transform: "translateX(-4px)" },
           "40%, 80%": { transform: "translateX(4px)" },
         },
+        "reveal-up": {
+          "0%": { opacity: "0", transform: "translateY(28px)", filter: "blur(6px)" },
+          "100%": { opacity: "1", transform: "translateY(0)", filter: "blur(0)" },
+        },
+        "menu-item-in": {
+          "0%": { opacity: "0", transform: "translateY(18px)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "pulse-dot": "pulse-dot 2s ease-in-out infinite",
@@ -63,6 +76,8 @@ const config: Config = {
         shine: "shine 1.1s ease-in-out",
         "pop-in": "pop-in 0.4s ease-out both",
         shake: "shake 0.4s ease-in-out",
+        "reveal-up": "reveal-up 0.9s cubic-bezier(0.23, 1, 0.32, 1) both",
+        "menu-item-in": "menu-item-in 0.5s cubic-bezier(0.23, 1, 0.32, 1) both",
       },
     },
   },
