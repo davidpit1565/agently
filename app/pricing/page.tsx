@@ -43,7 +43,7 @@ export default async function PricingPage() {
   }
 
   return (
-    <main className="mx-auto max-w-4xl px-6 py-16">
+    <main className="mx-auto max-w-4xl px-6 py-16 sm:py-24">
       <Reveal className="mb-10 flex flex-col gap-2">
         <h1 className="font-display text-2xl font-semibold">Membership</h1>
         <p className="max-w-xl text-pretty leading-relaxed text-ink-soft">
@@ -58,13 +58,12 @@ export default async function PricingPage() {
         {TIER_ORDER.map((tier, i) => {
           const config = MEMBERSHIP_TIERS[tier];
           const featured = tier === "pro";
-          return (
+          const card = (
             <Reveal
-              key={tier}
               delay={i * 100}
-              className={`group flex flex-col gap-3 rounded-xl border p-6 transition-all duration-300 hover:-translate-y-1 ${
+              className={`group flex h-full flex-col gap-3 rounded-xl border p-6 transition-all duration-300 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-1.5 ${
                 featured
-                  ? "border-accent/50 bg-surface-raised shadow-[0_0_0_1px_rgba(47,224,173,0.15)] hover:shadow-[0_20px_48px_-16px_rgba(47,224,173,0.35)]"
+                  ? "border-accent/50 bg-surface-raised shadow-[0_0_0_1px_rgba(47,224,173,0.15)] hover:shadow-[0_24px_56px_-16px_rgba(47,224,173,0.4)]"
                   : "border-line bg-surface hover:border-accent/30 hover:shadow-[0_16px_40px_-18px_rgba(47,224,173,0.2)]"
               }`}
             >
@@ -118,7 +117,7 @@ export default async function PricingPage() {
                     <input type="hidden" name="interval" value="monthly" />
                     <button
                       type="submit"
-                      className="shine-sweep w-full rounded-full bg-accent px-4 py-2 text-sm font-medium text-[#04140f] transition-transform duration-200 hover:-translate-y-0.5 hover:opacity-90"
+                      className="shine-sweep magnetic-btn w-full rounded-full bg-accent px-4 py-2 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
                     >
                       Join monthly
                     </button>
@@ -144,6 +143,13 @@ export default async function PricingPage() {
                 </a>
               )}
             </Reveal>
+          );
+          return featured ? (
+            <div key={tier} className="bezel-shell">
+              <div className="bezel-core h-full">{card}</div>
+            </div>
+          ) : (
+            <div key={tier}>{card}</div>
           );
         })}
       </div>
