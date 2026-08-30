@@ -60,7 +60,8 @@ export default function SignInPage() {
       <div className="hero-glow">
         <div className="hero-glow-a" />
       </div>
-      <div className="relative animate-fade-up">
+      <div className="bezel-shell relative animate-reveal-up">
+      <div className="bezel-core border border-line bg-surface p-6">
         <h1 className="text-balance mb-2 font-display text-2xl font-semibold">Sign in</h1>
         <p className="mb-8 text-sm text-ink-faint">
           No password — we email you a one-time link and a 6-digit code.
@@ -94,12 +95,12 @@ export default function SignInPage() {
                 placeholder="123456"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
-                className="rounded-lg border border-line bg-surface px-4 py-2.5 text-center text-lg tracking-[0.3em] text-ink outline-none transition-colors focus:border-accent"
+                className="rounded-lg border border-line bg-surface px-4 py-2.5 text-center text-lg tracking-[0.3em] text-ink outline-none transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] focus:border-accent focus:shadow-[0_0_0_3px_rgba(47,224,173,0.12)]"
               />
               <button
                 type="submit"
                 disabled={verifying}
-                className="shine-sweep rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-[#04140f] transition-transform duration-200 hover:-translate-y-0.5 hover:opacity-90 disabled:opacity-60"
+                className="shine-sweep magnetic-btn rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90 disabled:opacity-60"
               >
                 {verifying ? "Checking…" : "Verify code"}
               </button>
@@ -114,17 +115,18 @@ export default function SignInPage() {
               placeholder="you@example.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              className="rounded-lg border border-line bg-surface px-4 py-2.5 text-sm text-ink outline-none transition-colors focus:border-accent"
+              className="rounded-lg border border-line bg-surface px-4 py-2.5 text-sm text-ink outline-none transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] focus:border-accent focus:shadow-[0_0_0_3px_rgba(47,224,173,0.12)]"
             />
             <button
               type="submit"
-              className="shine-sweep rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-[#04140f] transition-transform duration-200 hover:-translate-y-0.5 hover:opacity-90"
+              className="shine-sweep magnetic-btn rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
             >
               Send link
             </button>
             {error && <p className="animate-shake text-sm text-red-400">{error}</p>}
           </form>
         )}
+      </div>
       </div>
     </main>
   );

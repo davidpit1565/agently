@@ -59,7 +59,7 @@ export default async function RequestAgentPage({
   const requests = await getMyAgentRequests(user.id);
 
   return (
-    <main className="mx-auto max-w-xl px-6 py-16">
+    <main className="mx-auto max-w-xl px-6 py-16 sm:py-20">
       <h1 className="text-balance mb-2 font-display text-2xl font-semibold">Request an agent</h1>
       <p className="mb-8 text-sm text-ink-faint">
         Describe a problem, not a product — we build it and let you know

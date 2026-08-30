@@ -41,7 +41,7 @@ export default async function MyAgentsPage({
   const purchaseCounts = await getPurchaseCounts(agents.map((a) => a.id));
 
   return (
-    <main className="mx-auto max-w-3xl px-6 py-16">
+    <main className="mx-auto max-w-3xl px-6 py-16 sm:py-20">
       {membership && (
         <div className="mb-6 rounded-lg border border-accent/30 bg-accent-soft px-4 py-2.5 text-sm text-accent">
           You're a member — you can list agents now.
@@ -63,7 +63,7 @@ export default async function MyAgentsPage({
           </Link>
           <Link
             href="/dashboard/upload"
-            className="shine-sweep rounded-full bg-accent px-4 py-2 text-sm font-medium text-[#04140f] transition-transform duration-200 hover:-translate-y-0.5 hover:opacity-90"
+            className="shine-sweep magnetic-btn rounded-full bg-accent px-4 py-2 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
           >
             Upload an agent
           </Link>
@@ -84,7 +84,7 @@ export default async function MyAgentsPage({
             <Reveal
               key={agent.id}
               delay={Math.min(i, 6) * 60}
-              className="flex items-center gap-4 rounded-xl border border-line bg-surface p-4 transition-all duration-200 hover:border-accent/30 hover:bg-surface-raised"
+              className="flex items-center gap-4 rounded-xl border border-line bg-surface p-4 transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:border-accent/30 hover:bg-surface-raised"
             >
               <TrustRing score={agent.trust_score} />
 

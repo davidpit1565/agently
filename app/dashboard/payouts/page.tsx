@@ -36,7 +36,7 @@ export default async function PayoutsPage({
   const ready = profile?.stripe_connect_ready ?? false;
 
   return (
-    <main className="mx-auto max-w-lg px-6 py-16">
+    <main className="mx-auto max-w-lg px-6 py-16 sm:py-20">
       <div className="animate-fade-up">
         <h1 className="text-balance mb-2 font-display text-2xl font-semibold">Payouts</h1>
         <p className="mb-8 text-pretty text-sm leading-relaxed text-ink-soft">
@@ -54,34 +54,36 @@ export default async function PayoutsPage({
         </p>
       )}
 
-      <Reveal delay={80} className="rounded-xl border border-line bg-surface p-6">
-        <div className="mb-4 flex items-center gap-2">
-          <span
-            className={`h-2 w-2 rounded-full ${ready ? "animate-pulse-dot bg-accent" : "bg-ink-faint"}`}
-            aria-hidden
-          />
-          <span className="font-mono text-sm">
-            {ready ? "Payouts connected" : profile?.stripe_connect_id ? "Onboarding started" : "Not connected"}
-          </span>
-        </div>
+      <Reveal delay={80} className="bezel-shell">
+        <div className="bezel-core border border-line bg-surface p-6">
+          <div className="mb-4 flex items-center gap-2">
+            <span
+              className={`h-2 w-2 rounded-full ${ready ? "animate-pulse-dot bg-accent" : "bg-ink-faint"}`}
+              aria-hidden
+            />
+            <span className="font-mono text-sm">
+              {ready ? "Payouts connected" : profile?.stripe_connect_id ? "Onboarding started" : "Not connected"}
+            </span>
+          </div>
 
-        {!ready && (
-          <>
-            <p className="mb-4 text-sm text-ink-soft">
-              {profile?.stripe_connect_id
-                ? "Stripe needs a bit more from you to finish setup — details, bank account, or identity verification."
-                : "Takes about 5 minutes on Stripe's own form: business details, bank account, identity verification."}
-            </p>
-            <form action="/api/stripe/connect" method="POST">
-              <button
-                type="submit"
-                className="shine-sweep rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-[#04140f] transition-transform duration-200 hover:-translate-y-0.5 hover:opacity-90"
-              >
-                {profile?.stripe_connect_id ? "Finish setup on Stripe" : "Connect Stripe"}
-              </button>
-            </form>
-          </>
-        )}
+          {!ready && (
+            <>
+              <p className="mb-4 text-sm text-ink-soft">
+                {profile?.stripe_connect_id
+                  ? "Stripe needs a bit more from you to finish setup — details, bank account, or identity verification."
+                  : "Takes about 5 minutes on Stripe's own form: business details, bank account, identity verification."}
+              </p>
+              <form action="/api/stripe/connect" method="POST">
+                <button
+                  type="submit"
+                  className="shine-sweep magnetic-btn rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
+                >
+                  {profile?.stripe_connect_id ? "Finish setup on Stripe" : "Connect Stripe"}
+                </button>
+              </form>
+            </>
+          )}
+        </div>
       </Reveal>
     </main>
   );
