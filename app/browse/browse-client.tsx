@@ -119,7 +119,7 @@ export function BrowseClient({ agents, idsWithFiles }: { agents: Agent[]; idsWit
             onChange={(e) => setQuery(e.target.value)}
             placeholder="What are you stuck on? e.g. “my captions get cut off on Instagram”"
             aria-label="Search agents"
-            className="w-full rounded-xl border border-line bg-surface py-3 pl-11 pr-4 text-sm text-ink outline-none transition-colors placeholder:text-ink-faint focus:border-accent/50"
+            className="w-full rounded-xl border border-line bg-surface py-3 pl-11 pr-4 text-sm text-ink outline-none transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] placeholder:text-ink-faint focus:border-accent/50 focus:shadow-[0_0_0_3px_rgba(47,224,173,0.12)]"
           />
         </div>
 
@@ -128,7 +128,7 @@ export function BrowseClient({ agents, idsWithFiles }: { agents: Agent[]; idsWit
             type="button"
             onClick={() => setActiveCategory(null)}
             aria-pressed={activeCategory === null}
-            className={`rounded-full border px-3 py-1 text-xs transition-all duration-200 ${
+            className={`rounded-full border px-3 py-1 text-xs transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] ${
               activeCategory === null
                 ? "border-accent/50 bg-accent-soft text-accent"
                 : "border-line text-ink-faint hover:-translate-y-0.5 hover:border-accent/30"
@@ -180,8 +180,11 @@ export function BrowseClient({ agents, idsWithFiles }: { agents: Agent[]; idsWit
       </div>
 
       {filtered.length === 0 ? (
-        <div className="flex animate-fade-up flex-col items-center gap-2 rounded-xl border border-dashed border-line py-20 text-center">
-          <span className="h-2 w-2 rounded-full bg-ink-faint" aria-hidden />
+        <div className="flex animate-reveal-up flex-col items-center gap-3 rounded-2xl border border-dashed border-line py-20 text-center">
+          <svg viewBox="0 0 20 20" className="h-6 w-6 text-ink-faint" fill="none" stroke="currentColor" strokeWidth="1.4">
+            <circle cx="8.5" cy="8.5" r="5.5" />
+            <path d="M17 17l-4-4" strokeLinecap="round" />
+          </svg>
           <p className="font-display text-lg font-semibold">Nothing matches that yet</p>
           <p className="max-w-sm text-sm text-ink-soft">
             The catalog is still small. Try a broader search, or{" "}
