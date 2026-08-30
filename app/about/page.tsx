@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Reveal } from "@/app/components/reveal";
 
 const title = "About — Agently";
 const description = "The catalog for AI agents, built the way we'd want to buy from it — every listing does a real job before it's ever offered for sale.";
@@ -37,8 +38,8 @@ export default function AboutPage() {
   return (
     <main className="relative overflow-hidden">
       <div className="hero-glow" />
-      <div className="relative mx-auto flex max-w-2xl flex-col gap-16 px-6 py-24">
-        <div className="flex flex-col gap-5">
+      <div className="relative mx-auto flex max-w-2xl flex-col gap-16 px-6 py-24 sm:py-28">
+        <Reveal className="flex flex-col gap-5">
           <span className="w-fit rounded-full border border-line bg-surface px-3 py-1 font-mono text-xs uppercase tracking-wide text-ink-soft">
             About Agently
           </span>
@@ -49,7 +50,10 @@ export default function AboutPage() {
             Most tool catalogs launch empty and hope creators show up.
             Agently didn&apos;t: every agent listed here already does a
             real job on our own content channel,{" "}
-            <a href="https://actually-works-studio.vercel.app" className="text-accent underline">
+            <a
+              href="https://actually-works-studio.vercel.app"
+              className="text-accent underline transition-colors duration-200 hover:text-accent-strong"
+            >
               Actually Works
             </a>
             , before it&apos;s ever offered for sale. If it isn&apos;t good
@@ -57,13 +61,16 @@ export default function AboutPage() {
             catalog. That&apos;s the whole standard — not a slogan, a
             filter every listing has already passed before you see it.
           </p>
-        </div>
+        </Reveal>
 
-        <div className="flex flex-col gap-3">
+        <Reveal delay={80} className="flex flex-col gap-3">
           <h2 className="text-balance font-display text-lg font-semibold">How a listing gets here</h2>
           <div className="flex flex-col gap-px overflow-hidden rounded-2xl border border-line bg-line">
             {STEPS.map((s) => (
-              <div key={s.n} className="flex gap-5 bg-surface p-6">
+              <div
+                key={s.n}
+                className="flex gap-5 bg-surface p-6 transition-colors duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:bg-surface-raised"
+              >
                 <span className="font-mono text-sm text-accent">{s.n}</span>
                 <div>
                   <h3 className="text-balance font-display font-semibold">{s.title}</h3>
@@ -72,23 +79,25 @@ export default function AboutPage() {
               </div>
             ))}
           </div>
-        </div>
+        </Reveal>
 
-        <div className="rounded-xl border border-line bg-surface p-6">
-          <h2 className="mb-2 font-display text-sm font-semibold text-accent">Where we draw the line</h2>
-          <p className="text-pretty text-sm leading-relaxed text-ink-soft">
-            Search ranks by meaning, not just shared words, when it&apos;s
-            configured — but that&apos;s similarity between two pieces of
-            text, not an understanding of whether the agent actually solves
-            your problem; it still can&apos;t run the agent to check. And
-            the safety review only reads a listing&apos;s description; it
-            can&apos;t inspect what the agent&apos;s code actually does.
-            Requesting a custom agent (Professional tier) is a real request
-            to a real person, too — there&apos;s no pipeline that turns a
-            description into working code on its own. We&apos;d rather say
-            that plainly than let the site imply more than it does.
-          </p>
-        </div>
+        <Reveal delay={140} className="bezel-shell">
+          <div className="bezel-core border border-line bg-surface p-6">
+            <h2 className="mb-2 font-display text-sm font-semibold text-accent">Where we draw the line</h2>
+            <p className="text-pretty text-sm leading-relaxed text-ink-soft">
+              Search ranks by meaning, not just shared words, when it&apos;s
+              configured — but that&apos;s similarity between two pieces of
+              text, not an understanding of whether the agent actually solves
+              your problem; it still can&apos;t run the agent to check. And
+              the safety review only reads a listing&apos;s description; it
+              can&apos;t inspect what the agent&apos;s code actually does.
+              Requesting a custom agent (Professional tier) is a real request
+              to a real person, too — there&apos;s no pipeline that turns a
+              description into working code on its own. We&apos;d rather say
+              that plainly than let the site imply more than it does.
+            </p>
+          </div>
+        </Reveal>
       </div>
     </main>
   );
