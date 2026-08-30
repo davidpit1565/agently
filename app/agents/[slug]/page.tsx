@@ -169,7 +169,7 @@ export default async function AgentPage({
   };
 
   return (
-    <main className="mx-auto max-w-2xl px-6 py-16">
+    <main className="mx-auto max-w-2xl px-6 py-16 sm:py-20">
       <script
         type="application/ld+json"
         // JSON.stringify doesn't escape "</", so a listing name/description
@@ -250,56 +250,60 @@ export default async function AgentPage({
         </div>
 
         {(hasPurchased || isOwner) && agent.delivery_url && (
-          <Reveal className="rounded-xl border border-accent/30 bg-accent-soft p-5">
-            <h2 className="mb-2 font-display text-sm font-semibold text-accent">
-              {isOwner ? "Delivery link" : "You own this — here's how to get it"}
-            </h2>
-            <a
-              href={agent.delivery_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="break-all text-sm text-accent underline"
-            >
-              {agent.delivery_url}
-            </a>
+          <Reveal className="bezel-shell">
+            <div className="bezel-core border border-accent/30 bg-accent-soft p-5">
+              <h2 className="mb-2 font-display text-sm font-semibold text-accent">
+                {isOwner ? "Delivery link" : "You own this — here's how to get it"}
+              </h2>
+              <a
+                href={agent.delivery_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="break-all text-sm text-accent underline"
+              >
+                {agent.delivery_url}
+              </a>
 
-            {isOwner && (
-              <details className="mt-4 border-t border-accent/20 pt-4">
-                <summary className="cursor-pointer text-xs font-medium text-ink-soft">
-                  Let a standalone script check for updates on its own
-                </summary>
-                <p className="mt-2 text-xs leading-relaxed text-ink-faint">
-                  The notification above only reaches someone looking at
-                  this site. If what you deliver runs on its own — a
-                  script, a scheduled job — it can check{" "}
-                  <code className="text-ink-soft">
-                    GET /api/version/{agent.slug}
-                  </code>{" "}
-                  itself instead. See{" "}
-                  <code className="text-ink-soft">CHECKING-FOR-UPDATES.md</code>{" "}
-                  in the repo for a drop-in Python/JS snippet.
-                </p>
-              </details>
-            )}
+              {isOwner && (
+                <details className="mt-4 border-t border-accent/20 pt-4">
+                  <summary className="cursor-pointer text-xs font-medium text-ink-soft">
+                    Let a standalone script check for updates on its own
+                  </summary>
+                  <p className="mt-2 text-xs leading-relaxed text-ink-faint">
+                    The notification above only reaches someone looking at
+                    this site. If what you deliver runs on its own — a
+                    script, a scheduled job — it can check{" "}
+                    <code className="text-ink-soft">
+                      GET /api/version/{agent.slug}
+                    </code>{" "}
+                    itself instead. See{" "}
+                    <code className="text-ink-soft">CHECKING-FOR-UPDATES.md</code>{" "}
+                    in the repo for a drop-in Python/JS snippet.
+                  </p>
+                </details>
+              )}
+            </div>
           </Reveal>
         )}
 
         {(hasPurchased || isOwner) && downloadableFiles.length > 0 && (
-          <Reveal className="rounded-xl border border-line bg-surface p-5">
-            <h2 className="mb-3 font-display text-sm font-semibold text-accent">Files</h2>
-            <div className="flex flex-col gap-2">
-              {downloadableFiles.map((f) =>
-                f.url ? (
-                  <a
-                    key={f.id}
-                    href={f.url}
-                    className="flex items-center justify-between rounded-lg border border-line px-3 py-2 text-sm text-ink-soft hover:border-accent/50 hover:text-accent"
-                  >
-                    <span>{f.file_name}</span>
-                    <span className="font-mono text-xs text-ink-faint">{formatSize(f.size_bytes)}</span>
-                  </a>
-                ) : null
-              )}
+          <Reveal className="bezel-shell">
+            <div className="bezel-core border border-line bg-surface p-5">
+              <h2 className="mb-3 font-display text-sm font-semibold text-accent">Files</h2>
+              <div className="flex flex-col gap-2">
+                {downloadableFiles.map((f) =>
+                  f.url ? (
+                    <a
+                      key={f.id}
+                      href={f.url}
+                      className="flex items-center justify-between rounded-lg border border-line px-3 py-2 text-sm text-ink-soft transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:border-accent/50 hover:text-accent"
+                    >
+                      <span>{f.file_name}</span>
+                      <span className="font-mono text-xs text-ink-faint">{formatSize(f.size_bytes)}</span>
+                    </a>
+                  ) : null
+                )}
+              </div>
             </div>
           </Reveal>
         )}
@@ -361,9 +365,12 @@ export default async function AgentPage({
           <input type="hidden" name="agentId" value={agent.id} />
           <button
             type="submit"
-            className="shine-sweep rounded-full bg-accent px-6 py-3 text-sm font-medium text-[#04140f] transition-transform duration-200 hover:-translate-y-0.5 hover:opacity-90"
+            className="shine-sweep magnetic-btn group flex items-center gap-2 rounded-full bg-accent py-2 pl-6 pr-2 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
           >
             {agent.pricing_model === "free" ? "Get this agent" : `Buy — ${priceLabel(agent)}`}
+            <span className="magnetic-icon flex h-8 w-8 items-center justify-center rounded-full bg-black/10">
+              →
+            </span>
           </button>
         </form>
       </div>
