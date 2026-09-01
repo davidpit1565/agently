@@ -2,6 +2,7 @@ import Link from "next/link";
 import { getApprovedAgents } from "@/lib/catalog";
 import { AgentCard } from "@/app/components/agent-card";
 import { Reveal } from "@/app/components/reveal";
+import { CounterUp } from "@/app/components/counter-up";
 
 const PILLARS = [
   {
@@ -37,16 +38,34 @@ export default async function Home() {
             style={{ animationDelay: "0ms" }}
           >
             <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-accent" aria-hidden />
-            {agents.length} agent{agents.length === 1 ? "" : "s"} live now
+            <CounterUp value={agents.length} duration={700} /> agent{agents.length === 1 ? "" : "s"} live now
           </div>
-          <h1
-            className="animate-fade-up text-balance font-display text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl"
-            style={{ animationDelay: "90ms" }}
-          >
-            The catalog for
+          <h1 className="text-balance font-display text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
+            <span>
+              <span className="inline-block overflow-hidden">
+                <span className="inline-block animate-word-in" style={{ animationDelay: "90ms" }}>
+                  The
+                </span>
+              </span>{" "}
+              <span className="inline-block overflow-hidden">
+                <span className="inline-block animate-word-in" style={{ animationDelay: "160ms" }}>
+                  catalog
+                </span>
+              </span>{" "}
+              <span className="inline-block overflow-hidden">
+                <span className="inline-block animate-word-in" style={{ animationDelay: "230ms" }}>
+                  for
+                </span>
+              </span>
+            </span>
             <br />
-            <span className="bg-gradient-to-r from-accent to-accent-strong bg-clip-text text-transparent">
-              AI agents.
+            <span className="inline-block overflow-hidden">
+              <span
+                className="inline-block animate-word-in bg-gradient-to-r from-accent to-accent-strong bg-clip-text text-transparent"
+                style={{ animationDelay: "300ms" }}
+              >
+                AI agents.
+              </span>
             </span>
           </h1>
           <p

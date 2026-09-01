@@ -35,8 +35,10 @@ export function RequestForm() {
 
   return (
     <form action="/api/requests" method="POST" className="flex flex-col gap-4">
-      <label className="flex flex-col gap-1 text-sm">
-        <span className="font-medium">What do you need?</span>
+      <label className="group flex flex-col gap-1 text-sm">
+        <span className="font-medium transition-colors duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] group-focus-within:text-accent">
+          What do you need?
+        </span>
         <textarea
           name="description"
           required
@@ -48,8 +50,8 @@ export function RequestForm() {
         />
       </label>
 
-      {checked && matches.length > 0 && (
-        <div className="rounded-lg border border-accent/30 bg-accent-soft p-4">
+      <div data-open={checked && matches.length > 0} className="grow-in rounded-lg border border-accent/30 bg-accent-soft">
+        <div className="p-4">
           <p className="mb-2 text-sm font-medium text-accent">
             This might already exist — worth a look before you request a custom build:
           </p>
@@ -64,7 +66,7 @@ export function RequestForm() {
             ))}
           </ul>
         </div>
-      )}
+      </div>
 
       <button
         type="submit"
