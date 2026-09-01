@@ -124,7 +124,7 @@ export function Header({ signedIn }: { signedIn: boolean }) {
       </div>
 
       {open && (
-        <nav className="mx-auto mt-2 flex max-w-5xl origin-top animate-fade-up flex-col gap-1 rounded-3xl border border-line bg-surface/95 px-4 py-3 text-sm text-ink-soft shadow-[0_16px_40px_-16px_rgba(0,0,0,0.5)] backdrop-blur-md duration-200 sm:hidden">
+        <nav className="mx-auto mt-2 flex max-w-5xl origin-top-right animate-fade-up flex-col gap-1 rounded-3xl border border-line bg-surface/95 px-4 py-3 text-sm text-ink-soft shadow-[0_16px_40px_-16px_rgba(0,0,0,0.5)] backdrop-blur-md duration-200 sm:hidden">
           {NAV.map((item, i) => (
             <Link
               key={item.href}
