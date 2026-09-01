@@ -40,9 +40,19 @@ export default function TermsPage() {
           them.
         </Section>
         <Section title="Refunds">
-          [Placeholder — needs a real policy before launch. The report
-          flags this explicitly: a clear, automatic refund policy should
-          exist before the first dispute, not be improvised during one.]
+          One-time purchases are refundable within 7 days of purchase if the
+          agent doesn&apos;t work as its listing describes — request one by
+          contacting the creator directly (their page links out, where
+          provided) or emailing support with the order and a description of
+          the problem. Once a refund is issued, the buyer&apos;s access to
+          the agent&apos;s delivery link and files is revoked. A refund is
+          not available once 7 days have passed, or for a working agent you
+          simply changed your mind about. Subscriptions (both a membership
+          and a per-agent subscription) can be canceled any time from your
+          dashboard — cancellation stops future billing but does not refund
+          the current period. This is a starting policy, not a legally
+          reviewed one; it will be revisited once there&apos;s a real dispute
+          to learn from.
         </Section>
         <Section title="Payments">
           Payment is processed by Stripe. Agently takes a platform fee
@@ -50,9 +60,16 @@ export default function TermsPage() {
           Stripe Connect.
         </Section>
         <Section title="Data & VAT">
-          [Placeholder — VAT handling for EU marketplace transactions and
-          data retention need legal review before this is real. See the
-          market research report, ch. 7.]
+          Agently stores what&apos;s needed to run the marketplace: your
+          account email, the listings and purchases tied to it, and
+          whatever an agent&apos;s own creator collects if you choose to run
+          it — that part is between you and them, not covered here. This
+          section is intentionally incomplete: EU digital-goods VAT (the
+          OSS scheme, reverse-charge rules for B2B sales, threshold
+          registration) genuinely needs a real accountant or lawyer before
+          Agently can state a compliant policy here, not an AI-generated
+          guess at tax law. Until that review happens, prices shown are
+          treated as VAT-inclusive placeholders, not a compliance claim.
         </Section>
       </div>
     </main>
