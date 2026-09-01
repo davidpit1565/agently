@@ -29,7 +29,7 @@ function Stars({ value }: { value: number }) {
           fill={n <= Math.round(value) ? "#2fe0ad" : "none"}
           stroke={n <= Math.round(value) ? "#2fe0ad" : "currentColor"}
           strokeWidth="1.3"
-          className="text-line"
+          className="text-line transition-colors duration-150"
         >
           <path d="M10 1.6l2.6 5.5 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L1.4 7.9l6-.8z" />
         </svg>
@@ -180,7 +180,7 @@ export default async function AgentPage({
       />
       <div className="flex flex-col gap-5">
         {(purchased || reviewed || updated || saved) && (
-          <div className="rounded-lg border border-accent/30 bg-accent-soft px-4 py-2.5 text-sm text-accent">
+          <div className="animate-fade-up rounded-lg border border-accent/30 bg-accent-soft px-4 py-2.5 text-sm text-accent">
             {purchased
               ? "You got it — check the delivery link below."
               : reviewed
@@ -191,7 +191,7 @@ export default async function AgentPage({
           </div>
         )}
         {skippedFiles && (
-          <div className="rounded-lg border border-line bg-surface px-4 py-2.5 text-sm text-ink-soft">
+          <div className="animate-fade-up rounded-lg border border-line bg-surface px-4 py-2.5 text-sm text-ink-soft">
             Everything else was saved, but this didn&apos;t upload: <strong>{skippedFiles}</strong> (over
             the 50MB limit, or the upload failed). Try again from the edit page.
           </div>
@@ -265,21 +265,23 @@ export default async function AgentPage({
               </a>
 
               {isOwner && (
-                <details className="mt-4 border-t border-accent/20 pt-4">
-                  <summary className="cursor-pointer text-xs font-medium text-ink-soft">
+                <details className="details-anim mt-4 border-t border-accent/20 pt-4">
+                  <summary className="text-xs font-medium text-ink-soft">
                     Let a standalone script check for updates on its own
                   </summary>
-                  <p className="mt-2 text-xs leading-relaxed text-ink-faint">
-                    The notification above only reaches someone looking at
-                    this site. If what you deliver runs on its own — a
-                    script, a scheduled job — it can check{" "}
-                    <code className="text-ink-soft">
-                      GET /api/version/{agent.slug}
-                    </code>{" "}
-                    itself instead. See{" "}
-                    <code className="text-ink-soft">CHECKING-FOR-UPDATES.md</code>{" "}
-                    in the repo for a drop-in Python/JS snippet.
-                  </p>
+                  <div>
+                    <p className="mt-2 text-xs leading-relaxed text-ink-faint">
+                      The notification above only reaches someone looking at
+                      this site. If what you deliver runs on its own — a
+                      script, a scheduled job — it can check{" "}
+                      <code className="text-ink-soft">
+                        GET /api/version/{agent.slug}
+                      </code>{" "}
+                      itself instead. See{" "}
+                      <code className="text-ink-soft">CHECKING-FOR-UPDATES.md</code>{" "}
+                      in the repo for a drop-in Python/JS snippet.
+                    </p>
+                  </div>
                 </details>
               )}
             </div>

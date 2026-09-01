@@ -28,7 +28,7 @@ export function ReviewForm({ agentId }: { agentId: string }) {
               fill={n <= (hovered || rating) ? "#2fe0ad" : "none"}
               stroke={n <= (hovered || rating) ? "#2fe0ad" : "currentColor"}
               strokeWidth="1.3"
-              className="text-ink-faint"
+              className="text-ink-faint transition-colors duration-150"
             >
               <path d="M10 1.6l2.6 5.5 6 .8-4.4 4.2 1.1 6-5.3-2.9-5.3 2.9 1.1-6L1.4 7.9l6-.8z" />
             </svg>

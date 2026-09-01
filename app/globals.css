@@ -115,6 +115,34 @@ body {
   }
 }
 
+/* Lets a <details> block animate open/closed instead of snapping. The UA
+   stylesheet hides collapsed content with `display: none`, which can't be
+   transitioned — so this overrides that with a grid-rows trick instead: the
+   content stays laid out (0fr tall, clipped) and only its row size animates,
+   which every evergreen browser handles as a normal property transition
+   with no @starting-style / display-animation dependency. Wrap the collapsible
+   content in one child (not <summary>) for this to apply. */
+details.details-anim > summary {
+  cursor: pointer;
+}
+details.details-anim > :not(summary) {
+  display: grid;
+  grid-template-rows: 0fr;
+  overflow: hidden;
+  transition: grid-template-rows 250ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+details.details-anim[open] > :not(summary) {
+  grid-template-rows: 1fr;
+}
+details.details-anim > :not(summary) > * {
+  min-height: 0;
+}
+@media (prefers-reduced-motion: reduce) {
+  details.details-anim > :not(summary) {
+    transition: none !important;
+  }
+}
+
 /* .hero-glow-a/b and <Reveal> already gate themselves on this preference —
    everything else added alongside them (animate-fade-up, animate-pop-in,
    animate-shake, animate-pulse-dot, .shine-sweep's hover sweep) didn't,

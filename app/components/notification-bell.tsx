@@ -47,7 +47,7 @@ export function NotificationBell() {
         type="button"
         onClick={toggle}
         aria-label="Notifications"
-        className="relative flex h-11 w-11 items-center justify-center rounded-full border border-line hover:border-accent/50"
+        className="magnetic-btn relative flex h-11 w-11 items-center justify-center rounded-full border border-line hover:border-accent/50"
       >
         <svg viewBox="0 0 20 20" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5">
           <path d="M4 8a6 6 0 1 1 12 0c0 4 1.5 5 1.5 5h-15S4 12 4 8Z" strokeLinecap="round" strokeLinejoin="round" />
@@ -58,21 +58,24 @@ export function NotificationBell() {
         )}
       </button>
 
-      {open && (
-        <div
-          className="absolute right-0 top-[52px] z-10 w-[min(18rem,calc(100vw-2rem))] rounded-xl border border-line bg-surface-raised p-2 shadow-[0_12px_32px_-8px_rgba(0,0,0,0.5)]"
-        >
-          {notifications.map((n) => (
-            <Link
-              key={n.id}
-              href={n.agent_slug ? `/agents/${n.agent_slug}` : "#"}
-              className="block rounded-lg px-3 py-2.5 text-sm text-ink-soft hover:bg-surface"
-            >
-              {n.message}
-            </Link>
-          ))}
-        </div>
-      )}
+      <div
+        data-state={open ? "open" : "closed"}
+        aria-hidden={!open}
+        className={`absolute right-0 top-[52px] z-10 w-[min(18rem,calc(100vw-2rem))] origin-top-right rounded-xl border border-line bg-surface-raised p-2 shadow-[0_12px_32px_-8px_rgba(0,0,0,0.5)] transition-all duration-150 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] ${
+          open ? "scale-100 opacity-100" : "pointer-events-none scale-95 opacity-0"
+        }`}
+      >
+        {notifications.map((n) => (
+          <Link
+            key={n.id}
+            href={n.agent_slug ? `/agents/${n.agent_slug}` : "#"}
+            tabIndex={open ? 0 : -1}
+            className="block rounded-lg px-3 py-2.5 text-sm text-ink-soft hover:bg-surface"
+          >
+            {n.message}
+          </Link>
+        ))}
+      </div>
     </div>
   );
 }
