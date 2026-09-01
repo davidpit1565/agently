@@ -4,7 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { reviewAgentSubmission } from "@/lib/safety-review";
 import { notifyBuyersOfUpdate } from "@/lib/notifications";
 import { getEmbedding, embeddableText } from "@/lib/embeddings";
-import { uploadAgentFiles } from "@/lib/agent-files";
+import { uploadAgentFiles, getAgentIdsWithFiles } from "@/lib/agent-files";
 import { sanitizeUrl } from "@/lib/validation";
 
 // Edits an existing listing. When the edit is a real new version — the
@@ -46,6 +46,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const priceEur = form.get("price");
   const deliveryUrl = sanitizeUrl((form.get("delivery_url") as string) || null);
   const newFiles = form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
+
+  // Same rule as creating a listing: clearing the delivery link with no
+  // files (existing or newly attached) left to fall back on would leave a
+  // buyer with nothing to receive.
+  if (!deliveryUrl && newFiles.length === 0) {
+    const hasExistingFiles = (await getAgentIdsWithFiles([id])).has(id);
+    if (!hasExistingFiles) {
+      return NextResponse.json(
+        { error: "Add a delivery link or attach at least one file — a buyer needs to actually receive something." },
+        { status: 400 }
+      );
+    }
+  }
 
   // Content changed enough to matter for trust/safety re-run only if the
   // parts a buyer actually reads changed — not just price or category.

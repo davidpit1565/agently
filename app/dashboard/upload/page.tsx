@@ -148,11 +148,11 @@ export default async function UploadPage({
           label="Delivery link (repo, file, or API endpoint)"
           name="delivery_url"
           type="url"
-          hint="Optional if you're attaching the files below instead."
+          hint="Required unless you attach at least one file below instead."
         />
 
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">Files (optional)</span>
+          <span className="font-medium">Files (required if there's no delivery link above)</span>
           <input
             type="file"
             name="files"
