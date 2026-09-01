@@ -212,6 +212,12 @@ alter table agently_notifications drop constraint if exists notifications_type_c
 alter table agently_notifications add constraint notifications_type_check
   check (type in ('agent_updated', 'agent_request_fulfilled'));
 
+-- The admin review screen (/dashboard/admin/agents) tells a creator when
+-- their pending listing was decided on.
+alter table agently_notifications drop constraint if exists notifications_type_check;
+alter table agently_notifications add constraint notifications_type_check
+  check (type in ('agent_updated', 'agent_request_fulfilled', 'agent_approved', 'agent_rejected'));
+
 -- "Describe a problem, get a custom agent built for it" — a Professional-
 -- tier perk. Fulfillment itself is manual (someone on the team actually
 -- builds it and marks the request fulfilled); there's no automated
