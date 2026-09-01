@@ -24,6 +24,10 @@ export async function getEmbedding(text: string): Promise<number[] | null> {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({ input: [text], model: VOYAGE_MODEL }),
+      // Without an explicit deadline, a hung Voyage API left the calling
+      // request (agent upload/edit, or /api/search) open with no response
+      // instead of falling back to substring matching within a few seconds.
+      signal: AbortSignal.timeout(8_000),
     });
 
     if (!res.ok) return null;

@@ -61,6 +61,10 @@ Delivery link: ${input.deliveryUrl ?? "(none provided)"}
 Flag anything where the description implies broad or unrelated access (e.g. "reads all your files" for a captioning tool), makes claims that can't be verified from a plain-language description, or reads as deliberately vague about what data it touches. A well-scoped tool with a clear, narrow description is low risk even if it touches sensitive data (e.g. "reads your voice recordings to fix pronunciation" is fine and specific).`;
 
   try {
+    // Without this, a slow or hung Anthropic API left the whole upload/edit
+    // request open with no response — the submit button stuck on its
+    // pending label indefinitely instead of falling back to pending_review
+    // within a few seconds, same as a missing API key already does.
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
       headers: {
@@ -75,6 +79,7 @@ Flag anything where the description implies broad or unrelated access (e.g. "rea
         tool_choice: { type: "tool", name: "submit_review" },
         messages: [{ role: "user", content: prompt }],
       }),
+      signal: AbortSignal.timeout(10_000),
     });
 
     if (!res.ok) return null;
