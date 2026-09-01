@@ -273,6 +273,11 @@ alter table agently_agent_requests enable row level security;
 -- No direct-access policies on agently_agent_files — see the comment above the
 -- table: every access goes through the service-role client instead.
 alter table agently_agent_files enable row level security;
+-- Was missing from this list — Supabase's security advisor flagged
+-- agently_categories as publicly writable with no RLS at all (not just
+-- readable): the fixed list above, seeded once at setup, was never meant
+-- to be edited by any client, so read is the only policy it needs.
+alter table agently_categories enable row level security;
 
 -- Every policy below is preceded by `drop policy if exists` — a bare
 -- `create policy` errors ("already exists") on any re-run, which is exactly
@@ -305,6 +310,9 @@ grant update (display_name, account_type, company_name, bio, website_url) on age
 
 drop policy if exists "approved agents are public" on agently_agents;
 create policy "approved agents are public" on agently_agents for select using (status = 'approved' or creator_id = auth.uid());
+
+drop policy if exists "categories are public" on agently_categories;
+create policy "categories are public" on agently_categories for select using (true);
 
 -- Same class of gap as agently_profiles above, for status/trust_score/
 -- review_notes: RLS's "creators can update their own agents" (row-level:
