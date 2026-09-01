@@ -16,8 +16,10 @@ export function Field({
   defaultValue?: string;
 }) {
   return (
-    <label className="flex flex-col gap-1 text-sm">
-      <span className="font-medium">{label}</span>
+    <label className="group flex flex-col gap-1 text-sm">
+      <span className="font-medium transition-colors duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] group-focus-within:text-accent">
+        {label}
+      </span>
       {textarea ? (
         <textarea
           name={name}

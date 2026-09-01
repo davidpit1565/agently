@@ -5,6 +5,7 @@ import { TrustRing } from "@/app/components/trust-ring";
 import { Notice } from "@/app/components/form-field";
 import { DelistButton } from "@/app/components/delist-button";
 import { Reveal } from "@/app/components/reveal";
+import { CounterUp } from "@/app/components/counter-up";
 
 const STATUS_LABEL: Record<string, string> = {
   approved: "Live",
@@ -111,11 +112,13 @@ export default async function MyAgentsPage({
                 {agent.status === "approved" && (
                   <p className="mt-1.5 flex items-center gap-3 font-mono text-[11px] tabular-nums text-ink-faint">
                     <span title="Page views — not unique visitors, no bot filtering">
-                      {agent.view_count} view{agent.view_count === 1 ? "" : "s"}
+                      <CounterUp value={agent.view_count} duration={800} /> view
+                      {agent.view_count === 1 ? "" : "s"}
                     </span>
                     <span>·</span>
                     <span>
-                      {purchaseCounts.get(agent.id) ?? 0} sale{(purchaseCounts.get(agent.id) ?? 0) === 1 ? "" : "s"}
+                      <CounterUp value={purchaseCounts.get(agent.id) ?? 0} duration={800} /> sale
+                      {(purchaseCounts.get(agent.id) ?? 0) === 1 ? "" : "s"}
                     </span>
                   </p>
                 )}

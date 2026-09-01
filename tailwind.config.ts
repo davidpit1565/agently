@@ -67,6 +67,10 @@ const config: Config = {
           "0%": { opacity: "0", transform: "translateY(18px)" },
           "100%": { opacity: "1", transform: "translateY(0)" },
         },
+        "word-in": {
+          "0%": { opacity: "0", transform: "translateY(100%)" },
+          "100%": { opacity: "1", transform: "translateY(0)" },
+        },
       },
       animation: {
         "pulse-dot": "pulse-dot 2s ease-in-out infinite",
@@ -78,6 +82,7 @@ const config: Config = {
         shake: "shake 0.4s ease-in-out",
         "reveal-up": "reveal-up 0.9s cubic-bezier(0.23, 1, 0.32, 1) both",
         "menu-item-in": "menu-item-in 0.5s cubic-bezier(0.23, 1, 0.32, 1) both",
+        "word-in": "word-in 0.65s cubic-bezier(0.23, 1, 0.32, 1) both",
       },
     },
   },

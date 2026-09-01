@@ -143,6 +143,55 @@ details.details-anim > :not(summary) > * {
   }
 }
 
+/* Generic version of the details-anim grid-rows trick above, for any element that stays
+   mounted but conditionally has content (a "did you mean" suggestion panel, an inline
+   validation result) instead of only <details>. Toggle the `data-open` attribute — not a
+   class — so the transition fires reliably across re-renders. */
+.grow-in {
+  display: grid;
+  grid-template-rows: 0fr;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    grid-template-rows 300ms cubic-bezier(0.23, 1, 0.32, 1),
+    opacity 250ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.grow-in[data-open="true"] {
+  grid-template-rows: 1fr;
+  opacity: 1;
+}
+.grow-in > * {
+  min-height: 0;
+}
+
+/* Shimmer sweep for loading skeletons — the same translateX light-band technique as
+   .shine-sweep, but looping continuously instead of firing on hover, since a skeleton has
+   no interaction to trigger from. Reads as "actively loading" instead of a stalled block. */
+.skeleton-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.skeleton-shimmer::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(115deg, transparent 30%, rgba(237, 243, 238, 0.06) 50%, transparent 70%);
+  transform: translateX(-100%);
+}
+@media (prefers-reduced-motion: no-preference) {
+  .skeleton-shimmer::after {
+    animation: shimmer-sweep 1.6s ease-in-out infinite;
+  }
+}
+@keyframes shimmer-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
 /* .hero-glow-a/b and <Reveal> already gate themselves on this preference —
    everything else added alongside them (animate-fade-up, animate-pop-in,
    animate-shake, animate-pulse-dot, .shine-sweep's hover sweep) didn't,
@@ -156,7 +205,8 @@ details.details-anim > :not(summary) > * {
   .animate-shake,
   .animate-pulse-dot,
   .animate-reveal-up,
-  .animate-menu-item-in {
+  .animate-menu-item-in,
+  .animate-word-in {
     animation: none !important;
     opacity: 1 !important;
     transform: none !important;
@@ -171,5 +221,8 @@ details.details-anim > :not(summary) > * {
   }
   .magnetic-btn:hover .magnetic-icon {
     transform: none !important;
+  }
+  .grow-in {
+    transition: none !important;
   }
 }

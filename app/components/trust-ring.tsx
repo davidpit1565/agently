@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CounterUp } from "@/app/components/counter-up";
 
 const SIZE = 34;
 const STROKE = 3;
@@ -50,7 +51,11 @@ export function TrustRing({ score }: { score: number }) {
           className="text-accent transition-[stroke-dashoffset] duration-1000 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)]"
         />
       </svg>
-      <span className="absolute font-mono text-[10px] font-medium tabular-nums text-ink-soft">{score}</span>
+      <CounterUp
+        value={score}
+        duration={1000}
+        className="absolute font-mono text-[10px] font-medium tabular-nums text-ink-soft"
+      />
     </div>
   );
 }
