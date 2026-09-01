@@ -118,6 +118,54 @@ export async function POST(request: Request) {
       }
       break;
     }
+    case "invoice.paid": {
+      // The first invoice on a new agent-subscription fires this same event
+      // (billing_reason "subscription_create") — that one's already recorded
+      // by checkout.session.completed above, from the Checkout Session
+      // itself. Only "subscription_cycle" is a real renewal with no purchase
+      // row yet; without this, every renewal after the first charges the
+      // buyer and pays the creator correctly on Stripe's side but leaves no
+      // trace in agently_purchases, so platform revenue reporting silently
+      // undercounts every agent-subscription past its first month.
+      const invoice = event.data.object as {
+        id: string;
+        billing_reason: string | null;
+        amount_paid: number;
+        subscription: string | null;
+      };
+      if (invoice.billing_reason === "subscription_cycle" && invoice.subscription) {
+        const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
+        const { agent_id, buyer_id } = (subscription.metadata ?? {}) as Record<string, string>;
+        if (agent_id && buyer_id) {
+          const { error } = await supabase.from("agently_purchases").insert({
+            agent_id,
+            buyer_id,
+            // Invoices have no Checkout Session of their own — the invoice
+            // id itself is unique per renewal, so it fills the same role
+            // stripe_checkout_session_id plays for the first payment: one
+            // row per real charge, and a Stripe retry of this same event
+            // hits the same 23505 dedupe path as the purchase branch above.
+            stripe_checkout_session_id: invoice.id,
+            amount_cents: invoice.amount_paid,
+            platform_fee_cents: Math.round(invoice.amount_paid * (PLATFORM_FEE_PERCENT / 100)),
+            status: "paid",
+          });
+          if (error) {
+            console.error("[stripe/webhook] renewal purchase insert failed", {
+              eventId: event.id,
+              agentId: agent_id,
+              buyerId: buyer_id,
+              code: error.code,
+              message: error.message,
+            });
+            if (error.code !== "23505") {
+              return NextResponse.json({ error: "Failed to record renewal" }, { status: 500 });
+            }
+          }
+        }
+      }
+      break;
+    }
     case "customer.subscription.updated":
     case "customer.subscription.deleted": {
       // A subscription can be either an Agently membership or a buyer's

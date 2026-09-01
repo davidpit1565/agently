@@ -64,6 +64,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "This agent isn't purchasable through checkout." }, { status: 400 });
   }
 
+  // Same reasoning as membership/checkout.ts: starting a second Checkout
+  // session for an agent subscription that's already active creates a
+  // second, separate Stripe subscription — a double-click or a browser
+  // back-button resubmit would double-bill the buyer for the same agent.
+  if (agent.pricing_model === "subscription") {
+    const { data: existing } = await supabase
+      .from("agently_purchases")
+      .select("id")
+      .eq("agent_id", agent.id)
+      .eq("buyer_id", user.id)
+      .eq("status", "paid")
+      .limit(1)
+      .maybeSingle();
+    if (existing) {
+      return NextResponse.json(
+        { error: "You already have an active subscription to this agent." },
+        { status: 409 }
+      );
+    }
+  }
+
   const creator = agent.profiles as { stripe_connect_id: string | null; stripe_connect_ready: boolean } | null;
   if (!creator?.stripe_connect_ready || !creator.stripe_connect_id) {
     return NextResponse.json(
