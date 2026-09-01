@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { SubmitButton } from "@/app/components/submit-button";
 
 export function ReviewForm({ agentId }: { agentId: string }) {
   const [rating, setRating] = useState(0);
@@ -43,13 +44,13 @@ export function ReviewForm({ agentId }: { agentId: string }) {
         className="rounded-lg border border-line bg-surface px-4 py-2.5 text-sm text-ink outline-none placeholder:text-ink-faint focus:border-accent"
       />
 
-      <button
-        type="submit"
+      <SubmitButton
+        pendingText="Submitting…"
         disabled={rating === 0}
         className="w-fit rounded-full border border-line px-4 py-2 text-sm font-medium text-ink disabled:text-ink-faint disabled:opacity-50 enabled:hover:border-accent/50"
       >
         Submit review
-      </button>
+      </SubmitButton>
     </form>
   );
 }

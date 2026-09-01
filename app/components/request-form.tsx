@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { SubmitButton } from "@/app/components/submit-button";
 
 type Match = { slug: string; name: string; tagline: string };
 
@@ -68,12 +69,12 @@ export function RequestForm() {
         </div>
       </div>
 
-      <button
-        type="submit"
+      <SubmitButton
+        pendingText="Submitting…"
         className="magnetic-btn mt-2 w-fit rounded-full bg-accent px-6 py-3 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
       >
         Submit request
-      </button>
+      </SubmitButton>
     </form>
   );
 }
