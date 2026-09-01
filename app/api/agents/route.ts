@@ -72,6 +72,17 @@ export async function POST(request: Request) {
   // the single place that decides what counts as "no file."
   const files = form.getAll("files").filter((f): f is File => f instanceof File);
 
+  // A listing with neither a delivery link nor an attached file has nothing
+  // for a buyer to actually receive — this was a real gap: the original 5
+  // seed agents all shipped with delivery_url: null and no files, meaning a
+  // real purchase would have paid and gotten nothing back.
+  if (!deliveryUrl && files.length === 0) {
+    return NextResponse.json(
+      { error: "Add a delivery link or attach at least one file — a buyer needs to actually receive something." },
+      { status: 400 }
+    );
+  }
+
   const verdict = await reviewAgentSubmission({
     name,
     tagline,
