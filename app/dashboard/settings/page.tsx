@@ -1,5 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
 import { Field, Notice } from "@/app/components/form-field";
+import { SubmitButton } from "@/app/components/submit-button";
 
 export default async function SettingsPage({
   searchParams,
@@ -89,12 +90,12 @@ export default async function SettingsPage({
           hint="Optional — your site, a portfolio, or wherever people should find you."
         />
 
-        <button
-          type="submit"
+        <SubmitButton
+          pendingText="Saving…"
           className="magnetic-btn mt-2 w-fit rounded-full bg-accent px-6 py-3 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
         >
           Save
-        </button>
+        </SubmitButton>
       </form>
     </main>
   );

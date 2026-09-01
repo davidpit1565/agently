@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getAllAgentRequests } from "@/lib/requests";
 import { Notice } from "@/app/components/form-field";
+import { SubmitButton } from "@/app/components/submit-button";
 
 export default async function AdminRequestsPage({
   searchParams,
@@ -43,12 +44,12 @@ export default async function AdminRequestsPage({
       )}
 
       <form action="/api/agents/backfill-embeddings" method="POST" className="mb-8">
-        <button
-          type="submit"
+        <SubmitButton
+          pendingText="Embedding…"
           className="magnetic-btn w-fit rounded-full border border-line px-4 py-2 text-xs font-medium text-ink-soft transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:border-accent/50 hover:text-accent"
         >
           Embed listings for semantic search
-        </button>
+        </SubmitButton>
         <p className="mt-1 text-xs text-ink-faint">
           Catches up any approved listing that predates semantic search (lib/embeddings.ts) — new
           listings get this automatically on upload or edit.
@@ -94,12 +95,12 @@ export default async function AdminRequestsPage({
                   placeholder="Note the requester will see"
                   className="rounded-lg border border-line bg-surface-raised px-3 py-2 text-sm text-ink outline-none transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] placeholder:text-ink-faint focus:border-accent focus:shadow-[0_0_0_3px_rgba(47,224,173,0.12)]"
                 />
-                <button
-                  type="submit"
+                <SubmitButton
+                  pendingText="Saving…"
                   className="magnetic-btn w-fit rounded-full border border-line px-4 py-2 text-xs font-medium text-ink-soft transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:border-accent/50 hover:text-accent"
                 >
                   Save
-                </button>
+                </SubmitButton>
               </form>
             </div>
           ))}

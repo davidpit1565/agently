@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { Reveal } from "@/app/components/reveal";
 import { Notice } from "@/app/components/form-field";
+import { SubmitButton } from "@/app/components/submit-button";
 import { PLATFORM_FEE_PERCENT } from "@/lib/membership";
 
 export default async function PayoutsPage({
@@ -74,12 +75,12 @@ export default async function PayoutsPage({
                   : "Takes about 5 minutes on Stripe's own form: business details, bank account, identity verification."}
               </p>
               <form action="/api/stripe/connect" method="POST">
-                <button
-                  type="submit"
+                <SubmitButton
+                  pendingText="Redirecting to Stripe…"
                   className="shine-sweep magnetic-btn rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
                 >
                   {profile?.stripe_connect_id ? "Finish setup on Stripe" : "Connect Stripe"}
-                </button>
+                </SubmitButton>
               </form>
             </>
           )}

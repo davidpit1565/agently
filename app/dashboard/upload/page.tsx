@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { canUpload } from "@/lib/membership";
 import { CATEGORIES_FALLBACK } from "@/data/categories";
 import { Field, Notice } from "@/app/components/form-field";
+import { SubmitButton } from "@/app/components/submit-button";
 
 export default async function UploadPage({
   searchParams,
@@ -166,12 +167,12 @@ export default async function UploadPage({
           </span>
         </label>
 
-        <button
-          type="submit"
+        <SubmitButton
+          pendingText="Submitting…"
           className="shine-sweep magnetic-btn mt-2 rounded-full bg-accent px-6 py-3 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
         >
           Submit for review
-        </button>
+        </SubmitButton>
       </form>
     </main>
   );

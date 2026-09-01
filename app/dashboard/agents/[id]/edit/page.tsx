@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { CATEGORIES_FALLBACK } from "@/data/categories";
 import { Field, Notice } from "@/app/components/form-field";
+import { SubmitButton } from "@/app/components/submit-button";
 import { getAgentFiles } from "@/lib/agent-files";
 
 function formatSize(bytes: number) {
@@ -144,12 +145,12 @@ export default async function EditAgentPage({
           <span className="text-xs text-ink-faint">Adds to the files above — remove one first if you're replacing it.</span>
         </label>
 
-        <button
-          type="submit"
+        <SubmitButton
+          pendingText="Saving…"
           className="magnetic-btn mt-2 rounded-full bg-accent px-6 py-3 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
         >
           Save and notify buyers
-        </button>
+        </SubmitButton>
       </form>
     </main>
   );
