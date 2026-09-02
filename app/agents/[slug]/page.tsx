@@ -183,7 +183,13 @@ export default async function AgentPage({
       />
       <div className="flex flex-col gap-5">
         {(purchased || reviewed || updated || saved) && (
-          <div className="animate-fade-up rounded-lg border border-accent/30 bg-accent-soft px-4 py-2.5 text-sm text-accent">
+          <div className="animate-fade-up flex items-center gap-2 rounded-lg border border-accent/30 bg-accent-soft px-4 py-2.5 text-sm text-accent">
+            {purchased && (
+              <svg className="purchase-check shrink-0" width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+                <circle cx="9" cy="9" r="8" stroke="currentColor" strokeWidth="1.5" opacity="0.35" />
+                <path d="M5.5 9.2l2.3 2.3 4.7-5" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            )}
             {purchased
               ? "You got it — check the delivery link below."
               : reviewed

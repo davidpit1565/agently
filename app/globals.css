@@ -226,3 +226,69 @@ details.details-anim > :not(summary) > * {
     transition: none !important;
   }
 }
+
+/* app/components/page-wipe.tsx — a thin accent line sweeping the top of the
+   viewport on internal navigation. Never rendered under prefers-reduced-motion
+   (the component itself skips it), so no reduced-motion override is needed here. */
+.page-wipe {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-start: 0;
+  height: 3px;
+  z-index: 9999;
+  pointer-events: none;
+  transform-origin: left;
+  background: linear-gradient(90deg, transparent, var(--accent), transparent);
+  box-shadow: 0 0 16px rgba(47, 224, 173, 0.75);
+  animation:
+    page-wipe-sweep 350ms cubic-bezier(0.23, 1, 0.32, 1) both,
+    page-wipe-fade 200ms ease 350ms both;
+}
+
+@keyframes page-wipe-sweep {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes page-wipe-fade {
+  to {
+    opacity: 0;
+  }
+}
+
+/* The purchase-success checkmark (app/agents/[slug]/page.tsx) — a rare,
+   once-per-purchase moment, exactly the kind emil-design-eng's own framework
+   calls out as worth a small bit of delight. The circle and check are two
+   separate paths so the check can draw in a beat after the circle appears,
+   rather than both popping in at once. */
+.purchase-check circle {
+  transform-origin: center;
+  animation: purchase-check-circle 250ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+.purchase-check path {
+  stroke-dasharray: 10;
+  stroke-dashoffset: 10;
+  animation: purchase-check-draw 250ms ease-out 150ms both;
+}
+@keyframes purchase-check-circle {
+  from {
+    transform: scale(0.6);
+    opacity: 0;
+  }
+}
+@keyframes purchase-check-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .purchase-check circle,
+  .purchase-check path {
+    animation: none !important;
+    stroke-dashoffset: 0;
+  }
+}

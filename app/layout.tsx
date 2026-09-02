@@ -3,6 +3,7 @@ import { Bricolage_Grotesque, Manrope, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Header } from "./components/header";
 import { Footer } from "./components/footer";
+import { PageWipe } from "./components/page-wipe";
 import { createClient } from "@/lib/supabase/server";
 
 const display = Bricolage_Grotesque({
@@ -56,6 +57,7 @@ export default async function RootLayout({
   return (
     <html lang="en" className={`${display.variable} ${body.variable} ${mono.variable}`}>
       <body className="console-grain">
+        <PageWipe />
         {/* Keyboard users otherwise have to tab through the whole header nav
             on every single page just to reach the content. */}
         <a
