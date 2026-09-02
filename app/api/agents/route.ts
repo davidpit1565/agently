@@ -6,6 +6,7 @@ import { reviewAgentSubmission } from "@/lib/safety-review";
 import { getEmbedding, embeddableText } from "@/lib/embeddings";
 import { uploadAgentFiles } from "@/lib/agent-files";
 import { sanitizeUrl } from "@/lib/validation";
+import { checkRateLimit } from "@/lib/rate-limit";
 import type { MembershipTier } from "@/lib/types";
 
 // Handles the upload form (app/dashboard/upload). A "low" risk verdict from
@@ -56,6 +57,22 @@ export async function POST(request: Request) {
         error: `Your ${tier} membership allows up to ${limit} active listings. Delist one, or upgrade at /pricing.`,
       },
       { status: 403 }
+    );
+  }
+
+  // The active-listing limit above only counts pending_review + approved —
+  // a rejected submission never counts against it, and reviewAgentSubmission()
+  // + getEmbedding() below still run (real Anthropic + Voyage cost) before a
+  // submission is known to be rejected. Without this, one signed-in account
+  // could submit unlimited slightly-varied listings (varied enough to dodge
+  // the exact-duplicate check further down), burn a paid API call on each,
+  // and never trip the tier limit because every one gets rejected. 8 attempts
+  // per 10 minutes is well above any real creator submitting real listings.
+  const allowedToSubmit = await checkRateLimit(`agent_submit:${user.id}`, 8, 600);
+  if (!allowedToSubmit) {
+    return NextResponse.json(
+      { error: "Too many submissions in a short time — wait a few minutes and try again." },
+      { status: 429 }
     );
   }
 
