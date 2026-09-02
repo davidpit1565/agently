@@ -83,6 +83,30 @@ export async function POST(request: Request) {
     );
   }
 
+  // A double form-submit — a slow network causing a browser retry, or a
+  // duplicate native submission slipping through SubmitButton's next-tick
+  // disable window (app/components/submit-button.tsx: two clicks landing
+  // before the first's setTimeout(0) actually disables the button) — would
+  // otherwise create a second listing and re-run the paid safety-review and
+  // embedding calls below for content that's byte-for-byte what this
+  // creator just submitted. Treat an identical listing from the same
+  // creator in the last 15s as that same submit landing twice, not a new
+  // listing, before spending anything on it.
+  const { data: recentDuplicate } = await supabase
+    .from("agently_agents")
+    .select("id")
+    .eq("creator_id", user.id)
+    .eq("name", name)
+    .eq("tagline", tagline)
+    .eq("description", description)
+    .gte("created_at", new Date(Date.now() - 15_000).toISOString())
+    .limit(1)
+    .maybeSingle();
+
+  if (recentDuplicate) {
+    return NextResponse.redirect(new URL("/dashboard/upload?submitted=1", request.url));
+  }
+
   const verdict = await reviewAgentSubmission({
     name,
     tagline,
