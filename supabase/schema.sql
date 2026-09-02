@@ -137,6 +137,20 @@ $$ language plpgsql;
 alter table agently_agents add column if not exists embedding jsonb;
 
 create index if not exists agently_agents_status_idx on agently_agents (status);
+
+-- Backs lib/rate-limit.ts — the only two endpoints that trigger a paid
+-- third-party call per request (/api/search's Voyage embedding, and
+-- reachable-by-anyone-signed-in /api/agents' Anthropic + Voyage calls).
+-- No RLS policy: only the service-role client (lib/supabase/admin.ts)
+-- ever touches this table, from server code that isn't acting on behalf
+-- of a signed-in user's own session.
+create table if not exists agently_rate_limits (
+  id uuid primary key default gen_random_uuid(),
+  scope text not null, -- e.g. 'search:<ip>' or 'agent_submit:<user_id>'
+  created_at timestamptz not null default now()
+);
+
+create index if not exists agently_rate_limits_scope_idx on agently_rate_limits (scope, created_at);
 create index if not exists agently_agents_category_idx on agently_agents (category_slug);
 -- getAgentsByCreator/getMyAgents (lib/catalog.ts) and the active-listing-limit
 -- count in app/api/agents/route.ts all filter on creator_id — every creator

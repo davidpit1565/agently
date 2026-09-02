@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getApprovedAgents } from "@/lib/catalog";
 import { getEmbedding, cosineSimilarity } from "@/lib/embeddings";
+import { checkRateLimit, clientIp } from "@/lib/rate-limit";
 
 // Semantic ranking for /browse. Returns null (not an error) whenever
 // semantic matching isn't available for this query — no VOYAGE_API_KEY,
@@ -19,6 +20,16 @@ export async function POST(request: Request) {
   const { query } = await request.json();
   if (typeof query !== "string" || !query.trim()) {
     return NextResponse.json({ ranked: null });
+  }
+
+  // This route is reachable by anyone, signed in or not, and every call
+  // with a non-empty query reaches getEmbedding() below — a real Voyage AI
+  // charge. With no auth to raise the cost of abuse, a script looping this
+  // in a tight loop had zero friction. 30 searches/minute/IP is well above
+  // anything a person typing into the search box would hit.
+  const allowed = await checkRateLimit(`search:${clientIp(request)}`, 30, 60);
+  if (!allowed) {
+    return NextResponse.json({ ranked: null }, { status: 429 });
   }
 
   const queryEmbedding = await getEmbedding(query);
