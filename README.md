@@ -83,9 +83,10 @@ yet. Three things only you can do:
 2. **Create a Stripe account**, enable Connect → copy the secret key into
    Vercel as `STRIPE_SECRET_KEY`. Once the account exists, add a webhook
    pointed at `https://<your-domain>/api/stripe/webhook` for
-   `checkout.session.completed`, `customer.subscription.*`, and
-   `account.updated` (that last one is what turns on a creator's payouts),
-   then put its signing secret in Vercel as `STRIPE_WEBHOOK_SECRET`.
+   `checkout.session.completed`, `charge.refunded`, `invoice.paid`,
+   `customer.subscription.*`, and `account.updated` (that last one is
+   what turns on a creator's payouts), then put its signing secret in
+   Vercel as `STRIPE_WEBHOOK_SECRET`.
 3. **Connect this repo to the Vercel project** in its Git settings — the
    deploy exists already, it just isn't wired to `main` yet.
 4. **Optional** — add `ANTHROPIC_API_KEY` to Vercel to turn on automated
