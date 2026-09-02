@@ -1,4 +1,6 @@
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { getStripe } from "@/lib/stripe";
 import { Reveal } from "@/app/components/reveal";
 import { Notice } from "@/app/components/form-field";
 import { SubmitButton } from "@/app/components/submit-button";
@@ -34,7 +36,30 @@ export default async function PayoutsPage({
     .eq("id", user.id)
     .single();
 
-  const ready = profile?.stripe_connect_ready ?? false;
+  let ready = profile?.stripe_connect_ready ?? false;
+
+  // The webhook's account.updated handler (app/api/stripe/webhook/route.ts)
+  // is the normal way this flips to true, but that only works once the
+  // webhook endpoint is actually subscribed to that event in Stripe's
+  // dashboard — a setup step nothing in this codebase can verify or do for
+  // the user. Landing back here with ?onboarded=1 is the one moment we know
+  // to check directly, so a missing or delayed webhook doesn't leave
+  // "Onboarding started" showing forever when Stripe already says otherwise.
+  if (onboarded && !ready && profile?.stripe_connect_id && process.env.STRIPE_SECRET_KEY) {
+    try {
+      const account = await getStripe().accounts.retrieve(profile.stripe_connect_id);
+      if (account.charges_enabled) {
+        const admin = createAdminClient();
+        if (admin) {
+          await admin.from("agently_profiles").update({ stripe_connect_ready: true }).eq("id", user.id);
+        }
+        ready = true;
+      }
+    } catch {
+      // Stripe unreachable or the account lookup failed — fall through to
+      // the normal "still onboarding" view rather than breaking the page.
+    }
+  }
 
   return (
     <main className="mx-auto max-w-lg px-6 py-16 sm:py-20">
