@@ -106,7 +106,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
   }
 
-  const { error } = await admin
+  // Optimistic lock on `version`: a double form-submit (slow network
+  // retry, or two native submissions slipping past SubmitButton's
+  // next-tick disable window) sends two nearly-simultaneous POSTs that
+  // both read the same `existing.version` above and both compute the same
+  // bumped `version`. Without `.eq("version", existing.version)` here,
+  // both writes would land, and — worse — notifyBuyersOfUpdate below would
+  // fire twice, putting two "agent was updated" notifications in front of
+  // every buyer for what was really one edit. Whichever request loses the
+  // race updates zero rows and is handled as a no-op below, not an error.
+  const { data: updatedRows, error } = await admin
     .from("agently_agents")
     .update({
       name,
@@ -123,10 +132,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       review_notes: reviewNotes,
       version,
     })
-    .eq("id", id);
+    .eq("id", id)
+    .eq("version", existing.version)
+    .select("id");
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 400 });
+  }
+
+  const successParam = isNewVersion ? "updated=1" : "saved=1";
+  const redirectUrl = new URL(`/agents/${existing.slug}?${successParam}`, request.url);
+
+  if (!updatedRows || updatedRows.length === 0) {
+    // Lost the race to an identical duplicate submit that already applied
+    // this exact edit — don't re-upload files or re-notify buyers for it.
+    return NextResponse.redirect(redirectUrl, 303);
   }
 
   let rejectedNames: string[] = [];
@@ -141,8 +161,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     await notifyBuyersOfUpdate(id, name, version);
   }
 
-  const successParam = isNewVersion ? "updated=1" : "saved=1";
-  const redirectUrl = new URL(`/agents/${existing.slug}?${successParam}`, request.url);
   if (rejectedNames.length > 0) {
     redirectUrl.searchParams.set("skipped_files", rejectedNames.join(", "));
   }
