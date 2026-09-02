@@ -37,7 +37,11 @@ export function ReviewForm({ agentId }: { agentId: string }) {
         ))}
       </div>
 
+      <label className="sr-only" htmlFor="review-comment">
+        Comment (optional)
+      </label>
       <textarea
+        id="review-comment"
         name="comment"
         rows={2}
         placeholder="Optional — what happened when you used it?"

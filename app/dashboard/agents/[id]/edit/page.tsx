@@ -4,6 +4,7 @@ import { CATEGORIES_FALLBACK } from "@/data/categories";
 import { Field, Notice } from "@/app/components/form-field";
 import { SubmitButton } from "@/app/components/submit-button";
 import { getAgentFiles } from "@/lib/agent-files";
+import { RemoveFileButton } from "@/app/components/remove-file-button";
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -64,11 +65,7 @@ export default async function EditAgentPage({
                 {f.is_readme && <span className="ml-2 text-xs text-accent">README</span>}
                 <span className="ml-2 text-xs text-ink-faint">{formatSize(f.size_bytes)}</span>
               </span>
-              <form action={`/api/agents/${agent.id}/files/${f.id}`} method="POST">
-                <button type="submit" className="text-xs text-ink-faint hover:text-red-400">
-                  Remove
-                </button>
-              </form>
+              <RemoveFileButton agentId={agent.id} fileId={f.id} fileName={f.file_name} />
             </div>
           ))}
         </div>
