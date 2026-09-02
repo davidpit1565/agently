@@ -120,16 +120,19 @@ export default async function AgentPage({
   if (!isOwner) recordAgentView(agent.id);
 
   const cat = category(agent.category_slug);
-  const { reviews, average, count } = await getReviewsForAgent(agent.id);
-  const creator = await getCreatorProfile(agent.creator_id);
-
-  // The README is documentation, not the paid deliverable — shown to any
-  // visitor, same as a README on GitHub or npm before you install anything.
-  const readmeHtml = await getReadmeHtml(agent.id);
-
+  // These four don't depend on each other — only on `agent` and the
+  // hasPurchased/isOwner check already done above — so run them together
+  // instead of paying for four sequential round trips on every page view.
   // The files themselves ARE the deliverable — same gate as delivery_url
   // below, and each download link is signed fresh for this render only.
-  const files = hasPurchased || isOwner ? await getAgentFiles(agent.id) : [];
+  // The README is documentation, not the paid deliverable — shown to any
+  // visitor, same as a README on GitHub or npm before you install anything.
+  const [{ reviews, average, count }, creator, readmeHtml, files] = await Promise.all([
+    getReviewsForAgent(agent.id),
+    getCreatorProfile(agent.creator_id),
+    getReadmeHtml(agent.id),
+    hasPurchased || isOwner ? getAgentFiles(agent.id) : Promise.resolve([]),
+  ]);
   const downloadableFiles = await Promise.all(
     files
       .filter((f) => !f.is_readme)
