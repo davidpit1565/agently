@@ -124,11 +124,17 @@ export default async function MyAgentsPage({
                 )}
               </div>
 
-              <div className="flex shrink-0 items-center gap-3 text-sm">
-                <Link href={`/agents/${agent.slug}`} className="text-ink-soft hover:text-accent">
+              <div className="flex shrink-0 items-center gap-2">
+                <Link
+                  href={`/agents/${agent.slug}`}
+                  className="rounded-full border border-line px-3 py-1.5 text-xs font-medium text-ink-soft transition-colors duration-150 hover:border-accent/50 hover:text-accent"
+                >
                   View
                 </Link>
-                <Link href={`/dashboard/agents/${agent.id}/edit`} className="text-ink-soft hover:text-accent">
+                <Link
+                  href={`/dashboard/agents/${agent.id}/edit`}
+                  className="rounded-full border border-line px-3 py-1.5 text-xs font-medium text-ink-soft transition-colors duration-150 hover:border-accent/50 hover:text-accent"
+                >
                   Edit
                 </Link>
                 {agent.status !== "delisted" && (
