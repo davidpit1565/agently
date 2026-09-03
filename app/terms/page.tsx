@@ -47,7 +47,11 @@ export default function TermsPage() {
           <a href={`mailto:${SUPPORT_EMAIL}`} className="text-accent underline">
             {SUPPORT_EMAIL}
           </a>{" "}
-          with the order and a description of the problem. Once a refund is issued, the buyer&apos;s access to
+          with the order and a description of the problem. The{" "}
+          <strong>Request a refund</strong> button only works before you&apos;ve
+          opened the delivery link or downloaded a file — once you have,
+          it goes through the creator or support instead, so a legitimate
+          problem can still be resolved by a person. Once a refund is issued, the buyer&apos;s access to
           the agent&apos;s delivery link and files is revoked. A refund is
           not available once 7 days have passed, or for a working agent you
           simply changed your mind about. Subscriptions (both a membership

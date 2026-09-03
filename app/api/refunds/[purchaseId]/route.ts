@@ -44,7 +44,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pur
 
   const { data: purchase, error: purchaseError } = await supabase
     .from("agently_purchases")
-    .select("id, buyer_id, agent_id, status, created_at, stripe_checkout_session_id")
+    .select("id, buyer_id, agent_id, status, created_at, stripe_checkout_session_id, delivery_accessed_at")
     .eq("id", purchaseId)
     .single();
 
@@ -87,6 +87,24 @@ export async function POST(request: Request, { params }: { params: Promise<{ pur
   if (purchase.status !== "paid") {
     return NextResponse.json(
       { error: "This purchase isn't eligible for a refund (already refunded, or never completed)." },
+      { status: 409 }
+    );
+  }
+
+  // The delivery link and every downloadable file now go through
+  // app/api/deliveries/[agentId]/route.ts, which sets this the first time
+  // they're actually retrieved. Refusing self-service once it's set closes
+  // the obvious abuse this would otherwise open: download a one-time
+  // purchase, then instantly refund it and keep both. A real dispute after
+  // legitimately trying the product still has the email/creator-contact
+  // path in app/terms/page.tsx, which goes to a human instead of an
+  // automatic Stripe refund.
+  if (purchase.delivery_accessed_at) {
+    return NextResponse.json(
+      {
+        error:
+          "You've already accessed the delivery link or files for this purchase, so it isn't eligible for an automatic refund. Contact the creator directly, or email support, to work it out.",
+      },
       { status: 409 }
     );
   }

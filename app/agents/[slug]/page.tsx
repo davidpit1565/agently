@@ -9,7 +9,7 @@ import { agentCode } from "@/lib/agent-code";
 import { TrustRing } from "@/app/components/trust-ring";
 import { ReviewForm } from "@/app/components/review-form";
 import { Reveal } from "@/app/components/reveal";
-import { getAgentFiles, getReadmeHtml, getSignedFileUrl } from "@/lib/agent-files";
+import { getAgentFiles, getReadmeHtml } from "@/lib/agent-files";
 import { formatEuros } from "@/lib/format";
 import { SubmitButton } from "@/app/components/submit-button";
 
@@ -108,7 +108,7 @@ export default async function AgentPage({
     if (user && !isOwner) {
       const { data: purchase } = await supabase
         .from("agently_purchases")
-        .select("id, created_at")
+        .select("id, created_at, delivery_accessed_at")
         .eq("agent_id", agent.id)
         .eq("buyer_id", user.id)
         .eq("status", "paid")
@@ -117,8 +117,11 @@ export default async function AgentPage({
 
       // Matches app/api/refunds/[purchaseId]/route.ts's own checks exactly —
       // this only decides whether to show the button, not whether a request
-      // succeeds; the route re-checks everything itself.
-      if (purchase && agent.pricing_model === "one_time") {
+      // succeeds; the route re-checks everything itself. Not accessed yet
+      // (see app/api/deliveries/[agentId]/route.ts) is what keeps this an
+      // instant self-service refund instead of a way to download something
+      // and get the money back too.
+      if (purchase && agent.pricing_model === "one_time" && !purchase.delivery_accessed_at) {
         const daysSincePurchase = (Date.now() - new Date(purchase.created_at).getTime()) / (1000 * 60 * 60 * 24);
         if (daysSincePurchase <= 7) refundEligiblePurchaseId = purchase.id;
       }
@@ -141,7 +144,11 @@ export default async function AgentPage({
   // hasPurchased/isOwner check already done above — so run them together
   // instead of paying for four sequential round trips on every page view.
   // The files themselves ARE the deliverable — same gate as delivery_url
-  // below, and each download link is signed fresh for this render only.
+  // below. Actually downloading one goes through
+  // app/api/deliveries/[agentId]/route.ts (which signs the URL fresh at
+  // click time and marks the purchase's delivery_accessed_at) rather than a
+  // pre-signed URL rendered directly on the page — no reason to sign one for
+  // every page view when most are never clicked.
   // The README is documentation, not the paid deliverable — shown to any
   // visitor, same as a README on GitHub or npm before you install anything.
   const [{ reviews, average, count }, creator, readmeHtml, files] = await Promise.all([
@@ -150,11 +157,7 @@ export default async function AgentPage({
     getReadmeHtml(agent.id),
     hasPurchased || isOwner ? getAgentFiles(agent.id) : Promise.resolve([]),
   ]);
-  const downloadableFiles = await Promise.all(
-    files
-      .filter((f) => !f.is_readme)
-      .map(async (f) => ({ ...f, url: await getSignedFileUrl(f.storage_path) }))
-  );
+  const downloadableFiles = files.filter((f) => !f.is_readme);
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -284,7 +287,7 @@ export default async function AgentPage({
                 {isOwner ? "Delivery link" : "You own this — here's how to get it"}
               </h2>
               <a
-                href={agent.delivery_url}
+                href={`/api/deliveries/${agent.id}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="break-all text-sm text-accent underline"
@@ -321,18 +324,16 @@ export default async function AgentPage({
             <div className="bezel-core border border-line bg-surface p-5">
               <h2 className="mb-3 font-display text-sm font-semibold text-accent">Files</h2>
               <div className="flex flex-col gap-2">
-                {downloadableFiles.map((f) =>
-                  f.url ? (
-                    <a
-                      key={f.id}
-                      href={f.url}
-                      className="flex items-center justify-between rounded-lg border border-line px-3 py-2 text-sm text-ink-soft transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:border-accent/50 hover:text-accent"
-                    >
-                      <span>{f.file_name}</span>
-                      <span className="font-mono text-xs text-ink-faint">{formatSize(f.size_bytes)}</span>
-                    </a>
-                  ) : null
-                )}
+                {downloadableFiles.map((f) => (
+                  <a
+                    key={f.id}
+                    href={`/api/deliveries/${agent.id}?file=${f.id}`}
+                    className="flex items-center justify-between rounded-lg border border-line px-3 py-2 text-sm text-ink-soft transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:border-accent/50 hover:text-accent"
+                  >
+                    <span>{f.file_name}</span>
+                    <span className="font-mono text-xs text-ink-faint">{formatSize(f.size_bytes)}</span>
+                  </a>
+                ))}
               </div>
             </div>
           </Reveal>
