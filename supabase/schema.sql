@@ -164,7 +164,7 @@ create table if not exists agently_purchases (
   stripe_checkout_session_id text not null unique,
   amount_cents integer not null,
   platform_fee_cents integer not null,
-  status text not null default 'pending' check (status in ('pending', 'paid', 'refunded')),
+  status text not null default 'pending' check (status in ('pending', 'paid', 'refunded', 'canceled')),
   created_at timestamptz not null default now()
 );
 
@@ -173,6 +173,16 @@ create table if not exists agently_purchases (
 -- notifyBuyersOfUpdate() (lib/notifications.ts) filters by agent_id+status
 -- on every listing edit — both were sequential scans without this.
 create index if not exists agently_purchases_agent_buyer_idx on agently_purchases (agent_id, buyer_id, status);
+
+-- A buyer of a per-agent subscription (agent.pricing_model = 'subscription')
+-- who cancels needs their access revoked, not just their next Stripe
+-- invoice stopped — app/agents/[slug]/page.tsx and the file-download gate
+-- both read status = 'paid' to decide whether to keep serving the
+-- delivery link and files. 'refunded' would be the wrong word for
+-- "canceled and stopped paying, no money given back."
+alter table agently_purchases drop constraint if exists agently_purchases_status_check;
+alter table agently_purchases add constraint agently_purchases_status_check
+  check (status in ('pending', 'paid', 'refunded', 'canceled'));
 
 create table if not exists agently_reviews (
   id uuid primary key default gen_random_uuid(),
