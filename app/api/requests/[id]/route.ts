@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendNotificationEmail } from "@/lib/email";
 import type { AgentRequestStatus } from "@/lib/types";
 
 const VALID_STATUSES: AgentRequestStatus[] = ["pending", "in_progress", "fulfilled", "declined"];
@@ -69,12 +70,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   if (status === "fulfilled" && existing.status !== "fulfilled") {
+    const message = "The agent you requested is ready.";
     await admin.from("agently_notifications").insert({
       user_id: existing.requester_id,
       agent_id: fulfilledAgentId,
       type: "agent_request_fulfilled",
-      message: "The agent you requested is ready.",
+      message,
     });
+    const { data: requester } = await admin.auth.admin.getUserById(existing.requester_id);
+    await sendNotificationEmail(requester.user?.email, "Your requested agent is ready", message);
   }
 
   return NextResponse.redirect(new URL("/dashboard/admin/requests?saved=1", request.url), 303);

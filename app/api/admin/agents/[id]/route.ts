@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { sendNotificationEmail } from "@/lib/email";
 import type { AgentStatus } from "@/lib/types";
 
 const VALID_STATUSES: AgentStatus[] = ["pending_review", "approved", "rejected", "delisted"];
@@ -56,15 +57,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // Only worth telling the creator about a decision, not every no-op re-save
   // of the same status.
   if (status !== existing.status && (status === "approved" || status === "rejected")) {
+    const message =
+      status === "approved"
+        ? `${existing.name} is now live in the catalog.`
+        : `${existing.name} wasn't approved — check your listing for details.`;
     await admin.from("agently_notifications").insert({
       user_id: existing.creator_id,
       agent_id: id,
       type: status === "approved" ? "agent_approved" : "agent_rejected",
-      message:
-        status === "approved"
-          ? `${existing.name} is now live in the catalog.`
-          : `${existing.name} wasn't approved — check your listing for details.`,
+      message,
     });
+    const { data: creator } = await admin.auth.admin.getUserById(existing.creator_id);
+    await sendNotificationEmail(
+      creator.user?.email,
+      status === "approved" ? `${existing.name} is live` : `${existing.name} wasn't approved`,
+      message
+    );
   }
 
   return NextResponse.redirect(new URL("/dashboard/admin/agents?saved=1", request.url), 303);
