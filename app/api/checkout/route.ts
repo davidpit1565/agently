@@ -68,7 +68,14 @@ export async function POST(request: Request) {
   // session for an agent subscription that's already active creates a
   // second, separate Stripe subscription — a double-click or a browser
   // back-button resubmit would double-bill the buyer for the same agent.
-  if (agent.pricing_model === "subscription") {
+  //
+  // one_time was missing this check entirely: nothing stopped a buyer who
+  // already owns a one-time agent (the Buy button stays visible on
+  // app/agents/[slug]/page.tsx even after hasPurchased is true) from
+  // hitting this route again — a double-click, a resubmitted form, a
+  // revisit — and being charged a second time for the exact same delivery
+  // link, with a second agently_purchases row and no warning anywhere.
+  if (agent.pricing_model === "subscription" || agent.pricing_model === "one_time") {
     const { data: existing, error: existingError } = await supabase
       .from("agently_purchases")
       .select("id")
@@ -77,19 +84,24 @@ export async function POST(request: Request) {
       .eq("status", "paid")
       .limit(1)
       .maybeSingle();
-    // A failed check here is not "no existing subscription" — treating it
-    // that way on a transient Supabase error would let this fall through to
-    // Stripe and create a second, separate subscription for someone who
-    // already has one active, double-billing them.
+    // A failed check here is not "no existing purchase" — treating it that
+    // way on a transient Supabase error would let this fall through to
+    // Stripe and create a second subscription, or a second charge for a
+    // one-time agent, for someone who already owns it.
     if (existingError) {
       return NextResponse.json(
-        { error: "Couldn't verify your existing subscriptions — try again in a moment." },
+        { error: "Couldn't verify your existing purchases — try again in a moment." },
         { status: 503 }
       );
     }
     if (existing) {
       return NextResponse.json(
-        { error: "You already have an active subscription to this agent." },
+        {
+          error:
+            agent.pricing_model === "subscription"
+              ? "You already have an active subscription to this agent."
+              : "You already own this agent.",
+        },
         { status: 409 }
       );
     }
