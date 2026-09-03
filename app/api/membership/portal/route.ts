@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -45,10 +46,26 @@ export async function POST(request: Request) {
   const stripe = getStripe();
   const origin = new URL(request.url).origin;
 
-  const session = await stripe.billingPortal.sessions.create({
-    customer: profile.stripe_customer_id,
-    return_url: `${origin}/dashboard/agents`,
-  });
-
-  return NextResponse.redirect(session.url, 303);
+  try {
+    const session = await stripe.billingPortal.sessions.create({
+      customer: profile.stripe_customer_id,
+      return_url: `${origin}/dashboard/agents`,
+    });
+    return NextResponse.redirect(session.url, 303);
+  } catch (err) {
+    // Same test-mode/live-mode id mismatch as app/api/stripe/connect/route.ts
+    // and membership/checkout — unlike checkout, there's no "just create a
+    // fresh customer" fallback here: a billing portal only makes sense for
+    // a subscription that actually exists under the current key. Surface a
+    // clear error instead of a raw Stripe one; membership/switch and
+    // checkout both already fail gracefully (empty results, or their own
+    // resource_missing handling) rather than crashing on the same stale id.
+    if (err instanceof Stripe.errors.StripeInvalidRequestError && err.code === "resource_missing") {
+      return NextResponse.json(
+        { error: "Couldn't find your membership on file — this can happen right after a Stripe mode change. Contact support to sort it out." },
+        { status: 409 }
+      );
+    }
+    throw err;
+  }
 }
