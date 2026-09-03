@@ -12,6 +12,8 @@ import { Reveal } from "@/app/components/reveal";
 import { getAgentFiles, getReadmeHtml } from "@/lib/agent-files";
 import { formatEuros } from "@/lib/format";
 import { SubmitButton } from "@/app/components/submit-button";
+import { getAcceptedTeamPurchaseId } from "@/lib/team-invites";
+import { MIN_TEAM_SEATS, MAX_TEAM_SEATS } from "@/lib/team-pricing";
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -89,10 +91,11 @@ export default async function AgentPage({
     skipped_files?: string;
     refunded?: string;
     canceled?: string;
+    joined?: string;
   }>;
 }) {
   const { slug } = await params;
-  const { purchased, reviewed, updated, saved, skipped_files: skippedFiles, refunded, canceled } = await searchParams;
+  const { purchased, reviewed, updated, saved, skipped_files: skippedFiles, refunded, canceled, joined } = await searchParams;
   const agent = await getAgentBySlug(slug);
   if (!agent) notFound();
 
@@ -129,6 +132,15 @@ export default async function AgentPage({
       }
       if (purchase && agent.pricing_model === "subscription") {
         cancelablePurchaseId = purchase.id;
+      }
+
+      // Not the buyer, but maybe a teammate who accepted a seat on a still-
+      // paid team purchase of this agent (lib/team-invites.ts). Only grants
+      // the same view/download access a buyer gets — never refund or cancel,
+      // which stay tied to whoever actually bought it.
+      if (!hasPurchased) {
+        const teamPurchaseId = await getAcceptedTeamPurchaseId(agent.id, user.id);
+        hasPurchased = !!teamPurchaseId;
       }
     }
   }
@@ -207,7 +219,7 @@ export default async function AgentPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
       />
       <div className="flex flex-col gap-5">
-        {(purchased || reviewed || updated || saved || refunded || canceled) && (
+        {(purchased || reviewed || updated || saved || refunded || canceled || joined) && (
           <div className="animate-fade-up flex items-center gap-2 rounded-lg border border-accent/30 bg-accent-soft px-4 py-2.5 text-sm text-accent">
             {purchased && (
               <svg className="purchase-check shrink-0" width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
@@ -225,7 +237,9 @@ export default async function AgentPage({
                     ? "Refund requested — Stripe usually returns it to your card within 5-10 business days. Access to the delivery link and files is revoked once Stripe confirms it."
                     : canceled
                       ? "Canceled — you keep access through the end of what you already paid for, then billing stops for good."
-                      : "Saved."}
+                      : joined
+                        ? "You're in — check the delivery link and files below."
+                        : "Saved."}
           </div>
         )}
         {skippedFiles && (
@@ -442,17 +456,66 @@ export default async function AgentPage({
             Hiding the button for the owner avoids that dead end entirely,
             same reasoning as hiding "Buy" for someone who can't act on it. */}
         {!isOwner && (
-          <form action="/api/checkout" method="POST" className="pt-4">
+          <form action="/api/checkout" method="POST" className="flex flex-col gap-3 pt-4">
             <input type="hidden" name="agentId" value={agent.id} />
             <button
               type="submit"
-              className="shine-sweep magnetic-btn group flex items-center gap-2 rounded-full bg-accent py-2 pl-6 pr-2 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
+              className="shine-sweep magnetic-btn group flex w-fit items-center gap-2 rounded-full bg-accent py-2 pl-6 pr-2 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
             >
               {agent.pricing_model === "free" ? "Get this agent" : `Buy — ${priceLabel(agent)}`}
               <span className="magnetic-icon flex h-8 w-8 items-center justify-center rounded-full bg-black/10">
                 →
               </span>
             </button>
+
+            {/* Team licensing (lib/team-pricing.ts): only makes sense for a
+                one-time purchase — a subscription's recurring billing has no
+                clean place to attach a one-time seat discount, and a free
+                agent has nothing to discount. Left collapsed by default so
+                it doesn't compete with the single-buyer path most people
+                want. Submits through the same form: "seats" defaults to the
+                plain "1" radio, so opening this and not touching anything
+                is identical to an ordinary purchase. */}
+            {agent.pricing_model === "one_time" && (
+              <details className="details-anim w-fit rounded-lg border border-line bg-surface px-4 py-3">
+                <summary className="cursor-pointer text-xs font-medium text-ink-soft">
+                  Buying for a team?
+                </summary>
+                <div className="mt-3 flex flex-col gap-3 text-sm">
+                  <p className="max-w-sm text-pretty text-xs leading-relaxed text-ink-faint">
+                    From {MIN_TEAM_SEATS} to {MAX_TEAM_SEATS} seats, cheaper per seat the more you add.
+                    Everyone you list gets an email with their own access link right after checkout.
+                  </p>
+                  <label className="flex flex-col gap-1 text-xs text-ink-soft">
+                    Seats
+                    <select
+                      name="seats"
+                      defaultValue="1"
+                      className="w-32 rounded-lg border border-line bg-surface-raised px-2 py-1.5 text-sm text-ink"
+                    >
+                      <option value="1">Just me</option>
+                      {Array.from(
+                        { length: MAX_TEAM_SEATS - MIN_TEAM_SEATS + 1 },
+                        (_, i) => MIN_TEAM_SEATS + i
+                      ).map((n) => (
+                        <option key={n} value={n}>
+                          {n} seats
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="flex flex-col gap-1 text-xs text-ink-soft">
+                    Teammate emails — one per line, one fewer than the seat count above
+                    <textarea
+                      name="team_emails"
+                      rows={3}
+                      placeholder={"teammate1@company.com\nteammate2@company.com"}
+                      className="w-full max-w-sm rounded-lg border border-line bg-surface-raised px-3 py-2 text-sm text-ink placeholder:text-ink-faint"
+                    />
+                  </label>
+                </div>
+              </details>
+            )}
           </form>
         )}
       </div>

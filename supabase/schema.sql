@@ -240,6 +240,56 @@ create index if not exists agently_downloads_purchase_idx on agently_downloads (
 -- service-role client" pattern.
 alter table agently_downloads enable row level security;
 
+-- How many people a one-time purchase covers (the buyer plus invited
+-- teammates) — 1 for every ordinary purchase, only ever >1 for a team
+-- purchase (see lib/team-pricing.ts). Drives both the discounted price
+-- charged at checkout and how many rows get created below.
+alter table agently_purchases add column if not exists seats integer not null default 1;
+
+-- One row per teammate a buyer invites on a team purchase (never the buyer
+-- themselves — they already have access via buyer_id on the purchase
+-- itself). Created by the webhook right after a team purchase completes
+-- (app/api/stripe/webhook/route.ts), emailed via lib/email.ts, and claimed
+-- by whoever signs in at app/invite/[token]/page.tsx with a matching email.
+-- accepted_by is what every access check (app/agents/[slug]/page.tsx,
+-- app/api/deliveries/[agentId]/route.ts) actually looks at — a team member
+-- only ever gets delivery access, never refund/cancel/review rights, which
+-- stay tied to buyer_id alone.
+create table if not exists agently_team_invites (
+  id uuid primary key default gen_random_uuid(),
+  purchase_id uuid not null references agently_purchases(id) on delete cascade,
+  -- Denormalized from purchase_id's own agent_id, set once at insert time.
+  -- Every access check below needs "does this signed-in user have an
+  -- accepted invite for this specific agent," and RLS on agently_purchases
+  -- (buyer-only, or the agent's own creator) wouldn't let a team member's
+  -- session read the join target to get there — a direct column keeps the
+  -- check to one table the policy below already covers, no join needed.
+  agent_id uuid not null references agently_agents(id) on delete cascade,
+  email text not null,
+  token uuid not null default gen_random_uuid() unique,
+  accepted_by uuid references agently_profiles(id) on delete set null,
+  accepted_at timestamptz,
+  created_at timestamptz not null default now(),
+  unique (purchase_id, email)
+);
+
+create index if not exists agently_team_invites_purchase_idx on agently_team_invites (purchase_id);
+create index if not exists agently_team_invites_accepted_by_idx on agently_team_invites (accepted_by);
+
+-- Service-role-only, same pattern as agently_downloads and
+-- agently_agent_files — every access goes through the admin client.
+-- Claiming one (app/invite/[token]/page.tsx) has to work for someone who
+-- doesn't have an account yet, so the invite token itself is what proves
+-- the right to claim it, not a session. Checking whether a signed-in user
+-- already has an accepted seat (app/agents/[slug]/page.tsx,
+-- app/api/deliveries/[agentId]/route.ts) also goes through the admin
+-- client rather than a narrower RLS policy — that check needs to join to
+-- agently_purchases for its live status (so a refunded/canceled purchase's
+-- team members lose access too, not just its buyer), and RLS on
+-- agently_purchases wouldn't let a team member's own session read that
+-- join target.
+alter table agently_team_invites enable row level security;
+
 create table if not exists agently_reviews (
   id uuid primary key default gen_random_uuid(),
   agent_id uuid not null references agently_agents(id) on delete cascade,
