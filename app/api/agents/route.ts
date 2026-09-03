@@ -97,6 +97,17 @@ export async function POST(request: Request) {
 
   const form = await request.formData();
   const pricingModel = String(form.get("pricing_model"));
+  // Monthly subscription is no longer offered for a new listing — a
+  // business decision, not a technical one. Existing subscription-model
+  // agents (and their buyers) are untouched; app/dashboard/upload/page.tsx's
+  // form doesn't offer the option either, but this is the real gate, not
+  // that removed <option>.
+  if (pricingModel !== "free" && pricingModel !== "one_time") {
+    return NextResponse.json(
+      { error: "Only 'free' or a one-time purchase are available for a new listing." },
+      { status: 400 }
+    );
+  }
   const priceEur = form.get("price");
   const name = String(form.get("name"));
   const tagline = String(form.get("tagline"));

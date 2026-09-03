@@ -131,7 +131,13 @@ export default async function EditAgentPage({
             className="rounded-lg border border-line bg-surface px-4 py-2.5 text-ink outline-none transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] focus:border-accent focus:shadow-[0_0_0_3px_rgba(47,224,173,0.12)]"
           >
             <option value="one_time">One-time purchase</option>
-            <option value="subscription">Monthly subscription</option>
+            {/* Monthly subscription is no longer offered for a new listing
+                (see app/api/agents/route.ts and app/api/agents/[id]/route.ts) —
+                only shown here so an agent that's already subscription-priced
+                doesn't silently lose its own selected value in this dropdown. */}
+            {agent.pricing_model === "subscription" && (
+              <option value="subscription">Monthly subscription (legacy — existing buyers only)</option>
+            )}
             <option value="free">Free</option>
           </select>
         </label>
