@@ -110,10 +110,12 @@ export default async function AgentPage({
     }
   }
 
-  // Pending or rejected listings are only visible to their own creator —
-  // getAgentBySlug no longer filters by status so the creator can preview
-  // one before it's approved; everyone else still gets a 404.
-  if (agent.status !== "approved" && !isOwner) notFound();
+  // Pending, rejected, or delisted listings are only visible to their own
+  // creator and to a buyer who already owns it — delisting an agent (or a
+  // rejected re-review) must not cut off someone who already paid for it
+  // and still needs their delivery link and files. Everyone else still
+  // gets a 404.
+  if (agent.status !== "approved" && !isOwner && !hasPurchased) notFound();
 
   // Not the creator's own preview visits — those would inflate the count
   // with clicks that say nothing about buyer interest.

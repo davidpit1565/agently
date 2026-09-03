@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
 import { PLATFORM_FEE_PERCENT } from "@/lib/membership";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 // Creates a Stripe Checkout session for a single agent purchase, splitting
 // payment via Stripe Connect: the platform fee via `application_fee_amount`,
@@ -28,6 +29,16 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/auth/sign-in", request.url));
   }
 
+  // Every call past this point either writes a purchase row or calls
+  // Stripe's own API to create a real Checkout Session — a signed-in
+  // account hitting this route in a loop would rack up real Stripe API
+  // calls (and abandoned sessions) for no reason. Generous enough for
+  // someone genuinely re-trying a purchase or buying several agents.
+  const allowedToCheckout = await checkRateLimit(`checkout:${user.id}`, 20, 60);
+  if (!allowedToCheckout) {
+    return NextResponse.json({ error: "Too many checkout attempts — wait a moment and try again." }, { status: 429 });
+  }
+
   const { data: agent } = await supabase
     .from("agently_agents")
     .select("*, profiles:agently_profiles!agently_agents_creator_id_fkey(stripe_connect_id, stripe_connect_ready)")
@@ -36,6 +47,17 @@ export async function POST(request: Request) {
 
   if (!agent) {
     return NextResponse.json({ error: "This agent doesn't exist." }, { status: 404 });
+  }
+
+  // A creator "buying" their own agent is free and instant for the "free"
+  // pricing model, and it's exactly the setup for gaming the review system:
+  // create a purchase row for yourself, then post a "verified buyer" review
+  // on your own listing. Nothing about the free-claim RLS policy or the
+  // review policy checks buyer_id against the agent's own creator_id, so
+  // block it at the one place every purchase path (free claim and paid
+  // checkout alike) goes through.
+  if (agent.creator_id === user.id) {
+    return NextResponse.json({ error: "You can't buy your own agent." }, { status: 403 });
   }
 
   // Free agents skip Stripe entirely — record a zero-amount purchase so the

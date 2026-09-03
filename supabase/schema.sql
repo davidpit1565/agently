@@ -387,11 +387,24 @@ create policy "creators see purchases of their own agents" on agently_purchases 
 -- RLS — see lib/supabase/admin.ts). This policy only covers the one purchase
 -- a signed-in user can legitimately record for themselves: claiming a free
 -- agent, which never touches Stripe.
+--
+-- /api/checkout already refuses to let a creator "buy" their own agent, but
+-- that's app code, not the database — this is the actual backstop. Without
+-- the creator_id exclusion below, a creator could insert a free-agent
+-- purchase row for their own listing directly (bypassing the app check
+-- entirely) and use it to satisfy "buyers can write their own review"
+-- further down: a free, instant path to a verified-buyer review on your
+-- own agent.
 drop policy if exists "buyers can claim free agents" on agently_purchases;
 create policy "buyers can claim free agents" on agently_purchases for insert
   with check (
     buyer_id = auth.uid()
-    and exists (select 1 from agently_agents where agently_agents.id = agent_id and agently_agents.pricing_model = 'free')
+    and exists (
+      select 1 from agently_agents
+      where agently_agents.id = agent_id
+        and agently_agents.pricing_model = 'free'
+        and agently_agents.creator_id <> auth.uid()
+    )
   );
 -- The free-agent claim in app/api/checkout/route.ts upserts on a
 -- deterministic conflict key (free_<agent>_<buyer>), so re-clicking "Get
