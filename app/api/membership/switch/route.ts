@@ -101,24 +101,40 @@ export async function POST(request: Request) {
   const amount = interval === "yearly" ? config.yearlyPriceCents : config.monthlyPriceCents;
   const productId = await getOrCreateMembershipProductId(stripe, tier);
 
-  const updated = await stripe.subscriptions.update(subscription.id, {
-    items: [
-      {
-        id: item.id,
-        price_data: {
-          currency: "eur",
-          product: productId,
-          unit_amount: amount,
-          recurring: { interval: interval === "yearly" ? "year" : "month" },
+  const updated = await stripe.subscriptions.update(
+    subscription.id,
+    {
+      items: [
+        {
+          id: item.id,
+          price_data: {
+            currency: "eur",
+            product: productId,
+            unit_amount: amount,
+            recurring: { interval: interval === "yearly" ? "year" : "month" },
+          },
         },
-      },
-    ],
-    // A downgrade shouldn't feel like paying twice for the same month, and
-    // an upgrade shouldn't feel free until the next renewal — Stripe's own
-    // proration handles both directions correctly from here.
-    proration_behavior: "create_prorations",
-    metadata: { user_id: user.id, membership_tier: tier },
-  });
+      ],
+      // A downgrade shouldn't feel like paying twice for the same month, and
+      // an upgrade shouldn't feel free until the next renewal — Stripe's own
+      // proration handles both directions correctly from here.
+      proration_behavior: "create_prorations",
+      metadata: { user_id: user.id, membership_tier: tier },
+    },
+    {
+      // A double-click (or a resubmitted form) fires two of these requests
+      // before the first one's response comes back. Without an idempotency
+      // key, Stripe has no way to know the second call is the same switch
+      // and not a genuinely new one — it would apply create_prorations
+      // twice, invoicing the buyer for the same plan change twice. The key
+      // is built from the item's *current* price id (item.price.id), which
+      // both racing requests still observe unchanged (neither has completed
+      // yet), so they collide on the same key and Stripe returns the first
+      // call's result to both. A later, genuinely separate switch reads a
+      // different current price id and gets its own key.
+      idempotencyKey: `membership-switch:${user.id}:${item.id}:${item.price.id}:${tier}:${interval}`,
+    }
+  );
 
   // Update immediately rather than waiting on the customer.subscription.updated
   // webhook — Stripe's own API call above already confirms the change
