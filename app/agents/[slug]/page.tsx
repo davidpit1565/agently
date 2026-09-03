@@ -11,6 +11,7 @@ import { ReviewForm } from "@/app/components/review-form";
 import { Reveal } from "@/app/components/reveal";
 import { getAgentFiles, getReadmeHtml, getSignedFileUrl } from "@/lib/agent-files";
 import { formatEuros } from "@/lib/format";
+import { SubmitButton } from "@/app/components/submit-button";
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -86,15 +87,17 @@ export default async function AgentPage({
     updated?: string;
     saved?: string;
     skipped_files?: string;
+    refunded?: string;
   }>;
 }) {
   const { slug } = await params;
-  const { purchased, reviewed, updated, saved, skipped_files: skippedFiles } = await searchParams;
+  const { purchased, reviewed, updated, saved, skipped_files: skippedFiles, refunded } = await searchParams;
   const agent = await getAgentBySlug(slug);
   if (!agent) notFound();
 
   let isOwner = false;
   let hasPurchased = false;
+  let refundEligiblePurchaseId: string | null = null;
   if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
     const supabase = await createClient();
     const {
@@ -105,12 +108,20 @@ export default async function AgentPage({
     if (user && !isOwner) {
       const { data: purchase } = await supabase
         .from("agently_purchases")
-        .select("id")
+        .select("id, created_at")
         .eq("agent_id", agent.id)
         .eq("buyer_id", user.id)
         .eq("status", "paid")
         .maybeSingle();
       hasPurchased = !!purchase;
+
+      // Matches app/api/refunds/[purchaseId]/route.ts's own checks exactly —
+      // this only decides whether to show the button, not whether a request
+      // succeeds; the route re-checks everything itself.
+      if (purchase && agent.pricing_model === "one_time") {
+        const daysSincePurchase = (Date.now() - new Date(purchase.created_at).getTime()) / (1000 * 60 * 60 * 24);
+        if (daysSincePurchase <= 7) refundEligiblePurchaseId = purchase.id;
+      }
     }
   }
 
@@ -188,7 +199,7 @@ export default async function AgentPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
       />
       <div className="flex flex-col gap-5">
-        {(purchased || reviewed || updated || saved) && (
+        {(purchased || reviewed || updated || saved || refunded) && (
           <div className="animate-fade-up flex items-center gap-2 rounded-lg border border-accent/30 bg-accent-soft px-4 py-2.5 text-sm text-accent">
             {purchased && (
               <svg className="purchase-check shrink-0" width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
@@ -202,7 +213,9 @@ export default async function AgentPage({
                 ? "Thanks — your review is posted."
                 : updated
                   ? "Saved as a new version. Every buyer who owns this agent has been notified, and its version-check endpoint now reports it."
-                  : "Saved."}
+                  : refunded
+                    ? "Refund requested — Stripe usually returns it to your card within 5-10 business days. Access to the delivery link and files is revoked once Stripe confirms it."
+                    : "Saved."}
           </div>
         )}
         {skippedFiles && (
@@ -322,6 +335,25 @@ export default async function AgentPage({
                 )}
               </div>
             </div>
+          </Reveal>
+        )}
+
+        {refundEligiblePurchaseId && (
+          <Reveal className="rounded-xl border border-line bg-surface p-5">
+            <h2 className="mb-2 font-display text-sm font-semibold text-accent">Not what you expected?</h2>
+            <p className="mb-3 text-pretty text-sm leading-relaxed text-ink-soft">
+              One-time purchases are refundable within 7 days if the agent
+              doesn&apos;t work as described. Requesting one revokes your
+              access to the delivery link and files once Stripe confirms it.
+            </p>
+            <form action={`/api/refunds/${refundEligiblePurchaseId}`} method="POST">
+              <SubmitButton
+                pendingText="Requesting…"
+                className="rounded-full border border-line px-4 py-2 text-xs text-ink-soft hover:border-red-400/50 hover:text-red-400"
+              >
+                Request a refund
+              </SubmitButton>
+            </form>
           </Reveal>
         )}
 

@@ -40,9 +40,10 @@ export default function TermsPage() {
         </Section>
         <Section title="Refunds">
           One-time purchases are refundable within 7 days of purchase if the
-          agent doesn&apos;t work as its listing describes — request one by
-          contacting the creator directly (their page links out, where
-          provided) or emailing{" "}
+          agent doesn&apos;t work as its listing describes — use the{" "}
+          <strong>Request a refund</strong> button on the agent&apos;s own
+          page, contact the creator directly (their page links out, where
+          provided), or email{" "}
           <a href={`mailto:${SUPPORT_EMAIL}`} className="text-accent underline">
             {SUPPORT_EMAIL}
           </a>{" "}
