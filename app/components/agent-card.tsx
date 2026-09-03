@@ -2,11 +2,15 @@ import Link from "next/link";
 import { CATEGORIES_FALLBACK } from "@/data/categories";
 import { agentCode } from "@/lib/agent-code";
 import { TrustRing } from "@/app/components/trust-ring";
+import { formatEuros } from "@/lib/format";
 import type { Agent } from "@/lib/types";
 
 function priceLabel(agent: Agent) {
   if (agent.pricing_model === "free") return "Free";
-  const amount = ((agent.price_cents ?? 0) / 100).toFixed(0);
+  // formatEuros, not .toFixed(0) — that rounded away the cents entirely,
+  // showing a €2.50 agent as "€3" and a €9.99 one as "€10" while Stripe
+  // still charged the real amount.
+  const amount = formatEuros(agent.price_cents ?? 0);
   return agent.pricing_model === "subscription" ? `€${amount}/mo` : `€${amount} once`;
 }
 
