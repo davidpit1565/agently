@@ -85,46 +85,48 @@ export default async function MyAgentsPage({
             <Reveal
               key={agent.id}
               delay={Math.min(i, 6) * 60}
-              className="flex items-center gap-4 rounded-xl border border-line bg-surface p-4 transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:border-accent/30 hover:bg-surface-raised"
+              className="flex flex-col gap-4 rounded-xl border border-line bg-surface p-4 transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:border-accent/30 hover:bg-surface-raised sm:flex-row sm:items-center"
             >
-              <TrustRing score={agent.trust_score} />
+              <div className="flex min-w-0 flex-1 items-center gap-4">
+                <TrustRing score={agent.trust_score} />
 
-              <div className="min-w-0 flex-1">
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="font-display text-sm font-semibold">{agent.name}</span>
-                  <span
-                    className={`rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide ${
-                      agent.status === "approved"
-                        ? "bg-accent-soft text-accent"
-                        : agent.status === "rejected"
-                          ? "bg-red-500/10 text-red-400"
-                          : "bg-surface-raised text-ink-faint"
-                    }`}
-                  >
-                    {STATUS_LABEL[agent.status] ?? agent.status}
-                  </span>
-                  <span className="font-mono text-[10px] tabular-nums text-ink-faint">v{agent.version}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="font-display text-sm font-semibold">{agent.name}</span>
+                    <span
+                      className={`rounded-full px-2 py-0.5 font-mono text-[10px] uppercase tracking-wide ${
+                        agent.status === "approved"
+                          ? "bg-accent-soft text-accent"
+                          : agent.status === "rejected"
+                            ? "bg-red-500/10 text-red-400"
+                            : "bg-surface-raised text-ink-faint"
+                      }`}
+                    >
+                      {STATUS_LABEL[agent.status] ?? agent.status}
+                    </span>
+                    <span className="font-mono text-[10px] tabular-nums text-ink-faint">v{agent.version}</span>
+                  </div>
+                  <p className="mt-0.5 truncate text-sm text-ink-faint">{agent.tagline}</p>
+                  {agent.review_notes && agent.status !== "approved" && (
+                    <p className="mt-1 truncate text-xs text-ink-faint">{agent.review_notes}</p>
+                  )}
+                  {agent.status === "approved" && (
+                    <p className="mt-1.5 flex items-center gap-3 font-mono text-[11px] tabular-nums text-ink-faint">
+                      <span title="Page views — not unique visitors, no bot filtering">
+                        <CounterUp value={agent.view_count} duration={800} /> view
+                        {agent.view_count === 1 ? "" : "s"}
+                      </span>
+                      <span>·</span>
+                      <span>
+                        <CounterUp value={purchaseCounts.get(agent.id) ?? 0} duration={800} /> sale
+                        {(purchaseCounts.get(agent.id) ?? 0) === 1 ? "" : "s"}
+                      </span>
+                    </p>
+                  )}
                 </div>
-                <p className="mt-0.5 truncate text-sm text-ink-faint">{agent.tagline}</p>
-                {agent.review_notes && agent.status !== "approved" && (
-                  <p className="mt-1 truncate text-xs text-ink-faint">{agent.review_notes}</p>
-                )}
-                {agent.status === "approved" && (
-                  <p className="mt-1.5 flex items-center gap-3 font-mono text-[11px] tabular-nums text-ink-faint">
-                    <span title="Page views — not unique visitors, no bot filtering">
-                      <CounterUp value={agent.view_count} duration={800} /> view
-                      {agent.view_count === 1 ? "" : "s"}
-                    </span>
-                    <span>·</span>
-                    <span>
-                      <CounterUp value={purchaseCounts.get(agent.id) ?? 0} duration={800} /> sale
-                      {(purchaseCounts.get(agent.id) ?? 0) === 1 ? "" : "s"}
-                    </span>
-                  </p>
-                )}
               </div>
 
-              <div className="flex shrink-0 items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 sm:shrink-0">
                 <Link
                   href={`/agents/${agent.slug}`}
                   className="rounded-full border border-line px-3 py-1.5 text-xs font-medium text-ink-soft transition-colors duration-150 hover:border-accent/50 hover:text-accent"
