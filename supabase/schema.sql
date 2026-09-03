@@ -257,6 +257,14 @@ alter table agently_notifications drop constraint if exists notifications_type_c
 alter table agently_notifications add constraint notifications_type_check
   check (type in ('agent_updated', 'agent_request_fulfilled', 'agent_approved', 'agent_rejected'));
 
+-- A creator previously had no way to know a sale happened — not even
+-- in-app — short of checking their own dashboard numbers. Written by the
+-- Stripe webhook (service-role client), not the buyer-facing insert policy
+-- below (that one only covers a creator notifying their own buyers).
+alter table agently_notifications drop constraint if exists notifications_type_check;
+alter table agently_notifications add constraint notifications_type_check
+  check (type in ('agent_updated', 'agent_request_fulfilled', 'agent_approved', 'agent_rejected', 'agent_sale'));
+
 -- "Describe a problem, get a custom agent built for it" — a Professional-
 -- tier perk. Fulfillment itself is manual (someone on the team actually
 -- builds it and marks the request fulfilled); there's no automated

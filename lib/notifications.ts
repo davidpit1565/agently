@@ -1,4 +1,6 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
+import { sendNotificationEmail } from "@/lib/email";
 
 export type Notification = {
   id: string;
@@ -54,4 +56,30 @@ export async function notifyBuyersOfUpdate(agentId: string, agentName: string, v
       message: `${agentName} was updated to v${version}.`,
     }))
   );
+}
+
+/** Tells a creator their agent just sold — the one notification, in-app or
+ *  email, that didn't exist anywhere before: a creator previously had no way
+ *  to know a sale happened short of checking their own dashboard numbers.
+ *  Takes the admin client explicitly (not lib/supabase/server's session-bound
+ *  one) because the only caller is the Stripe webhook, which runs with no
+ *  signed-in session for RLS to check against — same reasoning as every
+ *  other webhook write in app/api/stripe/webhook/route.ts. */
+export async function notifyCreatorOfSale(
+  admin: SupabaseClient,
+  params: { creatorId: string; agentId: string; agentName: string; amountCents: number; currency: string }
+) {
+  const { creatorId, agentId, agentName, amountCents, currency } = params;
+  const amount = (amountCents / 100).toFixed(2);
+  const message = `${agentName} sold for ${amount} ${currency.toUpperCase()}.`;
+
+  await admin.from("agently_notifications").insert({
+    user_id: creatorId,
+    agent_id: agentId,
+    type: "agent_sale",
+    message,
+  });
+
+  const { data } = await admin.auth.admin.getUserById(creatorId);
+  await sendNotificationEmail(data.user?.email, `${agentName} just sold`, message);
 }
