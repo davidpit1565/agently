@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAgentFiles, getSignedFileUrl } from "@/lib/agent-files";
+import { isWatermarkableText, watermarkText } from "@/lib/watermark";
 
 // Every real delivery — the external delivery_url, or a downloadable file —
 // goes through here now instead of a direct <a href> to the raw
@@ -31,7 +32,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ agen
 
   const { data: agent } = await supabase
     .from("agently_agents")
-    .select("id, creator_id, delivery_url")
+    .select("id, creator_id, delivery_url, name")
     .eq("id", agentId)
     .single();
   if (!agent) {
@@ -72,6 +73,28 @@ export async function GET(request: Request, { params }: { params: Promise<{ agen
     if (!signedUrl) {
       return NextResponse.json({ error: "Couldn't generate a download link — try again." }, { status: 500 });
     }
+
+    // Watermarking needs an actual purchase to attribute the copy to and a
+    // safe text format to inject into — an owner previewing their own
+    // listing (no purchase row) or a binary/unrecognized file just gets the
+    // plain signed URL, same as before.
+    if (purchase && isWatermarkableText(file.file_name)) {
+      const fileResponse = await fetch(signedUrl);
+      if (fileResponse.ok) {
+        const content = await fileResponse.text();
+        const watermarked = watermarkText(file.file_name, content, purchase.id, agent.name);
+        return new NextResponse(watermarked, {
+          headers: {
+            "Content-Type": "text/plain; charset=utf-8",
+            "Content-Disposition": `attachment; filename="${file.file_name}"`,
+          },
+        });
+      }
+      // Signed URL fetch failed for some reason — fall through to the
+      // plain redirect rather than blocking a legitimate download over a
+      // watermarking failure.
+    }
+
     return NextResponse.redirect(signedUrl);
   }
 
