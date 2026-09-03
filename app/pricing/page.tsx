@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { MEMBERSHIP_TIERS } from "@/lib/membership";
 import { createClient } from "@/lib/supabase/server";
 import { Reveal } from "@/app/components/reveal";
@@ -54,14 +55,17 @@ export default async function PricingPage({
           Switched — the new rate applies with Stripe's usual proration for the rest of this billing period.
         </div>
       )}
-      <Reveal className="mb-10 flex flex-col gap-2">
+      <Reveal className="mb-10 flex flex-col gap-3">
         <h1 className="font-display text-2xl font-semibold">Membership</h1>
         <p className="max-w-xl text-pretty leading-relaxed text-ink-soft">
           Browsing and buying is always free. A membership is what lets you{" "}
           <strong className="text-ink">list</strong> your own agents — it's a
-          quality filter as much as a plan. Prices below are early and will
-          move once we have real usage data; existing members keep their rate.
+          quality filter as much as a plan.
         </p>
+        <span className="inline-flex w-fit items-center gap-1.5 rounded-full border border-accent/30 bg-accent-soft px-3 py-1 font-mono text-[11px] text-accent">
+          <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-accent" aria-hidden />
+          Early pricing — existing members keep their rate when it moves
+        </span>
       </Reveal>
 
       <div className="grid gap-4 sm:grid-cols-3">
@@ -104,11 +108,12 @@ export default async function PricingPage({
                   <span className="rounded-full border border-accent/30 bg-accent-soft px-4 py-2 text-center text-sm font-medium text-accent">
                     Current plan
                   </span>
-                  <form action="/api/membership/portal" method="POST">
-                    <button type="submit" className="w-full text-center text-xs text-ink-faint underline hover:text-ink-soft">
-                      Manage or cancel
-                    </button>
-                  </form>
+                  <Link
+                    href="/dashboard/membership"
+                    className="w-full text-center text-xs text-ink-faint underline hover:text-ink-soft"
+                  >
+                    Manage or cancel
+                  </Link>
                 </div>
               ) : hasActiveMembership ? (
                 <div className="mt-4 flex gap-2">
