@@ -138,6 +138,21 @@ alter table agently_agents add column if not exists embedding jsonb;
 
 create index if not exists agently_agents_status_idx on agently_agents (status);
 
+-- Closes a real race in POST /api/agents: two overlapping submissions from
+-- the same creator with identical content (a double-click, or a browser
+-- retry) can both pass that route's "was this submitted in the last 15s"
+-- SELECT before either request has actually inserted a row — a
+-- check-then-insert isn't atomic under real concurrency. dedupe_bucket
+-- buckets a submission into a 15-second window computed in application
+-- code; this unique index then makes the database itself reject the loser
+-- of two concurrent identical inserts with a real constraint violation
+-- (23505) — the same dedupe pattern already used for
+-- stripe_checkout_session_id in the Stripe webhook — instead of relying on
+-- a race-prone read-then-write.
+alter table agently_agents add column if not exists dedupe_bucket bigint;
+create unique index if not exists agently_agents_dedupe_idx
+  on agently_agents (creator_id, name, tagline, md5(description), dedupe_bucket);
+
 -- Backs lib/rate-limit.ts — the only two endpoints that trigger a paid
 -- third-party call per request (/api/search's Voyage embedding, and
 -- reachable-by-anyone-signed-in /api/agents' Anthropic + Voyage calls).

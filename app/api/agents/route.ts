@@ -135,6 +135,15 @@ export async function POST(request: Request) {
   // creator just submitted. Treat an identical listing from the same
   // creator in the last 15s as that same submit landing twice, not a new
   // listing, before spending anything on it.
+  //
+  // This SELECT alone is only a best-effort fast path, not a real guard:
+  // two overlapping requests — the exact double-click this exists for —
+  // can both run it before either has inserted anything, both find
+  // nothing, and both go on to pay for a review + embedding call and
+  // insert a duplicate listing. dedupeBucket below, backed by
+  // agently_agents_dedupe_idx (supabase/schema.sql), is what actually
+  // closes that: a real unique constraint the database enforces
+  // atomically, which a read-then-write here can't.
   const { data: recentDuplicate } = await supabase
     .from("agently_agents")
     .select("id")
@@ -149,6 +158,8 @@ export async function POST(request: Request) {
   if (recentDuplicate) {
     return NextResponse.redirect(new URL("/dashboard/upload?submitted=1", request.url));
   }
+
+  const dedupeBucket = Math.floor(Date.now() / 15_000);
 
   const verdict = await reviewAgentSubmission({
     name,
@@ -195,11 +206,19 @@ export async function POST(request: Request) {
       status,
       trust_score: trustScore,
       review_notes: verdict ? `[${verdict.risk}] ${verdict.summary}${verdict.flags.length ? ` — flags: ${verdict.flags.join("; ")}` : ""}` : null,
+      dedupe_bucket: dedupeBucket,
     })
     .select("id")
     .single();
 
   if (error || !inserted) {
+    // 23505 here is agently_agents_dedupe_idx — an overlapping request with
+    // this same creator/name/tagline/description already landed in this
+    // 15s window (the race the SELECT above can miss). That's this same
+    // submit having already gone through, not a failure.
+    if (error?.code === "23505") {
+      return NextResponse.redirect(new URL("/dashboard/upload?submitted=1", request.url));
+    }
     return NextResponse.json({ error: error?.message ?? "Could not save the listing." }, { status: 400 });
   }
 
