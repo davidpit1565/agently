@@ -64,7 +64,16 @@ export async function notifyBuyersOfUpdate(agentId: string, agentName: string, v
  *  Takes the admin client explicitly (not lib/supabase/server's session-bound
  *  one) because the only caller is the Stripe webhook, which runs with no
  *  signed-in session for RLS to check against — same reasoning as every
- *  other webhook write in app/api/stripe/webhook/route.ts. */
+ *  other webhook write in app/api/stripe/webhook/route.ts.
+ *
+ *  Never throws: the purchase row this is called after has already been
+ *  written successfully by the time this runs. Letting a failure here
+ *  (e.g. the 'agent_sale' migration not run yet against this Supabase
+ *  project, so the type check constraint rejects the insert) escape as an
+ *  unhandled exception would 500 the whole webhook — Stripe would then
+ *  retry the same event, hit the purchases table's unique-id dedupe on the
+ *  retry, and this notification would never fire at all, for a sale that
+ *  already succeeded and was already charged. */
 export async function notifyCreatorOfSale(
   admin: SupabaseClient,
   params: { creatorId: string; agentId: string; agentName: string; amountCents: number; currency: string }
@@ -73,13 +82,22 @@ export async function notifyCreatorOfSale(
   const amount = (amountCents / 100).toFixed(2);
   const message = `${agentName} sold for ${amount} ${currency.toUpperCase()}.`;
 
-  await admin.from("agently_notifications").insert({
-    user_id: creatorId,
-    agent_id: agentId,
-    type: "agent_sale",
-    message,
-  });
+  try {
+    const { error } = await admin.from("agently_notifications").insert({
+      user_id: creatorId,
+      agent_id: agentId,
+      type: "agent_sale",
+      message,
+    });
+    if (error) throw error;
 
-  const { data } = await admin.auth.admin.getUserById(creatorId);
-  await sendNotificationEmail(data.user?.email, `${agentName} just sold`, message);
+    const { data } = await admin.auth.admin.getUserById(creatorId);
+    await sendNotificationEmail(data.user?.email, `${agentName} just sold`, message);
+  } catch (err) {
+    console.error("[notifications] notifyCreatorOfSale failed", {
+      creatorId,
+      agentId,
+      message: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
