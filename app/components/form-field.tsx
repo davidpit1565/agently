@@ -6,6 +6,8 @@ export function Field({
   type = "text",
   hint,
   defaultValue,
+  min,
+  step,
 }: {
   label: string;
   name: string;
@@ -14,6 +16,8 @@ export function Field({
   type?: string;
   hint?: string;
   defaultValue?: string;
+  min?: string | number;
+  step?: string | number;
 }) {
   return (
     <label className="group flex flex-col gap-1 text-sm">
@@ -34,6 +38,8 @@ export function Field({
           name={name}
           required={required}
           defaultValue={defaultValue}
+          min={min}
+          step={step}
           className="rounded-lg border border-line bg-surface px-4 py-2.5 text-ink outline-none transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] focus:border-accent focus:shadow-[0_0_0_3px_rgba(47,224,173,0.12)]"
         />
       )}

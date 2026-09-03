@@ -16,6 +16,13 @@ export const MEMBERSHIP_TIERS: Record<
 
 export const PLATFORM_FEE_PERCENT = 15; // report ch. 6: start low (10-15%), raise once there's liquidity
 
+// Stripe's own processing fee is a near-flat ~€0.25-0.30 per charge — on a
+// sale below this, that fee alone can exceed the platform's 15% cut,
+// meaning the platform pays out of pocket to process the sale. Found by
+// actually running a live €1 test purchase and reading the resulting
+// Stripe balance transactions: platform ended up at -€0.13 net on it.
+export const MIN_AGENT_PRICE_CENTS = 200;
+
 export function canUpload(tier: MembershipTier): boolean {
   return tier !== "free";
 }
