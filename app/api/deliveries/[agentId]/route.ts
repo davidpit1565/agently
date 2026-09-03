@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getAgentFiles, getSignedFileUrl } from "@/lib/agent-files";
 import { isWatermarkableText, watermarkText } from "@/lib/watermark";
+import { logDownloadAndMaybeAlert } from "@/lib/downloads";
 
 // Every real delivery — the external delivery_url, or a downloadable file —
 // goes through here now instead of a direct <a href> to the raw
@@ -53,13 +54,26 @@ export async function GET(request: Request, { params }: { params: Promise<{ agen
     return NextResponse.json({ error: "You don't have access to this." }, { status: 403 });
   }
 
-  if (purchase && !purchase.delivery_accessed_at) {
+  // Everything from here on is logged and (past a threshold) alerted on
+  // for a real purchase, whether it's the first access or the fiftieth —
+  // an owner previewing their own listing has no purchase row and none of
+  // this runs for them.
+  if (purchase) {
     const admin = createAdminClient();
     if (admin) {
-      await admin
-        .from("agently_purchases")
-        .update({ delivery_accessed_at: new Date().toISOString() })
-        .eq("id", purchase.id);
+      if (!purchase.delivery_accessed_at) {
+        await admin
+          .from("agently_purchases")
+          .update({ delivery_accessed_at: new Date().toISOString() })
+          .eq("id", purchase.id);
+      }
+      await logDownloadAndMaybeAlert(admin, {
+        purchaseId: purchase.id,
+        fileId,
+        agentId,
+        agentName: agent.name,
+        buyerId: user.id,
+      });
     }
   }
 
