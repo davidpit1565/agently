@@ -21,7 +21,12 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image", title, description },
 };
 
-export default async function PricingPage() {
+export default async function PricingPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ switched?: string }>;
+}) {
+  const { switched } = await searchParams;
   let signedIn = false;
   let currentTier: string | null = null;
   let hasActiveMembership = false;
@@ -44,6 +49,11 @@ export default async function PricingPage() {
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-16 sm:py-24">
+      {switched && (
+        <div className="mb-6 rounded-lg border border-accent/30 bg-accent-soft px-4 py-2.5 text-sm text-accent">
+          Switched — the new rate applies with Stripe's usual proration for the rest of this billing period.
+        </div>
+      )}
       <Reveal className="mb-10 flex flex-col gap-2">
         <h1 className="font-display text-2xl font-semibold">Membership</h1>
         <p className="max-w-xl text-pretty leading-relaxed text-ink-soft">
@@ -101,15 +111,29 @@ export default async function PricingPage() {
                   </form>
                 </div>
               ) : hasActiveMembership ? (
-                <form action="/api/membership/portal" method="POST" className="mt-4">
-                  <button
-                    type="submit"
-                    className="w-full rounded-full border border-line px-4 py-2 text-center text-sm font-medium text-ink-soft hover:border-accent/50 hover:text-ink"
-                    title={`Cancel your ${currentTier} membership first, then join ${config.name}`}
-                  >
-                    Switch from {currentTier}
-                  </button>
-                </form>
+                <div className="mt-4 flex gap-2">
+                  <form action="/api/membership/switch" method="POST" className="flex-1">
+                    <input type="hidden" name="tier" value={tier} />
+                    <input type="hidden" name="interval" value="monthly" />
+                    <button
+                      type="submit"
+                      className="w-full rounded-full border border-line px-4 py-2 text-center text-sm font-medium text-ink-soft hover:border-accent/50 hover:text-ink"
+                    >
+                      Switch from {currentTier}
+                    </button>
+                  </form>
+                  <form action="/api/membership/switch" method="POST">
+                    <input type="hidden" name="tier" value={tier} />
+                    <input type="hidden" name="interval" value="yearly" />
+                    <button
+                      type="submit"
+                      className="rounded-full border border-line px-3 py-2 text-xs text-ink-soft hover:border-accent/50 hover:text-accent"
+                      title="Switch and pay yearly instead"
+                    >
+                      Yearly
+                    </button>
+                  </form>
+                </div>
               ) : signedIn ? (
                 <div className="mt-4 flex gap-2">
                   <form action="/api/membership/checkout" method="POST" className="flex-1">

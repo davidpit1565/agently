@@ -230,11 +230,19 @@ export async function POST(request: Request) {
         // lapsed subscription would keep uploading forever with whatever
         // tier it last had. Reset the tier itself back to 'free' the moment
         // the subscription stops being active.
+        //
+        // While active, this also writes membership_tier itself (not just
+        // status) from the subscription's own metadata — app/api/membership/
+        // switch/route.ts changes a subscription's price and metadata
+        // together via stripe.subscriptions.update(), which fires this same
+        // event. Previously only status was ever touched here post-checkout,
+        // so a plan switch's DB write depended entirely on that route's own
+        // direct update succeeding, with no webhook backstop if it didn't.
         const { error: subError } = await supabase
           .from("agently_profiles")
           .update({
             membership_status: active ? "active" : "canceled",
-            ...(active ? {} : { membership_tier: "free" }),
+            membership_tier: active ? membership_tier : "free",
           })
           .eq("stripe_customer_id", subscription.customer);
         if (subError) {

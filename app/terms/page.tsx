@@ -1,24 +1,18 @@
 import type { Metadata } from "next";
 
-// noindex, not a full title/OG treatment — this is explicitly a draft, not
-// reviewed by a lawyer yet (see the notice below); it shouldn't be what a
-// search result sends someone to before it's real.
+// This is Agently's real, live terms of service — not a placeholder — so it
+// gets a normal title and normal indexing like any other public page. It
+// still hasn't been reviewed by a lawyer (see the notice below); that
+// stayed true when the page came out of noindex, it just isn't the loud,
+// site-blocking caveat it was before launch.
 export const metadata: Metadata = {
-  title: "Terms of Service (draft) — Agently",
-  robots: { index: false, follow: true },
+  title: "Terms of Service — Agently",
 };
 
 export default function TermsPage() {
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
-      <div className="mb-8 rounded-xl border border-line bg-surface p-5 text-sm leading-relaxed text-ink-soft">
-        <strong className="text-ink">Draft — not legal advice, not reviewed by a lawyer.</strong>{" "}
-        The market research report (ch. 7) flags this as required before
-        public launch. This page exists so the structure is ready for that
-        review, not to stand in for it — don&apos;t treat it as binding yet.
-      </div>
-
-      <h1 className="text-balance mb-6 font-display text-2xl font-semibold">Terms of Service (draft)</h1>
+      <h1 className="text-balance mb-6 font-display text-2xl font-semibold">Terms of Service</h1>
 
       <div className="flex flex-col gap-6 text-sm leading-relaxed text-ink-soft">
         <Section title="What Agently is">
@@ -72,6 +66,12 @@ export default function TermsPage() {
           treated as VAT-inclusive placeholders, not a compliance claim.
         </Section>
       </div>
+
+      <p className="mt-10 text-xs text-ink-faint">
+        This policy hasn&apos;t been reviewed by a lawyer. If something here
+        doesn&apos;t cover your situation, email support and it&apos;ll be
+        resolved directly rather than left to the text above.
+      </p>
     </main>
   );
 }
