@@ -217,6 +217,29 @@ alter table agently_purchases add column if not exists delivery_accessed_at time
 -- purchase, which has no subscription to cancel.
 alter table agently_purchases add column if not exists stripe_subscription_id text;
 
+-- One row per real delivery access (a file download or the delivery_url
+-- redirect) through app/api/deliveries/[agentId]/route.ts, for one purchase
+-- to keep piling up — the actual signal behind the abuse alert email sent
+-- from that same route. Not a general-purpose analytics table: it exists
+-- only to answer "how many times has this one purchase's content been
+-- retrieved," so an unusually high count on one purchase (well past what a
+-- legitimate buyer running their own agent would ever need to redownload)
+-- is visible to the platform owner instead of invisible.
+create table if not exists agently_downloads (
+  id uuid primary key default gen_random_uuid(),
+  purchase_id uuid not null references agently_purchases(id) on delete cascade,
+  file_id uuid references agently_agent_files(id) on delete set null, -- null = the delivery_url itself
+  created_at timestamptz not null default now()
+);
+
+create index if not exists agently_downloads_purchase_idx on agently_downloads (purchase_id);
+
+-- Written only via the service-role client (app/api/deliveries/[agentId]/route.ts,
+-- same as agently_agent_files) — no policy here grants any role direct
+-- access, matching that table's own "every access goes through the
+-- service-role client" pattern.
+alter table agently_downloads enable row level security;
+
 create table if not exists agently_reviews (
   id uuid primary key default gen_random_uuid(),
   agent_id uuid not null references agently_agents(id) on delete cascade,
