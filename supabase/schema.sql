@@ -138,6 +138,21 @@ alter table agently_agents add column if not exists embedding jsonb;
 
 create index if not exists agently_agents_status_idx on agently_agents (status);
 
+-- Closes a real race in POST /api/agents: two overlapping submissions from
+-- the same creator with identical content (a double-click, or a browser
+-- retry) can both pass that route's "was this submitted in the last 15s"
+-- SELECT before either request has actually inserted a row — a
+-- check-then-insert isn't atomic under real concurrency. dedupe_bucket
+-- buckets a submission into a 15-second window computed in application
+-- code; this unique index then makes the database itself reject the loser
+-- of two concurrent identical inserts with a real constraint violation
+-- (23505) — the same dedupe pattern already used for
+-- stripe_checkout_session_id in the Stripe webhook — instead of relying on
+-- a race-prone read-then-write.
+alter table agently_agents add column if not exists dedupe_bucket bigint;
+create unique index if not exists agently_agents_dedupe_idx
+  on agently_agents (creator_id, name, tagline, md5(description), dedupe_bucket);
+
 -- Backs lib/rate-limit.ts — the only two endpoints that trigger a paid
 -- third-party call per request (/api/search's Voyage embedding, and
 -- reachable-by-anyone-signed-in /api/agents' Anthropic + Voyage calls).
@@ -164,7 +179,7 @@ create table if not exists agently_purchases (
   stripe_checkout_session_id text not null unique,
   amount_cents integer not null,
   platform_fee_cents integer not null,
-  status text not null default 'pending' check (status in ('pending', 'paid', 'refunded')),
+  status text not null default 'pending' check (status in ('pending', 'paid', 'refunded', 'canceled')),
   created_at timestamptz not null default now()
 );
 
@@ -173,6 +188,16 @@ create table if not exists agently_purchases (
 -- notifyBuyersOfUpdate() (lib/notifications.ts) filters by agent_id+status
 -- on every listing edit — both were sequential scans without this.
 create index if not exists agently_purchases_agent_buyer_idx on agently_purchases (agent_id, buyer_id, status);
+
+-- A buyer of a per-agent subscription (agent.pricing_model = 'subscription')
+-- who cancels needs their access revoked, not just their next Stripe
+-- invoice stopped — app/agents/[slug]/page.tsx and the file-download gate
+-- both read status = 'paid' to decide whether to keep serving the
+-- delivery link and files. 'refunded' would be the wrong word for
+-- "canceled and stopped paying, no money given back."
+alter table agently_purchases drop constraint if exists agently_purchases_status_check;
+alter table agently_purchases add constraint agently_purchases_status_check
+  check (status in ('pending', 'paid', 'refunded', 'canceled'));
 
 create table if not exists agently_reviews (
   id uuid primary key default gen_random_uuid(),
@@ -362,11 +387,24 @@ create policy "creators see purchases of their own agents" on agently_purchases 
 -- RLS — see lib/supabase/admin.ts). This policy only covers the one purchase
 -- a signed-in user can legitimately record for themselves: claiming a free
 -- agent, which never touches Stripe.
+--
+-- /api/checkout already refuses to let a creator "buy" their own agent, but
+-- that's app code, not the database — this is the actual backstop. Without
+-- the creator_id exclusion below, a creator could insert a free-agent
+-- purchase row for their own listing directly (bypassing the app check
+-- entirely) and use it to satisfy "buyers can write their own review"
+-- further down: a free, instant path to a verified-buyer review on your
+-- own agent.
 drop policy if exists "buyers can claim free agents" on agently_purchases;
 create policy "buyers can claim free agents" on agently_purchases for insert
   with check (
     buyer_id = auth.uid()
-    and exists (select 1 from agently_agents where agently_agents.id = agent_id and agently_agents.pricing_model = 'free')
+    and exists (
+      select 1 from agently_agents
+      where agently_agents.id = agent_id
+        and agently_agents.pricing_model = 'free'
+        and agently_agents.creator_id <> auth.uid()
+    )
   );
 -- The free-agent claim in app/api/checkout/route.ts upserts on a
 -- deterministic conflict key (free_<agent>_<buyer>), so re-clicking "Get

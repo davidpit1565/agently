@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { MEMBERSHIP_TIERS, canUpload } from "@/lib/membership";
+import { MEMBERSHIP_TIERS, canUpload, MIN_AGENT_PRICE_CENTS } from "@/lib/membership";
 import { reviewAgentSubmission } from "@/lib/safety-review";
 import { getEmbedding, embeddableText } from "@/lib/embeddings";
 import { uploadAgentFiles } from "@/lib/agent-files";
@@ -27,11 +27,21 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/auth/sign-in", request.url));
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("agently_profiles")
-    .select("membership_tier")
+    .select("membership_tier, stripe_connect_ready")
     .eq("id", user.id)
     .single();
+
+  // A failed lookup here is not "no membership" — treating it that way told
+  // a paying creator "A paid membership is required" on a plain Supabase
+  // blip, masking an infra failure as a billing problem.
+  if (profileError) {
+    return NextResponse.json(
+      { error: "Couldn't verify your membership — try again in a moment." },
+      { status: 503 }
+    );
+  }
 
   const tier = (profile?.membership_tier ?? "free") as MembershipTier;
 
@@ -44,11 +54,20 @@ export async function POST(request: Request) {
 
   // The plan page promises "up to N active listings" per tier — enforce it
   // here, not just in copy, or the tiers mean nothing.
-  const { count } = await supabase
+  const { count, error: countError } = await supabase
     .from("agently_agents")
     .select("id", { count: "exact", head: true })
     .eq("creator_id", user.id)
     .in("status", ["pending_review", "approved"]);
+
+  // A failed count is not "zero active listings" — treating it that way let
+  // a transient query failure bypass the tier's listing cap entirely.
+  if (countError) {
+    return NextResponse.json(
+      { error: "Couldn't verify your active listings — try again in a moment." },
+      { status: 503 }
+    );
+  }
 
   const limit = MEMBERSHIP_TIERS[tier as Exclude<MembershipTier, "free">].maxActiveListings;
   if ((count ?? 0) >= limit) {
@@ -89,6 +108,32 @@ export async function POST(request: Request) {
   // the single place that decides what counts as "no file."
   const files = form.getAll("files").filter((f): f is File => f instanceof File);
 
+  // A paid listing with no connected payout account has nowhere for the
+  // money to go — checkout (/api/checkout) already refuses to sell it, but
+  // that left a dead listing sitting on the catalog looking purchasable.
+  // Catch it here instead, before any paid safety-review/embedding calls run.
+  if (pricingModel !== "free" && !profile?.stripe_connect_ready) {
+    return NextResponse.json(
+      { error: "Connect Stripe payouts before listing a paid agent — see /dashboard/payouts." },
+      { status: 403 }
+    );
+  }
+
+  if (pricingModel !== "free") {
+    const price = Number(priceEur);
+    if (!Number.isFinite(price) || price <= 0) {
+      return NextResponse.json({ error: "Enter a price for a paid agent." }, { status: 400 });
+    }
+    if (Math.round(price * 100) < MIN_AGENT_PRICE_CENTS) {
+      return NextResponse.json(
+        {
+          error: `A paid agent must be priced at least €${(MIN_AGENT_PRICE_CENTS / 100).toFixed(2)} — below that, Stripe's own processing fee can cost more than the platform earns on the sale.`,
+        },
+        { status: 400 }
+      );
+    }
+  }
+
   // A listing with neither a delivery link nor an attached file has nothing
   // for a buyer to actually receive — this was a real gap: the original 5
   // seed agents all shipped with delivery_url: null and no files, meaning a
@@ -109,6 +154,15 @@ export async function POST(request: Request) {
   // creator just submitted. Treat an identical listing from the same
   // creator in the last 15s as that same submit landing twice, not a new
   // listing, before spending anything on it.
+  //
+  // This SELECT alone is only a best-effort fast path, not a real guard:
+  // two overlapping requests — the exact double-click this exists for —
+  // can both run it before either has inserted anything, both find
+  // nothing, and both go on to pay for a review + embedding call and
+  // insert a duplicate listing. dedupeBucket below, backed by
+  // agently_agents_dedupe_idx (supabase/schema.sql), is what actually
+  // closes that: a real unique constraint the database enforces
+  // atomically, which a read-then-write here can't.
   const { data: recentDuplicate } = await supabase
     .from("agently_agents")
     .select("id")
@@ -123,6 +177,8 @@ export async function POST(request: Request) {
   if (recentDuplicate) {
     return NextResponse.redirect(new URL("/dashboard/upload?submitted=1", request.url));
   }
+
+  const dedupeBucket = Math.floor(Date.now() / 15_000);
 
   const verdict = await reviewAgentSubmission({
     name,
@@ -169,11 +225,19 @@ export async function POST(request: Request) {
       status,
       trust_score: trustScore,
       review_notes: verdict ? `[${verdict.risk}] ${verdict.summary}${verdict.flags.length ? ` — flags: ${verdict.flags.join("; ")}` : ""}` : null,
+      dedupe_bucket: dedupeBucket,
     })
     .select("id")
     .single();
 
   if (error || !inserted) {
+    // 23505 here is agently_agents_dedupe_idx — an overlapping request with
+    // this same creator/name/tagline/description already landed in this
+    // 15s window (the race the SELECT above can miss). That's this same
+    // submit having already gone through, not a failure.
+    if (error?.code === "23505") {
+      return NextResponse.redirect(new URL("/dashboard/upload?submitted=1", request.url));
+    }
     return NextResponse.json({ error: error?.message ?? "Could not save the listing." }, { status: 400 });
   }
 

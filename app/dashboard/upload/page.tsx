@@ -88,8 +88,9 @@ export default async function UploadPage({
 
       {!profile?.stripe_connect_ready && (
         <p className="mb-8 rounded-lg border border-line bg-surface p-4 text-sm text-ink-soft">
-          You can list a free agent without this, but a paid one won&apos;t be
-          purchasable until payouts are set up.{" "}
+          You can list a free agent without this, but submitting a paid one
+          will be rejected until payouts are set up — there&apos;d be nowhere
+          for the money to go.{" "}
           <Link href="/dashboard/payouts" className="text-accent underline">
             Connect Stripe
           </Link>
@@ -143,7 +144,14 @@ export default async function UploadPage({
           </select>
         </label>
 
-        <Field label="Price (EUR, leave blank if free)" name="price" type="number" />
+        <Field
+          label="Price (EUR, leave blank if free)"
+          name="price"
+          type="number"
+          min="2"
+          step="0.01"
+          hint="€2.00 minimum for a paid agent — below that, Stripe's own processing fee can cost more than the platform earns on the sale."
+        />
         <Field
           label="Delivery link (repo, file, or API endpoint)"
           name="delivery_url"

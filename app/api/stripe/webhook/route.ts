@@ -45,11 +45,31 @@ export async function POST(request: Request) {
         id: string;
         amount_total: number | null;
         customer: string | null;
+        subscription: string | null;
         metadata: Record<string, string>;
       };
       const { agent_id, buyer_id, user_id, membership_tier } = session.metadata ?? {};
 
       if (agent_id && buyer_id) {
+        // Stripe doesn't guarantee webhook delivery order — that's
+        // documented behavior, not an edge case, especially once retries
+        // are involved. For an agent *subscription* checkout, a
+        // customer.subscription.deleted for this same subscription (an
+        // immediate cancellation, or one racing in from a retry) can reach
+        // this server before this event does. Without checking, this
+        // insert would still record 'paid' even though the subscription is
+        // already gone at Stripe — a buyer left with permanent access to
+        // something already canceled. Reading the subscription's own
+        // current status here (rather than assuming "paid" because this
+        // event fired) makes the recorded outcome match Stripe's actual
+        // state regardless of which webhook happened to arrive first.
+        let status = "paid";
+        if (session.subscription) {
+          const subscription = await stripe.subscriptions.retrieve(session.subscription);
+          if (subscription.status !== "active" && subscription.status !== "trialing") {
+            status = "canceled";
+          }
+        }
         const { error } = await supabase.from("agently_purchases").insert({
           agent_id,
           buyer_id,
@@ -59,7 +79,7 @@ export async function POST(request: Request) {
           // the moment anyone changed the real fee, silently misreporting
           // actual platform revenue with no error anywhere.
           platform_fee_cents: Math.round((session.amount_total ?? 0) * (PLATFORM_FEE_PERCENT / 100)),
-          status: "paid",
+          status,
         });
         // stripe_checkout_session_id is unique, so Stripe retrying this same
         // event throws a constraint violation here — that's not a failure,
@@ -101,19 +121,31 @@ export async function POST(request: Request) {
       // bought it, and schema.sql's review policy keeps letting them post or
       // keep a "verified buyer" review for an agent they got their money
       // back on.
-      const charge = event.data.object as { payment_intent: string | null };
+      const charge = event.data.object as { payment_intent: string | null; invoice: string | null };
+      // The purchases row a refund needs to reach is keyed by whichever id
+      // its insert used: the Checkout Session id for a one-time purchase or
+      // a subscription's first payment, but the invoice id for every
+      // renewal after that (see invoice.paid below — renewals never go
+      // through Checkout, so there is no Checkout Session for
+      // stripe.checkout.sessions.list to find). Looking up by
+      // payment_intent alone silently missed a refund of any renewal
+      // charge, leaving that row at status='paid' forever even though the
+      // buyer got their money back — the buyer keeps a "verified purchase"
+      // and continued file access after being refunded.
+      let checkoutSessionId: string | undefined;
       if (charge.payment_intent) {
         const session = await stripe.checkout.sessions.list({ payment_intent: charge.payment_intent, limit: 1 });
-        const checkoutSessionId = session.data[0]?.id;
-        if (checkoutSessionId) {
-          const { error } = await supabase
-            .from("agently_purchases")
-            .update({ status: "refunded" })
-            .eq("stripe_checkout_session_id", checkoutSessionId);
-          if (error) {
-            console.error("[stripe/webhook] refund update failed", { eventId: event.id, checkoutSessionId, message: error.message });
-            return NextResponse.json({ error: "Failed to record refund" }, { status: 500 });
-          }
+        checkoutSessionId = session.data[0]?.id;
+      }
+      const purchaseRowId = checkoutSessionId ?? charge.invoice ?? undefined;
+      if (purchaseRowId) {
+        const { error } = await supabase
+          .from("agently_purchases")
+          .update({ status: "refunded" })
+          .eq("stripe_checkout_session_id", purchaseRowId);
+        if (error) {
+          console.error("[stripe/webhook] refund update failed", { eventId: event.id, purchaseRowId, message: error.message });
+          return NextResponse.json({ error: "Failed to record refund" }, { status: 500 });
         }
       }
       break;
@@ -137,6 +169,16 @@ export async function POST(request: Request) {
         const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
         const { agent_id, buyer_id } = (subscription.metadata ?? {}) as Record<string, string>;
         if (agent_id && buyer_id) {
+          // Same out-of-order-delivery risk as checkout.session.completed
+          // above, the other direction: a subscription can already be
+          // canceled at Stripe by the time this renewal event is
+          // processed (a redelivery, or a cancellation landing in the gap
+          // between charge and webhook processing). Recording the
+          // subscription's live status here — already fetched above,
+          // rather than assuming "paid" purely because an invoice.paid
+          // event fired — keeps the purchase row's status consistent with
+          // Stripe's actual current state instead of with delivery order.
+          const stillActive = subscription.status === "active" || subscription.status === "trialing";
           const { error } = await supabase.from("agently_purchases").insert({
             agent_id,
             buyer_id,
@@ -148,7 +190,7 @@ export async function POST(request: Request) {
             stripe_checkout_session_id: invoice.id,
             amount_cents: invoice.amount_paid,
             platform_fee_cents: Math.round(invoice.amount_paid * (PLATFORM_FEE_PERCENT / 100)),
-            status: "paid",
+            status: stillActive ? "paid" : "canceled",
           });
           if (error) {
             console.error("[stripe/webhook] renewal purchase insert failed", {
@@ -170,36 +212,57 @@ export async function POST(request: Request) {
     case "customer.subscription.deleted": {
       // A subscription can be either an Agently membership or a buyer's
       // subscription to one specific paid agent (agent.pricing_model ===
-      // 'subscription') — both fire this same event type. Only the former
-      // should ever touch profiles.membership_tier/status; without this
-      // check, canceling a $19/mo agent would wrongly reset an unrelated
-      // membership back to 'free' for anyone who happened to also be a
-      // paying member. subscription_data.metadata (set at checkout time in
+      // 'subscription') — both fire this same event type.
+      // subscription_data.metadata (set at checkout time in
       // app/api/membership/checkout and app/api/checkout) is what tells
-      // the two apart here.
+      // the two apart here; the two never overlap.
       const subscription = event.data.object as {
         customer: string;
         status: string;
         metadata: Record<string, string>;
       };
-      const { membership_tier } = subscription.metadata ?? {};
-      if (!membership_tier) break;
-
-      // membership_tier drives canUpload() (lib/membership.ts) — it isn't
-      // enough to just flip membership_status to 'canceled' here, or a
-      // lapsed subscription would keep uploading forever with whatever
-      // tier it last had. Reset the tier itself back to 'free' the moment
-      // the subscription stops being active.
+      const { membership_tier, agent_id, buyer_id } = subscription.metadata ?? {};
       const active = subscription.status === "active";
-      const { error: subError } = await supabase
-        .from("agently_profiles")
-        .update({
-          membership_status: active ? "active" : "canceled",
-          ...(active ? {} : { membership_tier: "free" }),
-        })
-        .eq("stripe_customer_id", subscription.customer);
-      if (subError) {
-        console.error("[stripe/webhook] subscription status update failed", { eventId: event.id, message: subError.message });
+
+      if (membership_tier) {
+        // membership_tier drives canUpload() (lib/membership.ts) — it isn't
+        // enough to just flip membership_status to 'canceled' here, or a
+        // lapsed subscription would keep uploading forever with whatever
+        // tier it last had. Reset the tier itself back to 'free' the moment
+        // the subscription stops being active.
+        const { error: subError } = await supabase
+          .from("agently_profiles")
+          .update({
+            membership_status: active ? "active" : "canceled",
+            ...(active ? {} : { membership_tier: "free" }),
+          })
+          .eq("stripe_customer_id", subscription.customer);
+        if (subError) {
+          console.error("[stripe/webhook] subscription status update failed", { eventId: event.id, message: subError.message });
+        }
+      } else if (agent_id && buyer_id && !active) {
+        // A buyer canceling their subscription to one specific agent stops
+        // future Stripe invoices, but without this, their existing
+        // agently_purchases rows stayed status='paid' forever — the only
+        // thing app/agents/[slug]/page.tsx and the file-download gate check
+        // — so they kept the delivery link and every downloadable file
+        // after they stopped paying. Only fires on a real end (canceled,
+        // unpaid, incomplete_expired), never on an in-progress "active"
+        // update (a plan change, a payment-method update).
+        const { error: purchError } = await supabase
+          .from("agently_purchases")
+          .update({ status: "canceled" })
+          .eq("agent_id", agent_id)
+          .eq("buyer_id", buyer_id)
+          .eq("status", "paid");
+        if (purchError) {
+          console.error("[stripe/webhook] agent subscription cancellation update failed", {
+            eventId: event.id,
+            agentId: agent_id,
+            buyerId: buyer_id,
+            message: purchError.message,
+          });
+        }
       }
       break;
     }

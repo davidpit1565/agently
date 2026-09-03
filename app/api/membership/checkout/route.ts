@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
 import { MEMBERSHIP_TIERS } from "@/lib/membership";
+import { checkRateLimit } from "@/lib/rate-limit";
 import type { MembershipTier } from "@/lib/types";
 
 // Creates a Stripe subscription Checkout session for a membership tier.
@@ -31,6 +32,13 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.redirect(new URL("/auth/sign-in", request.url));
+  }
+
+  // Real Stripe API calls on every hit — nothing else here stops a signed-in
+  // account from looping this endpoint and burning Stripe API quota.
+  const allowedToCheckout = await checkRateLimit(`membership_checkout:${user.id}`, 10, 60);
+  if (!allowedToCheckout) {
+    return NextResponse.json({ error: "Too many attempts — wait a moment and try again." }, { status: 429 });
   }
 
   const { data: profile } = await supabase

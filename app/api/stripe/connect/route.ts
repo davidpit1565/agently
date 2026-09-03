@@ -27,11 +27,23 @@ export async function POST(request: Request) {
   const stripe = getStripe();
   const origin = new URL(request.url).origin;
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("agently_profiles")
     .select("stripe_connect_id")
     .eq("id", user.id)
     .single();
+
+  // A failed lookup here is not "no Connect account yet" — treating it that
+  // way on a transient Supabase error would create a second Stripe Connect
+  // account for someone who already onboarded one, then overwrite their real
+  // stripe_connect_id with the new (unonboarded) one below, orphaning the
+  // original account that checkout's payouts actually point to.
+  if (profileError) {
+    return NextResponse.json(
+      { error: "Couldn't verify your payout account — try again in a moment." },
+      { status: 503 }
+    );
+  }
 
   let accountId = profile?.stripe_connect_id ?? null;
 

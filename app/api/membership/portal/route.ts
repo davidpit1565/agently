@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 // Sends an existing member to Stripe's own billing portal — the correct
 // place to upgrade, downgrade, switch billing interval, or cancel. Doing
@@ -21,6 +22,14 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.redirect(new URL("/auth/sign-in", request.url));
+  }
+
+  // Creates a real Stripe API session on every hit — same "don't let a
+  // loop burn Stripe API calls" reasoning as /api/checkout and
+  // /api/membership/checkout.
+  const allowed = await checkRateLimit(`membership_portal:${user.id}`, 10, 60);
+  if (!allowed) {
+    return NextResponse.json({ error: "Too many attempts — wait a moment and try again." }, { status: 429 });
   }
 
   const { data: profile } = await supabase

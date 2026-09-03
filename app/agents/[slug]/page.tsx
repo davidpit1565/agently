@@ -10,6 +10,7 @@ import { TrustRing } from "@/app/components/trust-ring";
 import { ReviewForm } from "@/app/components/review-form";
 import { Reveal } from "@/app/components/reveal";
 import { getAgentFiles, getReadmeHtml, getSignedFileUrl } from "@/lib/agent-files";
+import { formatEuros } from "@/lib/format";
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -40,7 +41,10 @@ function Stars({ value }: { value: number }) {
 
 function priceLabel(agent: NonNullable<Awaited<ReturnType<typeof getAgentBySlug>>>) {
   if (agent.pricing_model === "free") return "Free";
-  const amount = ((agent.price_cents ?? 0) / 100).toFixed(0);
+  // formatEuros, not .toFixed(0) — that rounded away the cents entirely,
+  // showing a €2.50 agent as "€3" and a €9.99 one as "€10" while Stripe
+  // still charged the real amount.
+  const amount = formatEuros(agent.price_cents ?? 0);
   return agent.pricing_model === "subscription" ? `€${amount} / month` : `€${amount} one-time`;
 }
 
@@ -110,10 +114,12 @@ export default async function AgentPage({
     }
   }
 
-  // Pending or rejected listings are only visible to their own creator —
-  // getAgentBySlug no longer filters by status so the creator can preview
-  // one before it's approved; everyone else still gets a 404.
-  if (agent.status !== "approved" && !isOwner) notFound();
+  // Pending, rejected, or delisted listings are only visible to their own
+  // creator and to a buyer who already owns it — delisting an agent (or a
+  // rejected re-review) must not cut off someone who already paid for it
+  // and still needs their delivery link and files. Everyone else still
+  // gets a 404.
+  if (agent.status !== "approved" && !isOwner && !hasPurchased) notFound();
 
   // Not the creator's own preview visits — those would inflate the count
   // with clicks that say nothing about buyer interest.

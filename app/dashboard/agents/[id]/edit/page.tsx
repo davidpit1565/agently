@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { CATEGORIES_FALLBACK } from "@/data/categories";
 import { Field, Notice } from "@/app/components/form-field";
@@ -38,6 +39,12 @@ export default async function EditAgentPage({
     notFound();
   }
 
+  const { data: profile } = await supabase
+    .from("agently_profiles")
+    .select("stripe_connect_ready")
+    .eq("id", user.id)
+    .single();
+
   const files = await getAgentFiles(agent.id);
 
   return (
@@ -69,6 +76,17 @@ export default async function EditAgentPage({
             </div>
           ))}
         </div>
+      )}
+
+      {!profile?.stripe_connect_ready && (
+        <p className="mb-6 rounded-lg border border-line bg-surface p-4 text-sm text-ink-soft">
+          Payouts aren&apos;t connected yet — switching this to a paid pricing
+          model will be rejected until they are.{" "}
+          <Link href="/dashboard/payouts" className="text-accent underline">
+            Connect Stripe
+          </Link>
+          .
+        </p>
       )}
 
       <form
@@ -122,6 +140,9 @@ export default async function EditAgentPage({
           label="Price (EUR, leave blank if free)"
           name="price"
           type="number"
+          min="2"
+          step="0.01"
+          hint="€2.00 minimum for a paid agent — below that, Stripe's own processing fee can cost more than the platform earns on the sale."
           defaultValue={agent.price_cents ? String(agent.price_cents / 100) : undefined}
         />
         <Field
