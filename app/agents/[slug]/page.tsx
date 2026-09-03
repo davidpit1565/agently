@@ -88,16 +88,18 @@ export default async function AgentPage({
     saved?: string;
     skipped_files?: string;
     refunded?: string;
+    canceled?: string;
   }>;
 }) {
   const { slug } = await params;
-  const { purchased, reviewed, updated, saved, skipped_files: skippedFiles, refunded } = await searchParams;
+  const { purchased, reviewed, updated, saved, skipped_files: skippedFiles, refunded, canceled } = await searchParams;
   const agent = await getAgentBySlug(slug);
   if (!agent) notFound();
 
   let isOwner = false;
   let hasPurchased = false;
   let refundEligiblePurchaseId: string | null = null;
+  let cancelablePurchaseId: string | null = null;
   if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
     const supabase = await createClient();
     const {
@@ -124,6 +126,9 @@ export default async function AgentPage({
       if (purchase && agent.pricing_model === "one_time" && !purchase.delivery_accessed_at) {
         const daysSincePurchase = (Date.now() - new Date(purchase.created_at).getTime()) / (1000 * 60 * 60 * 24);
         if (daysSincePurchase <= 7) refundEligiblePurchaseId = purchase.id;
+      }
+      if (purchase && agent.pricing_model === "subscription") {
+        cancelablePurchaseId = purchase.id;
       }
     }
   }
@@ -202,7 +207,7 @@ export default async function AgentPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
       />
       <div className="flex flex-col gap-5">
-        {(purchased || reviewed || updated || saved || refunded) && (
+        {(purchased || reviewed || updated || saved || refunded || canceled) && (
           <div className="animate-fade-up flex items-center gap-2 rounded-lg border border-accent/30 bg-accent-soft px-4 py-2.5 text-sm text-accent">
             {purchased && (
               <svg className="purchase-check shrink-0" width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
@@ -218,7 +223,9 @@ export default async function AgentPage({
                   ? "Saved as a new version. Every buyer who owns this agent has been notified, and its version-check endpoint now reports it."
                   : refunded
                     ? "Refund requested — Stripe usually returns it to your card within 5-10 business days. Access to the delivery link and files is revoked once Stripe confirms it."
-                    : "Saved."}
+                    : canceled
+                      ? "Canceled — you keep access through the end of what you already paid for, then billing stops for good."
+                      : "Saved."}
           </div>
         )}
         {skippedFiles && (
@@ -353,6 +360,24 @@ export default async function AgentPage({
                 className="rounded-full border border-line px-4 py-2 text-xs text-ink-soft hover:border-red-400/50 hover:text-red-400"
               >
                 Request a refund
+              </SubmitButton>
+            </form>
+          </Reveal>
+        )}
+
+        {cancelablePurchaseId && (
+          <Reveal className="rounded-xl border border-line bg-surface p-5">
+            <h2 className="mb-2 font-display text-sm font-semibold text-accent">Subscription</h2>
+            <p className="mb-3 text-pretty text-sm leading-relaxed text-ink-soft">
+              Canceling stops future billing — you keep access through the
+              end of what you&apos;ve already paid for, not refunded early.
+            </p>
+            <form action={`/api/purchases/${cancelablePurchaseId}/cancel`} method="POST">
+              <SubmitButton
+                pendingText="Canceling…"
+                className="rounded-full border border-line px-4 py-2 text-xs text-ink-soft hover:border-red-400/50 hover:text-red-400"
+              >
+                Cancel subscription
               </SubmitButton>
             </form>
           </Reveal>

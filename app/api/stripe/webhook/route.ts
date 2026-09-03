@@ -81,6 +81,9 @@ export async function POST(request: Request) {
           // actual platform revenue with no error anywhere.
           platform_fee_cents: Math.round((session.amount_total ?? 0) * (PLATFORM_FEE_PERCENT / 100)),
           status,
+          // Only present for pricing_model 'subscription' — what
+          // app/api/purchases/[purchaseId]/cancel/route.ts actually cancels.
+          stripe_subscription_id: session.subscription ?? null,
         });
         // stripe_checkout_session_id is unique, so Stripe retrying this same
         // event throws a constraint violation here — that's not a failure,

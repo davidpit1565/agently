@@ -48,6 +48,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const deliveryUrl = sanitizeUrl((form.get("delivery_url") as string) || null);
   const newFiles = form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
 
+  // Monthly subscription is no longer offered — same business decision as
+  // app/api/agents/route.ts (creating a new listing). An agent that's
+  // already subscription-priced can stay that way (existing buyers keep
+  // their access, and the edit form still shows that one option for this
+  // specific agent) but can't be switched into it from something else, and
+  // no other listing can be switched into it either.
+  if (pricingModel === "subscription" && existing.pricing_model !== "subscription") {
+    return NextResponse.json(
+      { error: "Monthly subscription is no longer available for a listing — choose free or a one-time purchase." },
+      { status: 400 }
+    );
+  }
+  if (pricingModel !== "free" && pricingModel !== "one_time" && pricingModel !== "subscription") {
+    return NextResponse.json({ error: "Unknown pricing model." }, { status: 400 });
+  }
+
   // Same enforcement as creating a listing (app/api/agents/route.ts) — an
   // edit switching an existing free/rejected listing to paid needs the same
   // gate, or it becomes the back door around the create-time check.

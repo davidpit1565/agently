@@ -207,6 +207,16 @@ alter table agently_purchases add constraint agently_purchases_status_check
 -- download the product and refund it immediately after, keeping both.
 alter table agently_purchases add column if not exists delivery_accessed_at timestamptz;
 
+-- Set on a subscription purchase's own insert (checkout.session.completed)
+-- so app/api/purchases/[purchaseId]/cancel/route.ts can cancel the exact
+-- subscription a buyer is looking at. Before this, there was no way to
+-- reach it at all: it isn't the same Stripe customer as an Agently
+-- membership (app/api/membership/portal/route.ts's portal only ever
+-- covers that one), and app/api/checkout/route.ts never attaches this
+-- checkout to a customer record in the first place. Null for a one_time
+-- purchase, which has no subscription to cancel.
+alter table agently_purchases add column if not exists stripe_subscription_id text;
+
 create table if not exists agently_reviews (
   id uuid primary key default gen_random_uuid(),
   agent_id uuid not null references agently_agents(id) on delete cascade,

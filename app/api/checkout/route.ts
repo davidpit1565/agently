@@ -88,6 +88,43 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "This agent isn't purchasable through checkout." }, { status: 400 });
   }
 
+  // The platform owner gets free access to any paid agent — a deliberate
+  // admin perk for the person who built and runs this marketplace, gated by
+  // the same PLATFORM_OWNER_EMAIL env var every other owner-only action here
+  // already uses, not something any other account can reach. Recorded as a
+  // real (zero-amount) purchase row, so the owner ends up with normal buyer
+  // access (delivery link, files, reviewing) exactly like a real purchase —
+  // it just never touches Stripe or takes anything from the creator's
+  // payout. A subscription-model agent gets a plain 'paid' row with no
+  // stripe_subscription_id, since there's no real subscription behind it to
+  // ever cancel or expire.
+  //
+  // Goes through the admin client, not the session-bound one used above for
+  // the free-agent claim — the "buyers can claim free agents" RLS policy
+  // only allows pricing_model = 'free', so this exact insert would be
+  // silently rejected under the caller's own session for anything paid.
+  if (process.env.PLATFORM_OWNER_EMAIL && user.email === process.env.PLATFORM_OWNER_EMAIL) {
+    const admin = createAdminClient();
+    if (admin) {
+      await admin.from("agently_purchases").upsert(
+        {
+          agent_id: agent.id,
+          buyer_id: user.id,
+          stripe_checkout_session_id: `owner_comp_${agent.id}_${user.id}`,
+          amount_cents: 0,
+          platform_fee_cents: 0,
+          status: "paid",
+        },
+        { onConflict: "stripe_checkout_session_id" }
+      );
+    }
+    const origin = new URL(request.url).origin;
+    return NextResponse.redirect(
+      agent.delivery_url || `${origin}/agents/${agent.slug}?purchased=1`,
+      303
+    );
+  }
+
   // Same reasoning as membership/checkout.ts: starting a second Checkout
   // session for an agent subscription that's already active creates a
   // second, separate Stripe subscription — a double-click or a browser
