@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
 import { MEMBERSHIP_TIERS } from "@/lib/membership";
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
   const stripe = getStripe();
   const origin = new URL(request.url).origin;
 
-  const session = await stripe.checkout.sessions.create({
+  const sessionParams: Stripe.Checkout.SessionCreateParams = {
     mode: "subscription",
     ...(profile?.stripe_customer_id
       ? { customer: profile.stripe_customer_id }
@@ -91,7 +92,32 @@ export async function POST(request: Request) {
     // subscription is someone's purchase of a specific paid agent" (both
     // fire the same event type otherwise).
     subscription_data: { metadata: { user_id: user.id, membership_tier: tier } },
-  });
+  };
+
+  let session;
+  try {
+    session = await stripe.checkout.sessions.create(sessionParams);
+  } catch (err) {
+    // profile.stripe_customer_id can be stale in the same way a Connect
+    // account id can (see app/api/stripe/connect/route.ts): created under a
+    // different Stripe key mode (test vs. live) than this request is
+    // running under, so Stripe rejects it with resource_missing. Retrying
+    // once without a customer id lets Stripe create a fresh one under the
+    // current key from customer_email instead — the webhook's
+    // checkout.session.completed handler saves whatever customer id the
+    // successful session actually used, so this self-heals for next time
+    // without the buyer ever seeing a raw Stripe error.
+    if (
+      profile?.stripe_customer_id &&
+      err instanceof Stripe.errors.StripeInvalidRequestError &&
+      err.code === "resource_missing"
+    ) {
+      const { customer: _customer, ...withoutCustomer } = sessionParams;
+      session = await stripe.checkout.sessions.create({ ...withoutCustomer, customer_email: user.email });
+    } else {
+      throw err;
+    }
+  }
 
   return NextResponse.redirect(session.url!, 303);
 }

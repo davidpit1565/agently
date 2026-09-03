@@ -82,12 +82,27 @@ export async function POST(request: Request) {
   // Membership status is per-customer, not per-subscription — there's
   // exactly one active membership subscription per customer by construction
   // (membership/checkout refuses to start a second one while active), so
-  // the first result here is the one to change.
-  const subscriptions = await stripe.subscriptions.list({
-    customer: profile.stripe_customer_id,
-    status: "active",
-    limit: 1,
-  });
+  // the first result here is the one to change. Stripe rejects a customer
+  // id from a different key mode (test vs. live — see
+  // app/api/stripe/connect/route.ts for the same class of bug) with
+  // resource_missing rather than an empty list; treat it the same as "no
+  // subscription found" instead of a raw 500.
+  let subscriptions;
+  try {
+    subscriptions = await stripe.subscriptions.list({
+      customer: profile.stripe_customer_id,
+      status: "active",
+      limit: 1,
+    });
+  } catch (err) {
+    if (err instanceof Stripe.errors.StripeInvalidRequestError && err.code === "resource_missing") {
+      return NextResponse.json(
+        { error: "Couldn't find your active subscription on Stripe — try again in a moment." },
+        { status: 409 }
+      );
+    }
+    throw err;
+  }
   const subscription = subscriptions.data[0];
   const item = subscription?.items.data[0];
   if (!subscription || !item) {

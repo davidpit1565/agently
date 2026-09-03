@@ -1,3 +1,4 @@
+import Stripe from "stripe";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getStripe } from "@/lib/stripe";
@@ -37,6 +38,7 @@ export default async function PayoutsPage({
     .single();
 
   let ready = profile?.stripe_connect_ready ?? false;
+  let connectId = profile?.stripe_connect_id ?? null;
 
   // The webhook's account.updated handler (app/api/stripe/webhook/route.ts)
   // is the normal way this flips to true, but that only works once the
@@ -45,9 +47,9 @@ export default async function PayoutsPage({
   // the user. Landing back here with ?onboarded=1 is the one moment we know
   // to check directly, so a missing or delayed webhook doesn't leave
   // "Onboarding started" showing forever when Stripe already says otherwise.
-  if (onboarded && !ready && profile?.stripe_connect_id && process.env.STRIPE_SECRET_KEY) {
+  if (onboarded && !ready && connectId && process.env.STRIPE_SECRET_KEY) {
     try {
-      const account = await getStripe().accounts.retrieve(profile.stripe_connect_id);
+      const account = await getStripe().accounts.retrieve(connectId);
       if (account.charges_enabled) {
         const admin = createAdminClient();
         if (admin) {
@@ -58,6 +60,38 @@ export default async function PayoutsPage({
     } catch {
       // Stripe unreachable or the account lookup failed — fall through to
       // the normal "still onboarding" view rather than breaking the page.
+    }
+  }
+
+  // stripe_connect_ready being true in the DB doesn't mean the stored
+  // stripe_connect_id is still valid under whichever Stripe key is live
+  // right now — it's the same test-mode/live-mode split as the id itself
+  // (see app/api/stripe/connect/route.ts). A key switch after this flag was
+  // set (e.g. moving the whole platform from Stripe Test to Live) leaves
+  // "Payouts connected" showing here while every real checkout for this
+  // creator's agents would actually fail at Stripe. Since this page is the
+  // one place the id ever gets shown as trustworthy, verify it against the
+  // live key whenever it's claimed ready, and reset both fields the moment
+  // Stripe says the account doesn't exist — that's what brings the
+  // "Connect Stripe" button back so onboarding (and the same self-heal in
+  // the connect route) can run again under the correct key.
+  if (ready && connectId && process.env.STRIPE_SECRET_KEY) {
+    try {
+      await getStripe().accounts.retrieve(connectId);
+    } catch (err) {
+      if (err instanceof Stripe.errors.StripeInvalidRequestError && err.code === "resource_missing") {
+        const admin = createAdminClient();
+        if (admin) {
+          await admin
+            .from("agently_profiles")
+            .update({ stripe_connect_ready: false, stripe_connect_id: null })
+            .eq("id", user.id);
+        }
+        ready = false;
+        connectId = null;
+      }
+      // Any other error (network hiccup, Stripe outage) — trust the cached
+      // flag rather than locking a real creator out over a transient issue.
     }
   }
 
@@ -88,14 +122,14 @@ export default async function PayoutsPage({
               aria-hidden
             />
             <span className="font-mono text-sm">
-              {ready ? "Payouts connected" : profile?.stripe_connect_id ? "Onboarding started" : "Not connected"}
+              {ready ? "Payouts connected" : connectId ? "Onboarding started" : "Not connected"}
             </span>
           </div>
 
           {!ready && (
             <>
               <p className="mb-4 text-sm text-ink-soft">
-                {profile?.stripe_connect_id
+                {connectId
                   ? "Stripe needs a bit more from you to finish setup — details, bank account, or identity verification."
                   : "Takes about 5 minutes on Stripe's own form: business details, bank account, identity verification."}
               </p>
@@ -104,7 +138,7 @@ export default async function PayoutsPage({
                   pendingText="Redirecting to Stripe…"
                   className="shine-sweep magnetic-btn rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
                 >
-                  {profile?.stripe_connect_id ? "Finish setup on Stripe" : "Connect Stripe"}
+                  {connectId ? "Finish setup on Stripe" : "Connect Stripe"}
                 </SubmitButton>
               </form>
             </>

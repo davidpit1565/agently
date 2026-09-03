@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
+import Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 import { PLATFORM_FEE_PERCENT } from "@/lib/membership";
 import { checkRateLimit } from "@/lib/rate-limit";
 
@@ -145,7 +147,7 @@ export async function POST(request: Request) {
   const platformFee = Math.round((agent.price_cents * PLATFORM_FEE_PERCENT) / 100);
   const origin = new URL(request.url).origin;
 
-  const session = await stripe.checkout.sessions.create({
+  const sessionParams: Stripe.Checkout.SessionCreateParams = {
     mode: agent.pricing_model === "subscription" ? "subscription" : "payment",
     line_items: [
       {
@@ -179,7 +181,38 @@ export async function POST(request: Request) {
     success_url: `${origin}/agents/${agent.slug}?purchased=1`,
     cancel_url: `${origin}/agents/${agent.slug}`,
     metadata: { agent_id: agent.id, buyer_id: user.id },
-  });
+  };
+
+  let session;
+  try {
+    session = await stripe.checkout.sessions.create(sessionParams);
+  } catch (err) {
+    // creator.stripe_connect_id can be stale in one specific way: it was
+    // created under a different Stripe key mode (test vs. live) than the
+    // one this request is running under — see app/api/stripe/connect/route.ts.
+    // Stripe rejects transfer_data.destination pointing at an account that
+    // doesn't exist in the current mode with resource_missing, which would
+    // otherwise take over a real buyer's checkout attempt as a raw 500. This
+    // is the buyer-facing edge of the same bug the payouts page now
+    // self-heals on its own visits — reaching it here means the creator
+    // hasn't revisited /dashboard/payouts since the key changed, so also
+    // reset their cached "ready" state so their own next dashboard visit
+    // shows the real status instead of a stale "connected".
+    if (err instanceof Stripe.errors.StripeInvalidRequestError && err.code === "resource_missing") {
+      const admin = createAdminClient();
+      if (admin) {
+        await admin
+          .from("agently_profiles")
+          .update({ stripe_connect_ready: false, stripe_connect_id: null })
+          .eq("id", agent.creator_id);
+      }
+      return NextResponse.json(
+        { error: "This creator's payout setup needs to be redone — try again shortly, or contact them directly." },
+        { status: 409 }
+      );
+    }
+    throw err;
+  }
 
   return NextResponse.redirect(session.url!, 303);
 }
