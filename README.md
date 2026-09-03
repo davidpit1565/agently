@@ -107,6 +107,16 @@ yet. Three things only you can do:
    no one else. Skip it and both pages 404 for everyone, including you —
    every submission is stuck in `pending_review` forever with no page that
    can move it out.
+7. **Optional** — create a free Resend account (resend.dev, 100
+   emails/day free) and add `RESEND_API_KEY` to Vercel to turn on email
+   for the events that already notify in-app (a listing approved or
+   rejected, a requested agent fulfilled) — otherwise a creator or buyer
+   only sees those by opening the site and checking the bell. Skip it and
+   nothing breaks; those events just stay in-app only, same as today.
+   Once you verify your own domain in Resend, also set
+   `RESEND_FROM_EMAIL` (e.g. `Agently <notifications@yourdomain.com>`) —
+   without it, email sends from Resend's shared `onboarding@resend.dev`
+   sandbox address, which works but looks like a test sender.
 
 Nothing here needs a decision from you beyond creating those accounts —
 the code already assumes the schema and env var names above. File
