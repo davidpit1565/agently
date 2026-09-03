@@ -9,6 +9,11 @@ export const metadata: Metadata = {
   title: "Terms of Service — Agently",
 };
 
+// Placeholder until Agently has its own company/domain (David's own words) —
+// a real support inbox, not a fabricated one, just not the final one. Update
+// this the moment that exists; nothing else references it.
+const SUPPORT_EMAIL = "dp@solfaygroup.com";
+
 export default function TermsPage() {
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
@@ -37,8 +42,11 @@ export default function TermsPage() {
           One-time purchases are refundable within 7 days of purchase if the
           agent doesn&apos;t work as its listing describes — request one by
           contacting the creator directly (their page links out, where
-          provided) or emailing support with the order and a description of
-          the problem. Once a refund is issued, the buyer&apos;s access to
+          provided) or emailing{" "}
+          <a href={`mailto:${SUPPORT_EMAIL}`} className="text-accent underline">
+            {SUPPORT_EMAIL}
+          </a>{" "}
+          with the order and a description of the problem. Once a refund is issued, the buyer&apos;s access to
           the agent&apos;s delivery link and files is revoked. A refund is
           not available once 7 days have passed, or for a working agent you
           simply changed your mind about. Subscriptions (both a membership
@@ -69,8 +77,11 @@ export default function TermsPage() {
 
       <p className="mt-10 text-xs text-ink-faint">
         This policy hasn&apos;t been reviewed by a lawyer. If something here
-        doesn&apos;t cover your situation, email support and it&apos;ll be
-        resolved directly rather than left to the text above.
+        doesn&apos;t cover your situation, email{" "}
+        <a href={`mailto:${SUPPORT_EMAIL}`} className="underline">
+          {SUPPORT_EMAIL}
+        </a>{" "}
+        and it&apos;ll be resolved directly rather than left to the text above.
       </p>
     </main>
   );
