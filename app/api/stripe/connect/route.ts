@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
@@ -47,32 +48,61 @@ export async function POST(request: Request) {
 
   let accountId = profile?.stripe_connect_id ?? null;
 
-  if (!accountId) {
+  // A stored id can be stale in one specific way: it was created while
+  // STRIPE_SECRET_KEY was a test key, and the key has since moved to live
+  // (or vice versa on a local/staging setup). Test-mode and live-mode
+  // accounts are entirely separate in Stripe — a live key calling
+  // accounts.create/accountLinks.create with a test-mode id 404s with
+  // "No such account" instead of silently working, which would otherwise
+  // surface to the creator as a raw Stripe error with no way forward.
+  // createAccount() always makes one under whichever key is live right now
+  // and persists it, so a key-mode switch self-heals on the next visit here
+  // instead of leaving a creator stuck.
+  async function createAccount() {
     const account = await stripe.accounts.create({
       type: "express",
-      email: user.email,
+      email: user!.email,
       capabilities: {
         card_payments: { requested: true },
         transfers: { requested: true },
       },
     });
-    accountId = account.id;
     // stripe_connect_id isn't in the self-updatable column grant (see
     // supabase/schema.sql) — a signed-in user's own session can no longer
     // write it directly, so this write goes through the service-role
     // client, same as every other Stripe-driven profile field.
     const admin = createAdminClient();
     if (admin) {
-      await admin.from("agently_profiles").update({ stripe_connect_id: accountId }).eq("id", user.id);
+      await admin.from("agently_profiles").update({ stripe_connect_id: account.id }).eq("id", user!.id);
     }
+    return account.id;
   }
 
-  const link = await stripe.accountLinks.create({
-    account: accountId,
-    refresh_url: `${origin}/dashboard/payouts`,
-    return_url: `${origin}/dashboard/payouts?onboarded=1`,
-    type: "account_onboarding",
-  });
+  if (!accountId) {
+    accountId = await createAccount();
+  }
+
+  let link;
+  try {
+    link = await stripe.accountLinks.create({
+      account: accountId,
+      refresh_url: `${origin}/dashboard/payouts`,
+      return_url: `${origin}/dashboard/payouts?onboarded=1`,
+      type: "account_onboarding",
+    });
+  } catch (err) {
+    if (err instanceof Stripe.errors.StripeInvalidRequestError && err.code === "resource_missing") {
+      accountId = await createAccount();
+      link = await stripe.accountLinks.create({
+        account: accountId,
+        refresh_url: `${origin}/dashboard/payouts`,
+        return_url: `${origin}/dashboard/payouts?onboarded=1`,
+        type: "account_onboarding",
+      });
+    } else {
+      throw err;
+    }
+  }
 
   return NextResponse.redirect(link.url, 303);
 }
