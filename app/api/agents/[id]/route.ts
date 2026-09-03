@@ -6,6 +6,7 @@ import { notifyBuyersOfUpdate } from "@/lib/notifications";
 import { getEmbedding, embeddableText } from "@/lib/embeddings";
 import { uploadAgentFiles, getAgentIdsWithFiles } from "@/lib/agent-files";
 import { sanitizeUrl } from "@/lib/validation";
+import { MIN_AGENT_PRICE_CENTS } from "@/lib/membership";
 
 // Edits an existing listing. When the edit is a real new version — the
 // delivery link or the buyer-facing content actually changed, not just
@@ -46,6 +47,35 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const priceEur = form.get("price");
   const deliveryUrl = sanitizeUrl((form.get("delivery_url") as string) || null);
   const newFiles = form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
+
+  // Same enforcement as creating a listing (app/api/agents/route.ts) — an
+  // edit switching an existing free/rejected listing to paid needs the same
+  // gate, or it becomes the back door around the create-time check.
+  if (pricingModel !== "free") {
+    const { data: profile } = await supabase
+      .from("agently_profiles")
+      .select("stripe_connect_ready")
+      .eq("id", user.id)
+      .single();
+    if (!profile?.stripe_connect_ready) {
+      return NextResponse.json(
+        { error: "Connect Stripe payouts before listing a paid agent — see /dashboard/payouts." },
+        { status: 403 }
+      );
+    }
+    const price = Number(priceEur);
+    if (!Number.isFinite(price) || price <= 0) {
+      return NextResponse.json({ error: "Enter a price for a paid agent." }, { status: 400 });
+    }
+    if (Math.round(price * 100) < MIN_AGENT_PRICE_CENTS) {
+      return NextResponse.json(
+        {
+          error: `A paid agent must be priced at least €${(MIN_AGENT_PRICE_CENTS / 100).toFixed(2)} — below that, Stripe's own processing fee can cost more than the platform earns on the sale.`,
+        },
+        { status: 400 }
+      );
+    }
+  }
 
   // Same rule as creating a listing: clearing the delivery link with no
   // files (existing or newly attached) left to fall back on would leave a

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { MEMBERSHIP_TIERS, canUpload } from "@/lib/membership";
+import { MEMBERSHIP_TIERS, canUpload, MIN_AGENT_PRICE_CENTS } from "@/lib/membership";
 import { reviewAgentSubmission } from "@/lib/safety-review";
 import { getEmbedding, embeddableText } from "@/lib/embeddings";
 import { uploadAgentFiles } from "@/lib/agent-files";
@@ -29,7 +29,7 @@ export async function POST(request: Request) {
 
   const { data: profile } = await supabase
     .from("agently_profiles")
-    .select("membership_tier")
+    .select("membership_tier, stripe_connect_ready")
     .eq("id", user.id)
     .single();
 
@@ -88,6 +88,32 @@ export async function POST(request: Request) {
   // picked — filtered out in uploadAgentFiles, not here, so this stays
   // the single place that decides what counts as "no file."
   const files = form.getAll("files").filter((f): f is File => f instanceof File);
+
+  // A paid listing with no connected payout account has nowhere for the
+  // money to go — checkout (/api/checkout) already refuses to sell it, but
+  // that left a dead listing sitting on the catalog looking purchasable.
+  // Catch it here instead, before any paid safety-review/embedding calls run.
+  if (pricingModel !== "free" && !profile?.stripe_connect_ready) {
+    return NextResponse.json(
+      { error: "Connect Stripe payouts before listing a paid agent — see /dashboard/payouts." },
+      { status: 403 }
+    );
+  }
+
+  if (pricingModel !== "free") {
+    const price = Number(priceEur);
+    if (!Number.isFinite(price) || price <= 0) {
+      return NextResponse.json({ error: "Enter a price for a paid agent." }, { status: 400 });
+    }
+    if (Math.round(price * 100) < MIN_AGENT_PRICE_CENTS) {
+      return NextResponse.json(
+        {
+          error: `A paid agent must be priced at least €${(MIN_AGENT_PRICE_CENTS / 100).toFixed(2)} — below that, Stripe's own processing fee can cost more than the platform earns on the sale.`,
+        },
+        { status: 400 }
+      );
+    }
+  }
 
   // A listing with neither a delivery link nor an attached file has nothing
   // for a buyer to actually receive — this was a real gap: the original 5
