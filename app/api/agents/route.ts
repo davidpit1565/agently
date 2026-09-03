@@ -27,11 +27,21 @@ export async function POST(request: Request) {
     return NextResponse.redirect(new URL("/auth/sign-in", request.url));
   }
 
-  const { data: profile } = await supabase
+  const { data: profile, error: profileError } = await supabase
     .from("agently_profiles")
     .select("membership_tier")
     .eq("id", user.id)
     .single();
+
+  // A failed lookup here is not "no membership" — treating it that way told
+  // a paying creator "A paid membership is required" on a plain Supabase
+  // blip, masking an infra failure as a billing problem.
+  if (profileError) {
+    return NextResponse.json(
+      { error: "Couldn't verify your membership — try again in a moment." },
+      { status: 503 }
+    );
+  }
 
   const tier = (profile?.membership_tier ?? "free") as MembershipTier;
 
@@ -44,11 +54,20 @@ export async function POST(request: Request) {
 
   // The plan page promises "up to N active listings" per tier — enforce it
   // here, not just in copy, or the tiers mean nothing.
-  const { count } = await supabase
+  const { count, error: countError } = await supabase
     .from("agently_agents")
     .select("id", { count: "exact", head: true })
     .eq("creator_id", user.id)
     .in("status", ["pending_review", "approved"]);
+
+  // A failed count is not "zero active listings" — treating it that way let
+  // a transient query failure bypass the tier's listing cap entirely.
+  if (countError) {
+    return NextResponse.json(
+      { error: "Couldn't verify your active listings — try again in a moment." },
+      { status: 503 }
+    );
+  }
 
   const limit = MEMBERSHIP_TIERS[tier as Exclude<MembershipTier, "free">].maxActiveListings;
   if ((count ?? 0) >= limit) {

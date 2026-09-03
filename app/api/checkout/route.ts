@@ -69,7 +69,7 @@ export async function POST(request: Request) {
   // second, separate Stripe subscription — a double-click or a browser
   // back-button resubmit would double-bill the buyer for the same agent.
   if (agent.pricing_model === "subscription") {
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .from("agently_purchases")
       .select("id")
       .eq("agent_id", agent.id)
@@ -77,6 +77,16 @@ export async function POST(request: Request) {
       .eq("status", "paid")
       .limit(1)
       .maybeSingle();
+    // A failed check here is not "no existing subscription" — treating it
+    // that way on a transient Supabase error would let this fall through to
+    // Stripe and create a second, separate subscription for someone who
+    // already has one active, double-billing them.
+    if (existingError) {
+      return NextResponse.json(
+        { error: "Couldn't verify your existing subscriptions — try again in a moment." },
+        { status: 503 }
+      );
+    }
     if (existing) {
       return NextResponse.json(
         { error: "You already have an active subscription to this agent." },
