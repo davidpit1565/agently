@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyCreatorOfSale } from "@/lib/notifications";
 import { PLATFORM_FEE_PERCENT } from "@/lib/membership";
 
 // Point this route at Stripe's dashboard (or `stripe listen` locally) once
@@ -97,6 +98,24 @@ export async function POST(request: Request) {
           });
           if (error.code !== "23505") {
             return NextResponse.json({ error: "Failed to record purchase" }, { status: 500 });
+          }
+          // 23505 means this exact event was already processed (a Stripe
+          // retry) — the creator was already notified the first time, so
+          // notifying again here would double-email them for one sale.
+        } else if (status === "paid") {
+          const { data: agent } = await supabase
+            .from("agently_agents")
+            .select("creator_id, name, currency")
+            .eq("id", agent_id)
+            .single();
+          if (agent) {
+            await notifyCreatorOfSale(supabase, {
+              creatorId: agent.creator_id,
+              agentId: agent_id,
+              agentName: agent.name,
+              amountCents: session.amount_total ?? 0,
+              currency: agent.currency,
+            });
           }
         }
       } else if (user_id && membership_tier) {
@@ -202,6 +221,23 @@ export async function POST(request: Request) {
             });
             if (error.code !== "23505") {
               return NextResponse.json({ error: "Failed to record renewal" }, { status: 500 });
+            }
+            // 23505: this exact renewal was already processed and the
+            // creator already notified — a Stripe retry, not a new charge.
+          } else if (stillActive) {
+            const { data: agent } = await supabase
+              .from("agently_agents")
+              .select("creator_id, name, currency")
+              .eq("id", agent_id)
+              .single();
+            if (agent) {
+              await notifyCreatorOfSale(supabase, {
+                creatorId: agent.creator_id,
+                agentId: agent_id,
+                agentName: agent.name,
+                amountCents: invoice.amount_paid,
+                currency: agent.currency,
+              });
             }
           }
         }
