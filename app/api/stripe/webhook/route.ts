@@ -101,19 +101,31 @@ export async function POST(request: Request) {
       // bought it, and schema.sql's review policy keeps letting them post or
       // keep a "verified buyer" review for an agent they got their money
       // back on.
-      const charge = event.data.object as { payment_intent: string | null };
+      const charge = event.data.object as { payment_intent: string | null; invoice: string | null };
+      // The purchases row a refund needs to reach is keyed by whichever id
+      // its insert used: the Checkout Session id for a one-time purchase or
+      // a subscription's first payment, but the invoice id for every
+      // renewal after that (see invoice.paid below — renewals never go
+      // through Checkout, so there is no Checkout Session for
+      // stripe.checkout.sessions.list to find). Looking up by
+      // payment_intent alone silently missed a refund of any renewal
+      // charge, leaving that row at status='paid' forever even though the
+      // buyer got their money back — the buyer keeps a "verified purchase"
+      // and continued file access after being refunded.
+      let checkoutSessionId: string | undefined;
       if (charge.payment_intent) {
         const session = await stripe.checkout.sessions.list({ payment_intent: charge.payment_intent, limit: 1 });
-        const checkoutSessionId = session.data[0]?.id;
-        if (checkoutSessionId) {
-          const { error } = await supabase
-            .from("agently_purchases")
-            .update({ status: "refunded" })
-            .eq("stripe_checkout_session_id", checkoutSessionId);
-          if (error) {
-            console.error("[stripe/webhook] refund update failed", { eventId: event.id, checkoutSessionId, message: error.message });
-            return NextResponse.json({ error: "Failed to record refund" }, { status: 500 });
-          }
+        checkoutSessionId = session.data[0]?.id;
+      }
+      const purchaseRowId = checkoutSessionId ?? charge.invoice ?? undefined;
+      if (purchaseRowId) {
+        const { error } = await supabase
+          .from("agently_purchases")
+          .update({ status: "refunded" })
+          .eq("stripe_checkout_session_id", purchaseRowId);
+        if (error) {
+          console.error("[stripe/webhook] refund update failed", { eventId: event.id, purchaseRowId, message: error.message });
+          return NextResponse.json({ error: "Failed to record refund" }, { status: 500 });
         }
       }
       break;
