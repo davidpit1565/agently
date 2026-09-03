@@ -56,7 +56,7 @@ export function Footer() {
         </Link>
         {" · "}
         <Link href="/terms" className="underline hover:text-accent">
-          Terms (draft)
+          Terms
         </Link>
         .
       </p>
