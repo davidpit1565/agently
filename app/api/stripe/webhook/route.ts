@@ -45,11 +45,31 @@ export async function POST(request: Request) {
         id: string;
         amount_total: number | null;
         customer: string | null;
+        subscription: string | null;
         metadata: Record<string, string>;
       };
       const { agent_id, buyer_id, user_id, membership_tier } = session.metadata ?? {};
 
       if (agent_id && buyer_id) {
+        // Stripe doesn't guarantee webhook delivery order — that's
+        // documented behavior, not an edge case, especially once retries
+        // are involved. For an agent *subscription* checkout, a
+        // customer.subscription.deleted for this same subscription (an
+        // immediate cancellation, or one racing in from a retry) can reach
+        // this server before this event does. Without checking, this
+        // insert would still record 'paid' even though the subscription is
+        // already gone at Stripe — a buyer left with permanent access to
+        // something already canceled. Reading the subscription's own
+        // current status here (rather than assuming "paid" because this
+        // event fired) makes the recorded outcome match Stripe's actual
+        // state regardless of which webhook happened to arrive first.
+        let status = "paid";
+        if (session.subscription) {
+          const subscription = await stripe.subscriptions.retrieve(session.subscription);
+          if (subscription.status !== "active" && subscription.status !== "trialing") {
+            status = "canceled";
+          }
+        }
         const { error } = await supabase.from("agently_purchases").insert({
           agent_id,
           buyer_id,
@@ -59,7 +79,7 @@ export async function POST(request: Request) {
           // the moment anyone changed the real fee, silently misreporting
           // actual platform revenue with no error anywhere.
           platform_fee_cents: Math.round((session.amount_total ?? 0) * (PLATFORM_FEE_PERCENT / 100)),
-          status: "paid",
+          status,
         });
         // stripe_checkout_session_id is unique, so Stripe retrying this same
         // event throws a constraint violation here — that's not a failure,
@@ -137,6 +157,16 @@ export async function POST(request: Request) {
         const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
         const { agent_id, buyer_id } = (subscription.metadata ?? {}) as Record<string, string>;
         if (agent_id && buyer_id) {
+          // Same out-of-order-delivery risk as checkout.session.completed
+          // above, the other direction: a subscription can already be
+          // canceled at Stripe by the time this renewal event is
+          // processed (a redelivery, or a cancellation landing in the gap
+          // between charge and webhook processing). Recording the
+          // subscription's live status here — already fetched above,
+          // rather than assuming "paid" purely because an invoice.paid
+          // event fired — keeps the purchase row's status consistent with
+          // Stripe's actual current state instead of with delivery order.
+          const stillActive = subscription.status === "active" || subscription.status === "trialing";
           const { error } = await supabase.from("agently_purchases").insert({
             agent_id,
             buyer_id,
@@ -148,7 +178,7 @@ export async function POST(request: Request) {
             stripe_checkout_session_id: invoice.id,
             amount_cents: invoice.amount_paid,
             platform_fee_cents: Math.round(invoice.amount_paid * (PLATFORM_FEE_PERCENT / 100)),
-            status: "paid",
+            status: stillActive ? "paid" : "canceled",
           });
           if (error) {
             console.error("[stripe/webhook] renewal purchase insert failed", {
