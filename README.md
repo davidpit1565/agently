@@ -79,7 +79,12 @@ yet. Three things only you can do:
    table it creates is prefixed `agently_`, so it can't collide with
    whatever else already lives in that project) → copy the Project URL and
    `anon` public key into Vercel's Environment Variables as
-   `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`.
+   `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY`. Also copy
+   the **service_role** key (Project Settings → API) into Vercel as
+   `SUPABASE_SERVICE_ROLE_KEY` — the Stripe webhook, admin approve/reject
+   routes, and file uploads all use it (no signed-in session for RLS to
+   check against) and quietly return an error on every request that needs
+   it until it's set.
 2. **Create a Stripe account**, enable Connect → copy the secret key into
    Vercel as `STRIPE_SECRET_KEY`. Once the account exists, add a webhook
    pointed at `https://<your-domain>/api/stripe/webhook` for
@@ -95,6 +100,13 @@ yet. Three things only you can do:
 5. **Optional** — add `VOYAGE_API_KEY` (voyageai.com) to Vercel to turn on
    semantic search. Skip it and `/browse` keeps working with substring
    matching, same as today.
+6. **Add `PLATFORM_OWNER_EMAIL`** to Vercel — your own sign-in email,
+   exactly as you sign in with it. This isn't optional in practice: it's
+   what gates `/dashboard/admin/agents` (approve/reject new listings) and
+   `/dashboard/admin/requests` (fulfill custom agent requests) to you and
+   no one else. Skip it and both pages 404 for everyone, including you —
+   every submission is stuck in `pending_review` forever with no page that
+   can move it out.
 
 Nothing here needs a decision from you beyond creating those accounts —
 the code already assumes the schema and env var names above. File

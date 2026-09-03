@@ -42,7 +42,16 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   let fulfilledAgentId: string | null = null;
   if (status === "fulfilled" && fulfilledAgentSlug) {
     const { data: agent } = await admin.from("agently_agents").select("id").eq("slug", fulfilledAgentSlug).single();
-    fulfilledAgentId = agent?.id ?? null;
+    if (!agent) {
+      // A typo'd slug used to fail silently: the request got marked
+      // fulfilled, the requester was notified "it's ready," and
+      // fulfilled_agent_id just stayed null with no link and no error.
+      return NextResponse.json(
+        { error: `No listed agent has the slug "${fulfilledAgentSlug}". Check the slug and try again.` },
+        { status: 400 }
+      );
+    }
+    fulfilledAgentId = agent.id;
   }
 
   const { data: existing } = await admin.from("agently_agent_requests").select("requester_id, status").eq("id", id).single();
