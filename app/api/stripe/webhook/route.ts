@@ -217,6 +217,7 @@ export async function POST(request: Request) {
       // app/api/membership/checkout and app/api/checkout) is what tells
       // the two apart here; the two never overlap.
       const subscription = event.data.object as {
+        id: string;
         customer: string;
         status: string;
         metadata: Record<string, string>;
@@ -225,6 +226,21 @@ export async function POST(request: Request) {
       const active = subscription.status === "active";
 
       if (membership_tier) {
+        // Stripe doesn't guarantee webhook delivery order. Two switches in
+        // quick succession (Basic -> Pro, then Pro -> Professional) fire two
+        // of these events, each carrying a snapshot of the subscription as
+        // it was at the moment *that* event was queued. If the older
+        // event's webhook is delivered or processed after the newer one
+        // (out-of-order delivery, or a retry), trusting its embedded
+        // metadata here would overwrite membership_tier back to "pro" even
+        // though the subscription — and the user's bill — already moved on
+        // to "professional". Re-fetching the subscription live instead of
+        // trusting event.data.object makes every delivery converge on
+        // Stripe's actual current state, regardless of delivery order.
+        const live = await stripe.subscriptions.retrieve(subscription.id);
+        const liveActive = live.status === "active";
+        const liveTier = live.metadata?.membership_tier;
+
         // membership_tier drives canUpload() (lib/membership.ts) — it isn't
         // enough to just flip membership_status to 'canceled' here, or a
         // lapsed subscription would keep uploading forever with whatever
@@ -241,8 +257,8 @@ export async function POST(request: Request) {
         const { error: subError } = await supabase
           .from("agently_profiles")
           .update({
-            membership_status: active ? "active" : "canceled",
-            membership_tier: active ? membership_tier : "free",
+            membership_status: liveActive ? "active" : "canceled",
+            membership_tier: liveActive ? liveTier ?? "free" : "free",
           })
           .eq("stripe_customer_id", subscription.customer);
         if (subError) {
