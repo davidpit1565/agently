@@ -378,18 +378,25 @@ export default async function AgentPage({
           )}
         </Reveal>
 
-        <form action="/api/checkout" method="POST" className="pt-4">
-          <input type="hidden" name="agentId" value={agent.id} />
-          <button
-            type="submit"
-            className="shine-sweep magnetic-btn group flex items-center gap-2 rounded-full bg-accent py-2 pl-6 pr-2 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
-          >
-            {agent.pricing_model === "free" ? "Get this agent" : `Buy — ${priceLabel(agent)}`}
-            <span className="magnetic-icon flex h-8 w-8 items-center justify-center rounded-full bg-black/10">
-              →
-            </span>
-          </button>
-        </form>
+        {/* /api/checkout unconditionally 403s a creator buying their own
+            listing — the plain-HTML-form POST means that error renders as
+            a raw JSON body in the browser instead of a friendly message.
+            Hiding the button for the owner avoids that dead end entirely,
+            same reasoning as hiding "Buy" for someone who can't act on it. */}
+        {!isOwner && (
+          <form action="/api/checkout" method="POST" className="pt-4">
+            <input type="hidden" name="agentId" value={agent.id} />
+            <button
+              type="submit"
+              className="shine-sweep magnetic-btn group flex items-center gap-2 rounded-full bg-accent py-2 pl-6 pr-2 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
+            >
+              {agent.pricing_model === "free" ? "Get this agent" : `Buy — ${priceLabel(agent)}`}
+              <span className="magnetic-icon flex h-8 w-8 items-center justify-center rounded-full bg-black/10">
+                →
+              </span>
+            </button>
+          </form>
+        )}
       </div>
     </main>
   );
