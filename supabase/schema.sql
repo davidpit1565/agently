@@ -199,6 +199,14 @@ alter table agently_purchases drop constraint if exists agently_purchases_status
 alter table agently_purchases add constraint agently_purchases_status_check
   check (status in ('pending', 'paid', 'refunded', 'canceled'));
 
+-- Set the first time a buyer actually retrieves the delivery link or a file
+-- (app/api/deliveries/[agentId]/route.ts — every real download or delivery
+-- redirect goes through there now, not a direct link to the raw
+-- destination). app/api/refunds/[purchaseId]/route.ts refuses a
+-- self-service refund once this is set: without it, a one-time buyer could
+-- download the product and refund it immediately after, keeping both.
+alter table agently_purchases add column if not exists delivery_accessed_at timestamptz;
+
 create table if not exists agently_reviews (
   id uuid primary key default gen_random_uuid(),
   agent_id uuid not null references agently_agents(id) on delete cascade,
