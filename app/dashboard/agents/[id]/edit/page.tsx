@@ -101,10 +101,11 @@ export default async function EditAgentPage({
           label="What problem does it solve?"
           name="problem_solved"
           textarea
+          rows={5}
           required
           defaultValue={agent.problem_solved}
         />
-        <Field label="Full description" name="description" textarea required defaultValue={agent.description} />
+        <Field label="Full description" name="description" textarea rows={8} required defaultValue={agent.description} />
 
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium">Category</span>

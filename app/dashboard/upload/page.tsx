@@ -111,10 +111,11 @@ export default async function UploadPage({
           label="What problem does it solve?"
           name="problem_solved"
           textarea
+          rows={5}
           required
           hint="This is what the search matches against — describe the situation someone is in, not what the agent is built with."
         />
-        <Field label="Full description" name="description" textarea required />
+        <Field label="Full description" name="description" textarea rows={8} required />
 
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium">Category</span>
