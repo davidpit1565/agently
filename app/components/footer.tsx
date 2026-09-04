@@ -58,6 +58,10 @@ export function Footer() {
         <Link href="/terms" className="underline hover:text-accent">
           Terms
         </Link>
+        {" · "}
+        <Link href="/privacy" className="underline hover:text-accent">
+          Privacy
+        </Link>
         .
       </p>
     </footer>
