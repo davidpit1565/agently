@@ -135,6 +135,24 @@ export async function getAgentIdsWithFiles(agentIds: string[]): Promise<Set<stri
   return new Set(data.map((row) => row.agent_id as string));
 }
 
+/** Removes every stored blob for an agent from the bucket. The DB rows in
+ *  agently_agent_files don't need a matching delete call here — they cascade
+ *  when the agently_agents row itself is deleted (see supabase/schema.sql) —
+ *  but Storage objects aren't part of that foreign key and would otherwise
+ *  be orphaned forever. Called only right before that row delete. */
+export async function deleteAllAgentFiles(agentId: string): Promise<void> {
+  const admin = createAdminClient();
+  if (!admin) return;
+
+  const { data: files } = await admin
+    .from("agently_agent_files")
+    .select("storage_path")
+    .eq("agent_id", agentId);
+
+  if (!files || files.length === 0) return;
+  await admin.storage.from(BUCKET).remove(files.map((f) => f.storage_path));
+}
+
 export async function deleteAgentFile(fileId: string, agentId: string): Promise<void> {
   const admin = createAdminClient();
   if (!admin) return;
