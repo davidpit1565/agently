@@ -142,3 +142,38 @@ export async function getPurchaseCounts(agentIds: string[]): Promise<Map<string,
   }
   return counts;
 }
+
+export type PurchasedAgent = {
+  purchaseId: string;
+  purchasedAt: string;
+  amountPaidCents: number;
+  agent: Agent;
+};
+
+/** A buyer's own "library" — every agent they hold real paid access to,
+ *  newest first. Team seats (lib/team-invites.ts) aren't included: those are
+ *  a separate acceptance flow with their own access, not something this
+ *  buyer purchased. RLS ("buyers see their own purchases") already scopes
+ *  this to the signed-in user's own rows, and the single agent_id foreign
+ *  key on agently_purchases lets Supabase embed the related row directly. */
+export async function getMyPurchases(userId: string): Promise<PurchasedAgent[]> {
+  if (!supabaseConfigured()) return [];
+
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("agently_purchases")
+    .select("id, created_at, amount_cents, agently_agents(*)")
+    .eq("buyer_id", userId)
+    .eq("status", "paid")
+    .order("created_at", { ascending: false });
+
+  if (error || !data) return [];
+  return data
+    .filter((row) => row.agently_agents)
+    .map((row) => ({
+      purchaseId: row.id,
+      purchasedAt: row.created_at,
+      amountPaidCents: row.amount_cents ?? 0,
+      agent: row.agently_agents as unknown as Agent,
+    }));
+}

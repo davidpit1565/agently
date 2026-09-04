@@ -34,6 +34,9 @@ export function Header({ signedIn }: { signedIn: boolean }) {
 
   const account = signedIn ? (
     <div className="flex items-center gap-3">
+      <Link href="/dashboard/purchases" className="hover:text-ink">
+        Your purchases
+      </Link>
       <Link href="/dashboard/agents" className="hover:text-ink">
         Your agents
       </Link>
@@ -138,6 +141,13 @@ export function Header({ signedIn }: { signedIn: boolean }) {
           ))}
           {signedIn && (
             <>
+              <Link
+                href="/dashboard/purchases"
+                onClick={() => setOpen(false)}
+                className="flex min-h-11 items-center rounded-lg px-2 hover:bg-surface hover:text-ink"
+              >
+                Your purchases
+              </Link>
               <Link
                 href="/dashboard/agents"
                 onClick={() => setOpen(false)}
