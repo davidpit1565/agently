@@ -12,6 +12,13 @@ import { Resend } from "resend";
 // config means don't break the feature" pattern as every other integration
 // in this codebase — so this can ship now and start working the moment the
 // key is added in Vercel, no code change needed.
+//
+// TODO(david): RESEND_FROM_EMAIL is currently set to a mail.actually-works.com
+// address (the channel's domain) as a stopgap — Agently doesn't have its own
+// domain yet. Once a domain is bought specifically for Agently, verify it in
+// Resend and update RESEND_FROM_EMAIL in Vercel to use it instead. Until
+// then, every Agently email goes out under the videos channel's name, which
+// looks off to a buyer/creator who has no idea what "actually-works" is.
 const FROM_EMAIL = process.env.RESEND_FROM_EMAIL || "Agently <onboarding@resend.dev>";
 
 let client: Resend | null = null;
