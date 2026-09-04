@@ -101,6 +101,7 @@ export default async function AgentPage({
 
   let isOwner = false;
   let hasPurchased = false;
+  let canReview = false;
   let refundEligiblePurchaseId: string | null = null;
   let cancelablePurchaseId: string | null = null;
   if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
@@ -119,6 +120,12 @@ export default async function AgentPage({
         .eq("status", "paid")
         .maybeSingle();
       hasPurchased = !!purchase;
+      // Reviews require an actual agently_purchases row under this user's
+      // own id (see the "buyers can write their own review" RLS policy in
+      // supabase/schema.sql) — a team member below gets hasPurchased=true
+      // for view/download access but has no such row, so canReview has to
+      // stay tied to the direct purchase check, not the broader flag.
+      canReview = hasPurchased;
 
       // Matches app/api/refunds/[purchaseId]/route.ts's own checks exactly —
       // this only decides whether to show the button, not whether a request
@@ -439,13 +446,15 @@ export default async function AgentPage({
             </div>
           )}
 
-          {hasPurchased ? (
+          {canReview ? (
             <ReviewForm agentId={agent.id} />
           ) : (
             <p className="text-xs text-ink-faint">
               {isOwner
                 ? "You can't review your own agent."
-                : "Get this agent to leave a review — reviews are limited to people who actually used it."}
+                : hasPurchased
+                  ? "Reviews are limited to whoever bought the agent — not a teammate on a shared seat."
+                  : "Get this agent to leave a review — reviews are limited to people who actually used it."}
             </p>
           )}
         </Reveal>
