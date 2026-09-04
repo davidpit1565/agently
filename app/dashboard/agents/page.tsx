@@ -4,6 +4,7 @@ import { getMyAgents, getPurchaseCounts } from "@/lib/catalog";
 import { TrustRing } from "@/app/components/trust-ring";
 import { Notice } from "@/app/components/form-field";
 import { DelistButton } from "@/app/components/delist-button";
+import { DeleteAgentButton } from "@/app/components/delete-agent-button";
 import { Reveal } from "@/app/components/reveal";
 import { CounterUp } from "@/app/components/counter-up";
 
@@ -17,9 +18,9 @@ const STATUS_LABEL: Record<string, string> = {
 export default async function MyAgentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ membership?: string; delisted?: string }>;
+  searchParams: Promise<{ membership?: string; delisted?: string; removed?: string }>;
 }) {
-  const { membership, delisted } = await searchParams;
+  const { membership, delisted, removed } = await searchParams;
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return (
@@ -51,6 +52,11 @@ export default async function MyAgentsPage({
       {delisted && (
         <div className="mb-6 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm text-ink-soft">
           Removed from the catalog. Buyers who already own it keep access.
+        </div>
+      )}
+      {removed && (
+        <div className="mb-6 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm text-ink-soft">
+          Listing deleted for good.
         </div>
       )}
       <div className="mb-8 flex animate-fade-up items-center justify-between gap-4">
@@ -99,7 +105,9 @@ export default async function MyAgentsPage({
                           ? "bg-accent-soft text-accent"
                           : agent.status === "rejected"
                             ? "bg-red-500/10 text-red-400"
-                            : "bg-surface-raised text-ink-faint"
+                            : agent.status === "delisted"
+                              ? "bg-orange-500/10 text-orange-400"
+                              : "bg-surface-raised text-ink-faint"
                       }`}
                     >
                       {STATUS_LABEL[agent.status] ?? agent.status}
@@ -142,6 +150,10 @@ export default async function MyAgentsPage({
                 {agent.status !== "delisted" && (
                   <DelistButton agentId={agent.id} agentName={agent.name} />
                 )}
+                {(agent.status === "delisted" || agent.status === "rejected") &&
+                  (purchaseCounts.get(agent.id) ?? 0) === 0 && (
+                    <DeleteAgentButton agentId={agent.id} agentName={agent.name} />
+                  )}
               </div>
             </Reveal>
           ))}
