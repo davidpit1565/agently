@@ -5,6 +5,9 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { PLATFORM_FEE_PERCENT } from "@/lib/membership";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { MIN_TEAM_SEATS, MAX_TEAM_SEATS, teamPriceCents } from "@/lib/team-pricing";
+
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 // Creates a Stripe Checkout session for a single agent purchase, splitting
 // payment via Stripe Connect: the platform fee via `application_fee_amount`,
@@ -86,6 +89,47 @@ export async function POST(request: Request) {
 
   if (!agent.price_cents) {
     return NextResponse.json({ error: "This agent isn't purchasable through checkout." }, { status: 400 });
+  }
+
+  // Team purchase (lib/team-pricing.ts): only for a one_time agent — a
+  // subscription's recurring billing has nowhere clean to attach a
+  // one-time seat discount, and a free agent has no price to discount in
+  // the first place. seats defaults to 1 (an ordinary purchase); anything
+  // else must be a real team size with exactly that many teammate emails,
+  // validated up front so a malformed request never reaches Stripe.
+  const seatsRaw = form.get("seats");
+  const seats = seatsRaw ? Number(seatsRaw) : 1;
+  let teamEmails: string[] = [];
+  if (seats !== 1) {
+    if (agent.pricing_model !== "one_time") {
+      return NextResponse.json({ error: "Team purchases are only available for a one-time purchase agent." }, { status: 400 });
+    }
+    if (!Number.isInteger(seats) || seats < MIN_TEAM_SEATS || seats > MAX_TEAM_SEATS) {
+      return NextResponse.json(
+        { error: `A team purchase needs between ${MIN_TEAM_SEATS} and ${MAX_TEAM_SEATS} seats.` },
+        { status: 400 }
+      );
+    }
+    teamEmails = String(form.get("team_emails") ?? "")
+      .split(/[\n,]/)
+      .map((e) => e.trim().toLowerCase())
+      .filter(Boolean);
+    const uniqueEmails = [...new Set(teamEmails)];
+    if (uniqueEmails.length !== teamEmails.length) {
+      return NextResponse.json({ error: "Duplicate teammate email." }, { status: 400 });
+    }
+    if (teamEmails.length !== seats - 1) {
+      return NextResponse.json(
+        { error: `${seats} seats needs exactly ${seats - 1} teammate email(s) — you're already covered as one of the seats.` },
+        { status: 400 }
+      );
+    }
+    if (teamEmails.some((e) => !EMAIL_RE.test(e))) {
+      return NextResponse.json({ error: "One of the teammate emails doesn't look valid." }, { status: 400 });
+    }
+    if (teamEmails.includes(user.email?.toLowerCase() ?? "")) {
+      return NextResponse.json({ error: "You're already covered — don't include your own email in the team list." }, { status: 400 });
+    }
   }
 
   // The platform owner gets free access to any paid agent — a deliberate
@@ -181,7 +225,13 @@ export async function POST(request: Request) {
   }
 
   const stripe = getStripe();
-  const platformFee = Math.round((agent.price_cents * PLATFORM_FEE_PERCENT) / 100);
+  // The total charged amount for a team purchase — rounded once on the
+  // total (lib/team-pricing.ts), not per seat, so what's charged matches
+  // what displaying it as one number implies. A quantity-of-seats line item
+  // with a per-seat unit_amount would round each seat separately and could
+  // land a cent or two off from that.
+  const chargeAmount = seats === 1 ? agent.price_cents : teamPriceCents(agent.price_cents, seats);
+  const platformFee = Math.round((chargeAmount * PLATFORM_FEE_PERCENT) / 100);
   const origin = new URL(request.url).origin;
 
   const sessionParams: Stripe.Checkout.SessionCreateParams = {
@@ -190,8 +240,8 @@ export async function POST(request: Request) {
       {
         price_data: {
           currency: agent.currency,
-          product_data: { name: agent.name },
-          unit_amount: agent.price_cents,
+          product_data: { name: seats === 1 ? agent.name : `${agent.name} — team (${seats} seats)` },
+          unit_amount: chargeAmount,
           ...(agent.pricing_model === "subscription" ? { recurring: { interval: "month" } } : {}),
         },
         quantity: 1,
@@ -215,9 +265,17 @@ export async function POST(request: Request) {
             metadata: { agent_id: agent.id, buyer_id: user.id },
           }
         : undefined,
-    success_url: `${origin}/agents/${agent.slug}?purchased=1`,
+    success_url: `${origin}/agents/${agent.slug}?purchased=1${seats > 1 ? "&team=1" : ""}`,
     cancel_url: `${origin}/agents/${agent.slug}`,
-    metadata: { agent_id: agent.id, buyer_id: user.id },
+    // seats/team_emails read back in the webhook's checkout.session.completed
+    // handler, which is what actually creates the purchase row and the
+    // per-teammate invite rows — this route only ever creates the Checkout
+    // Session, never writes to agently_purchases for a paid agent itself.
+    metadata: {
+      agent_id: agent.id,
+      buyer_id: user.id,
+      ...(seats > 1 ? { seats: String(seats), team_emails: teamEmails.join(",") } : {}),
+    },
   };
 
   let session;

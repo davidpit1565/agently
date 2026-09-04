@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyCreatorOfSale } from "@/lib/notifications";
+import { createTeamInvitesAndNotify } from "@/lib/team-invites";
 import { PLATFORM_FEE_PERCENT } from "@/lib/membership";
 
 // Point this route at Stripe's dashboard (or `stripe listen` locally) once
@@ -49,7 +50,8 @@ export async function POST(request: Request) {
         subscription: string | null;
         metadata: Record<string, string>;
       };
-      const { agent_id, buyer_id, user_id, membership_tier } = session.metadata ?? {};
+      const { agent_id, buyer_id, user_id, membership_tier, seats: seatsRaw, team_emails } = session.metadata ?? {};
+      const seats = seatsRaw ? Number(seatsRaw) : 1;
 
       if (agent_id && buyer_id) {
         // Stripe doesn't guarantee webhook delivery order — that's
@@ -71,20 +73,25 @@ export async function POST(request: Request) {
             status = "canceled";
           }
         }
-        const { error } = await supabase.from("agently_purchases").insert({
-          agent_id,
-          buyer_id,
-          stripe_checkout_session_id: session.id,
-          amount_cents: session.amount_total ?? 0,
-          // Was a second hard-coded 0.15 — drifted from PLATFORM_FEE_PERCENT
-          // the moment anyone changed the real fee, silently misreporting
-          // actual platform revenue with no error anywhere.
-          platform_fee_cents: Math.round((session.amount_total ?? 0) * (PLATFORM_FEE_PERCENT / 100)),
-          status,
-          // Only present for pricing_model 'subscription' — what
-          // app/api/purchases/[purchaseId]/cancel/route.ts actually cancels.
-          stripe_subscription_id: session.subscription ?? null,
-        });
+        const { data: insertedPurchase, error } = await supabase
+          .from("agently_purchases")
+          .insert({
+            agent_id,
+            buyer_id,
+            stripe_checkout_session_id: session.id,
+            amount_cents: session.amount_total ?? 0,
+            // Was a second hard-coded 0.15 — drifted from PLATFORM_FEE_PERCENT
+            // the moment anyone changed the real fee, silently misreporting
+            // actual platform revenue with no error anywhere.
+            platform_fee_cents: Math.round((session.amount_total ?? 0) * (PLATFORM_FEE_PERCENT / 100)),
+            status,
+            // Only present for pricing_model 'subscription' — what
+            // app/api/purchases/[purchaseId]/cancel/route.ts actually cancels.
+            stripe_subscription_id: session.subscription ?? null,
+            seats,
+          })
+          .select("id")
+          .single();
         // stripe_checkout_session_id is unique, so Stripe retrying this same
         // event throws a constraint violation here — that's not a failure,
         // it's this handler already having run once; anything else means the
@@ -108,7 +115,7 @@ export async function POST(request: Request) {
         } else if (status === "paid") {
           const { data: agent } = await supabase
             .from("agently_agents")
-            .select("creator_id, name, currency")
+            .select("creator_id, name, currency, slug")
             .eq("id", agent_id)
             .single();
           if (agent) {
@@ -119,6 +126,17 @@ export async function POST(request: Request) {
               amountCents: session.amount_total ?? 0,
               currency: agent.currency,
             });
+
+            if (seats > 1 && team_emails && insertedPurchase) {
+              const emails = team_emails.split(",").filter(Boolean);
+              await createTeamInvitesAndNotify(supabase, {
+                purchaseId: insertedPurchase.id,
+                agentId: agent_id,
+                agentName: agent.name,
+                agentSlug: agent.slug,
+                emails,
+              });
+            }
           }
         }
       } else if (user_id && membership_tier) {

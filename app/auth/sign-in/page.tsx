@@ -1,11 +1,17 @@
 "use client";
 
-import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
-export default function SignInPage() {
+function SignInForm() {
   const router = useRouter();
+  // Where to land after signing in — app/invite/[token]/page.tsx sends
+  // someone here with ?next=/invite/<token> when they click a team invite
+  // without an account yet, so accepting it doesn't need a second click
+  // after signing in. Falls back to the app/auth/callback route's own
+  // default (/browse) for every ordinary sign-in.
+  const next = useSearchParams().get("next");
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [code, setCode] = useState("");
@@ -16,13 +22,15 @@ export default function SignInPage() {
     e.preventDefault();
     setError(null);
     const supabase = createClient();
+    const callbackUrl = new URL(`${window.location.origin}/auth/callback`);
+    if (next) callbackUrl.searchParams.set("next", next);
     const { error } = await supabase.auth.signInWithOtp({
       email,
       // Without this, Supabase falls back to whatever "Site URL" is set in
       // its own dashboard (localhost by default on a new project) — the
       // email link would point there instead of here, regardless of what
       // domain someone actually opened this page from.
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+      options: { emailRedirectTo: callbackUrl.toString() },
     });
     if (error) setError(error.message);
     else setSent(true);
@@ -51,7 +59,7 @@ export default function SignInPage() {
       setError(error.message);
       return;
     }
-    router.push("/");
+    router.push(next || "/");
     router.refresh();
   }
 
@@ -129,5 +137,16 @@ export default function SignInPage() {
       </div>
       </div>
     </main>
+  );
+}
+
+// useSearchParams() (for the ?next= redirect target above) opts this whole
+// page out of static rendering unless it's wrapped in Suspense — without
+// this, `next build` fails outright rather than just losing prerendering.
+export default function SignInPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignInForm />
+    </Suspense>
   );
 }

@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { getAgentFiles, getSignedFileUrl } from "@/lib/agent-files";
 import { isWatermarkableText, watermarkText } from "@/lib/watermark";
 import { logDownloadAndMaybeAlert } from "@/lib/downloads";
+import { getAcceptedTeamPurchaseId } from "@/lib/team-invites";
 
 // Every real delivery — the external delivery_url, or a downloadable file —
 // goes through here now instead of a direct <a href> to the raw
@@ -42,13 +43,32 @@ export async function GET(request: Request, { params }: { params: Promise<{ agen
 
   const isOwner = agent.creator_id === user.id;
 
-  const { data: purchase } = await supabase
+  let { data: purchase } = await supabase
     .from("agently_purchases")
     .select("id, delivery_accessed_at")
     .eq("agent_id", agentId)
     .eq("buyer_id", user.id)
     .eq("status", "paid")
     .maybeSingle();
+
+  // Not the buyer themselves — check whether they're a teammate who accepted
+  // a seat on a still-paid team purchase of this agent (lib/team-invites.ts).
+  // Re-fetched via the admin client (not just a boolean) so the access log
+  // and the accessed_at gate below apply to the real, shared purchase row —
+  // a teammate downloading is exactly the kind of access that should block
+  // the buyer from refunding the whole team purchase afterwards.
+  if (!isOwner && !purchase) {
+    const admin = createAdminClient();
+    const teamPurchaseId = admin ? await getAcceptedTeamPurchaseId(agentId, user.id) : null;
+    if (teamPurchaseId && admin) {
+      const { data: teamPurchase } = await admin
+        .from("agently_purchases")
+        .select("id, delivery_accessed_at")
+        .eq("id", teamPurchaseId)
+        .single();
+      purchase = teamPurchase ?? null;
+    }
+  }
 
   if (!isOwner && !purchase) {
     return NextResponse.json({ error: "You don't have access to this." }, { status: 403 });
