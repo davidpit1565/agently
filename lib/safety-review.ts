@@ -82,14 +82,28 @@ Flag anything where the description implies broad or unrelated access (e.g. "rea
       signal: AbortSignal.timeout(10_000),
     });
 
-    if (!res.ok) return null;
+    if (!res.ok) {
+      // A null return here reads as "no automated opinion, wait for a
+      // human" everywhere it's called — which is correct behavior, but
+      // silently identical whether that's a missing key, a bad key, rate
+      // limiting, or Anthropic being down. Every listing before this piled
+      // up in the same pending_review queue with nothing in the logs to
+      // say why; this at least makes that queue diagnosable instead of a
+      // mystery each time someone asks "why is this stuck".
+      console.error("[safety-review] Anthropic API call failed", res.status, await res.text());
+      return null;
+    }
 
     const data = await res.json();
     const toolUse = data.content?.find((block: { type: string }) => block.type === "tool_use");
-    if (!toolUse) return null;
+    if (!toolUse) {
+      console.error("[safety-review] no tool_use block in response", JSON.stringify(data).slice(0, 500));
+      return null;
+    }
 
     return toolUse.input as SafetyVerdict;
-  } catch {
+  } catch (err) {
+    console.error("[safety-review] request failed", err);
     return null;
   }
 }
