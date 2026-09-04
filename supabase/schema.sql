@@ -70,6 +70,11 @@ insert into agently_categories (slug, name, description) values
   ('research-writing', 'Research & Writing', 'Drafting, summarizing, fact-checking'),
   ('automation', 'Automation', 'Workflows, scraping, scheduled tasks'),
   ('customer-support', 'Customer Support', 'Chat, tickets, FAQ handling'),
+  ('coding-dev', 'Coding & Development', 'Code review, security, testing, developer tooling'),
+  ('data-analytics', 'Data & Analytics', 'Dashboards, reporting, data pipelines'),
+  ('design-ux', 'Design & UX', 'Visual design, animation, UI polish'),
+  ('trading-finance', 'Trading & Finance', 'Money math, trading bots, financial correctness'),
+  ('sales-marketing', 'Sales & Marketing', 'Ads, copywriting, growth'),
   ('other', 'Other', 'Everything else')
 on conflict (slug) do nothing;
 

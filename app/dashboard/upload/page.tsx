@@ -111,18 +111,23 @@ export default async function UploadPage({
           label="What problem does it solve?"
           name="problem_solved"
           textarea
+          rows={5}
           required
           hint="This is what the search matches against — describe the situation someone is in, not what the agent is built with."
         />
-        <Field label="Full description" name="description" textarea required />
+        <Field label="Full description" name="description" textarea rows={8} required />
 
         <label className="flex flex-col gap-1 text-sm">
           <span className="font-medium">Category</span>
           <select
             name="category_slug"
             required
+            defaultValue=""
             className="rounded-lg border border-line bg-surface px-4 py-2.5 text-ink outline-none transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] focus:border-accent focus:shadow-[0_0_0_3px_rgba(47,224,173,0.12)]"
           >
+            <option value="" disabled>
+              Select a category
+            </option>
             {CATEGORIES_FALLBACK.map((c) => (
               <option key={c.slug} value={c.slug}>
                 {c.name}
