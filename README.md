@@ -142,3 +142,4 @@ npm run dev
 
 Same rule as every other project here: secrets live only in Vercel
 environment variables. Never in chat, never in git.
+
