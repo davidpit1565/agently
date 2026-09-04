@@ -460,11 +460,15 @@ export default async function AgentPage({
         </Reveal>
 
         {/* /api/checkout unconditionally 403s a creator buying their own
-            listing — the plain-HTML-form POST means that error renders as
+            listing, and (separately) an already-owned one-time or free
+            agent — the plain-HTML-form POST means either error renders as
             a raw JSON body in the browser instead of a friendly message.
-            Hiding the button for the owner avoids that dead end entirely,
-            same reasoning as hiding "Buy" for someone who can't act on it. */}
-        {!isOwner && (
+            Hiding the button for the owner, or for a buyer who already
+            holds a 'paid' purchase, avoids that dead end entirely — the
+            delivery link/files section above already covers what a buyer
+            who owns this needs to do next. A canceled subscription's
+            hasPurchased is false again, so resubscribing still shows Buy. */}
+        {!isOwner && !hasPurchased && (
           <form action="/api/checkout" method="POST" className="flex flex-col gap-3 pt-4">
             <input type="hidden" name="agentId" value={agent.id} />
             <button
