@@ -46,12 +46,21 @@ export async function POST(request: Request) {
 
   const { data: agent } = await supabase
     .from("agently_agents")
-    .select("*, profiles:agently_profiles!agently_agents_creator_id_fkey(stripe_connect_id, stripe_connect_ready)")
+    .select("*")
     .eq("id", agentId)
     .single();
 
   if (!agent) {
     return NextResponse.json({ error: "This agent doesn't exist." }, { status: 404 });
+  }
+
+  // app/agents/[slug]/page.tsx hides the Buy button for anything that isn't
+  // 'approved' (a delisted, rejected, or still-pending listing), but that's
+  // only the UI — this route is the actual place every purchase goes
+  // through, and nothing here re-checked status. A delisted or rejected
+  // agent's id posted directly here would otherwise still be purchasable.
+  if (agent.status !== "approved") {
+    return NextResponse.json({ error: "This agent isn't available for purchase." }, { status: 404 });
   }
 
   // A creator "buying" their own agent is free and instant for the "free"
@@ -212,7 +221,25 @@ export async function POST(request: Request) {
     }
   }
 
-  const creator = agent.profiles as { stripe_connect_id: string | null; stripe_connect_ready: boolean } | null;
+  // Goes through the admin client, not the buyer's own session — the
+  // "profiles are self-readable" RLS policy (auth.uid() = id) only lets a
+  // signed-in user read their own agently_profiles row. A buyer's session
+  // reading the *creator's* stripe_connect_ready/stripe_connect_id here
+  // would always come back null (not "not ready" — genuinely unreadable),
+  // which is what made every real checkout by any buyer, for any paid
+  // agent, fail with "hasn't finished payout setup" regardless of whether
+  // the creator actually had — this was never a per-agent problem.
+  const checkoutAdmin = createAdminClient();
+  const { data: creator } = checkoutAdmin
+    ? await checkoutAdmin
+        .from("agently_profiles")
+        .select("stripe_connect_id, stripe_connect_ready")
+        .eq("id", agent.creator_id)
+        .single()
+    : { data: null };
+  if (!checkoutAdmin) {
+    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+  }
   if (!creator?.stripe_connect_ready || !creator.stripe_connect_id) {
     return NextResponse.json(
       { error: "This creator hasn't finished payout setup yet, so this agent can't be purchased right now." },
