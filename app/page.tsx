@@ -185,7 +185,10 @@ export default async function Home() {
                 className="scroll-parallax absolute -right-5 -top-5 h-full w-full rotate-2 rounded-[1.7rem] border border-line/60 bg-surface/40"
               />
               <Reveal delay={220} className="bezel-shell console-breathe spotlight-ring tilt-hover relative">
-                <div className="bezel-core flex flex-col gap-4 border border-line bg-surface p-5 font-mono text-xs">
+                <Link
+                  href={`/agents/${newest.slug}`}
+                  className="bezel-core flex flex-col gap-4 border border-line bg-surface p-5 font-mono text-xs transition-colors duration-200 hover:border-accent/40"
+                >
                   <div className="flex items-center justify-between border-b border-line pb-3 text-ink-faint">
                     <span className="flex items-center gap-1.5">
                       <span className="pulse-ring relative flex h-1.5 w-1.5 items-center justify-center">
@@ -221,7 +224,7 @@ export default async function Home() {
                       {priceLabel(newest)}
                     </span>
                   </div>
-                </div>
+                </Link>
               </Reveal>
             </div>
           )}
