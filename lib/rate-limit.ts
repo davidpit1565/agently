@@ -31,7 +31,14 @@ export async function checkRateLimit(scope: string, limit: number, windowSeconds
   await admin.from("agently_rate_limits").insert({ scope });
   // Best-effort trim so the table doesn't grow forever — cheap since it's
   // indexed on (scope, created_at) and only ever touches this scope's rows.
-  await admin.from("agently_rate_limits").delete().eq("scope", scope).lt("created_at", windowStart);
+  // Every call already tolerates rows older than the window (the count
+  // query above filters them out), so nothing depends on this running on
+  // every call — only on it running often enough. Doing it here 1-in-20
+  // times instead of always cuts this function's typical cost from 3
+  // round trips to 2 without changing what it enforces.
+  if (Math.random() < 0.05) {
+    await admin.from("agently_rate_limits").delete().eq("scope", scope).lt("created_at", windowStart);
+  }
 
   return true;
 }

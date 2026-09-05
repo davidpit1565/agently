@@ -18,10 +18,19 @@ async function getOrCreateMembershipProductId(
   const products = await stripe.products.list({ active: true, limit: 100 });
   const existing = products.data.find((p) => p.metadata?.agently_tier === tier);
   if (existing) return existing.id;
-  const created = await stripe.products.create({
-    name: `Agently ${MEMBERSHIP_TIERS[tier].name} membership`,
-    metadata: { agently_tier: tier },
-  });
+  // Two switches to the same tier landing here at once (two tabs, a
+  // resubmitted request) both see no existing product and both create one —
+  // list() above isn't a lock. A deterministic key (same tier -> same key,
+  // always) makes the second call return the first call's product instead of
+  // minting a duplicate, the same way the subscription update below already
+  // dedupes concurrent switches.
+  const created = await stripe.products.create(
+    {
+      name: `Agently ${MEMBERSHIP_TIERS[tier].name} membership`,
+      metadata: { agently_tier: tier },
+    },
+    { idempotencyKey: `membership-product:${tier}` }
+  );
   return created.id;
 }
 
