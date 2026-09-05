@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Notice } from "@/app/components/form-field";
 import { SubmitButton } from "@/app/components/submit-button";
+import { isPlatformOwner } from "@/lib/owner";
 import type { Agent } from "@/lib/types";
 
 // The other half of the safety-review pipeline (lib/safety-review.ts): a
@@ -27,7 +28,7 @@ export default async function AdminAgentsPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user || !process.env.PLATFORM_OWNER_EMAIL || user.email !== process.env.PLATFORM_OWNER_EMAIL) {
+  if (!isPlatformOwner(user?.email)) {
     notFound();
   }
 

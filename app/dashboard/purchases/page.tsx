@@ -30,7 +30,7 @@ export default async function MyPurchasesPage() {
     return <Notice title="Sign in first">You need an account to see what you've bought.</Notice>;
   }
 
-  const purchases = await getMyPurchases(user.id);
+  const { purchases, failed } = await getMyPurchases(user.id);
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-16 sm:py-20">
@@ -42,7 +42,11 @@ export default async function MyPurchasesPage() {
         </p>
       </div>
 
-      {purchases.length === 0 ? (
+      {failed ? (
+        <p className="text-sm text-ink-soft">
+          Couldn't load your purchases — try refreshing the page.
+        </p>
+      ) : purchases.length === 0 ? (
         <p className="text-sm text-ink-soft">
           Nothing yet.{" "}
           <Link href="/browse" className="text-accent underline">

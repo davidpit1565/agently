@@ -41,7 +41,7 @@ export async function POST(request: Request) {
   const rawComment = form.get("comment");
   const comment = typeof rawComment === "string" ? rawComment.trim().slice(0, MAX_COMMENT_LENGTH) : null;
 
-  if (!agentId || rating < 1 || rating > 5) {
+  if (!agentId || !Number.isInteger(rating) || rating < 1 || rating > 5) {
     return NextResponse.json({ error: "A rating from 1 to 5 is required." }, { status: 400 });
   }
 

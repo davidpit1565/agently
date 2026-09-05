@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAllAgentRequests } from "@/lib/requests";
 import { Notice } from "@/app/components/form-field";
 import { SubmitButton } from "@/app/components/submit-button";
+import { isPlatformOwner } from "@/lib/owner";
 
 export default async function AdminRequestsPage({
   searchParams,
@@ -20,7 +21,7 @@ export default async function AdminRequestsPage({
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user || !process.env.PLATFORM_OWNER_EMAIL || user.email !== process.env.PLATFORM_OWNER_EMAIL) {
+  if (!isPlatformOwner(user?.email)) {
     notFound();
   }
 

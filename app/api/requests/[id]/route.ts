@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { sendNotificationEmail } from "@/lib/email";
+import { isPlatformOwner } from "@/lib/owner";
 import type { AgentRequestStatus } from "@/lib/types";
 
 const VALID_STATUSES: AgentRequestStatus[] = ["pending", "in_progress", "fulfilled", "declined"];
@@ -21,7 +22,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user || !process.env.PLATFORM_OWNER_EMAIL || user.email !== process.env.PLATFORM_OWNER_EMAIL) {
+  if (!isPlatformOwner(user?.email)) {
     return NextResponse.json({ error: "Not found." }, { status: 404 });
   }
 

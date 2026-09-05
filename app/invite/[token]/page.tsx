@@ -92,10 +92,31 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
     );
   }
 
-  await admin
-    .from("agently_team_invites")
-    .update({ accepted_by: user.id, accepted_at: new Date().toISOString() })
-    .eq("id", invite.id);
-
-  redirect(`/agents/${agent.slug}?joined=1`);
+  // Accepting used to happen right here, on this GET render — which meant
+  // just *loading* the invite URL consumed the one-time seat. An email
+  // security scanner (Outlook Safe Links, Google's link-following, a
+  // Slack/Teams unfurl) prefetching this URL while the real recipient is
+  // signed in elsewhere in the same browser would silently claim the seat
+  // before the person ever clicked anything, and they'd land on "Already
+  // claimed" with no idea why. Rendering a real confirmation step (a POST
+  // a person has to actually click) means loading the link is inert.
+  return (
+    <main className="mx-auto max-w-md animate-reveal-up px-6 py-24 text-center">
+      <h1 className="text-balance mb-2 font-display text-xl font-semibold">
+        Join {agent.name}
+      </h1>
+      <p className="mb-6 text-sm text-ink-soft">
+        You&apos;ve been given a seat on this team purchase. Accepting gives
+        you the same delivery link and files access as the buyer.
+      </p>
+      <form action={`/api/invite/${token}/accept`} method="POST">
+        <button
+          type="submit"
+          className="shine-sweep magnetic-btn rounded-full bg-accent px-6 py-3 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
+        >
+          Accept and join
+        </button>
+      </form>
+    </main>
+  );
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { getEmbedding, embeddableText } from "@/lib/embeddings";
+import { isPlatformOwner } from "@/lib/owner";
 
 // One-time (well, run-as-needed) catch-up for listings created before
 // semantic search existed — /api/agents and /api/agents/[id] only compute
@@ -21,7 +22,7 @@ export async function POST(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user || !process.env.PLATFORM_OWNER_EMAIL || user.email !== process.env.PLATFORM_OWNER_EMAIL) {
+  if (!isPlatformOwner(user?.email)) {
     return NextResponse.json({ error: "Not authorized." }, { status: 403 });
   }
 

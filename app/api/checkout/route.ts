@@ -6,6 +6,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { PLATFORM_FEE_PERCENT } from "@/lib/membership";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { MIN_TEAM_SEATS, MAX_TEAM_SEATS, teamPriceCents } from "@/lib/team-pricing";
+import { isPlatformOwner } from "@/lib/owner";
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -156,7 +157,7 @@ export async function POST(request: Request) {
   // the free-agent claim — the "buyers can claim free agents" RLS policy
   // only allows pricing_model = 'free', so this exact insert would be
   // silently rejected under the caller's own session for anything paid.
-  if (process.env.PLATFORM_OWNER_EMAIL && user.email === process.env.PLATFORM_OWNER_EMAIL) {
+  if (isPlatformOwner(user.email)) {
     const admin = createAdminClient();
     if (admin) {
       await admin.from("agently_purchases").upsert(
