@@ -15,9 +15,9 @@ import type { Agent } from "@/lib/types";
 export default async function AdminAgentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string }>;
+  searchParams: Promise<{ saved?: string; reviewed?: string }>;
 }) {
-  const { saved } = await searchParams;
+  const { saved, reviewed } = await searchParams;
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return <Notice title="Not connected yet">This page needs Supabase configured.</Notice>;
@@ -48,6 +48,24 @@ export default async function AdminAgentsPage({
 
   const agents = (data ?? []) as (Agent & { agently_profiles: { display_name: string } | null })[];
 
+  // Approving a listing above never runs the safety-review model (it only
+  // flips `status` — app/api/admin/agents/[id]/route.ts) — so an already-approved
+  // listing that got no verdict at submission time (no ANTHROPIC_API_KEY
+  // configured then, or the call failing) is stuck at trust_score=0 forever
+  // with no button anywhere to fix that, unless the creator edits it enough
+  // to trigger a fresh review. This surfaces exactly those, separately from
+  // the queue above, since they need no approval decision — only a re-run.
+  const { data: unscoredApprovedData } = await admin
+    .from("agently_agents")
+    .select("*, agently_profiles!agently_agents_creator_id_fkey(display_name)")
+    .eq("status", "approved")
+    .eq("trust_score", 0)
+    .order("created_at", { ascending: false });
+
+  const unscoredApproved = (unscoredApprovedData ?? []) as (Agent & {
+    agently_profiles: { display_name: string } | null;
+  })[];
+
   return (
     <main className="mx-auto max-w-2xl px-6 py-16 sm:py-20">
       <h1 className="text-balance mb-2 font-display text-2xl font-semibold">Listings to review</h1>
@@ -59,6 +77,11 @@ export default async function AdminAgentsPage({
       {saved && (
         <p className="mb-6 rounded-lg border border-accent/30 bg-accent-soft px-4 py-3 text-sm text-accent">
           Saved.
+        </p>
+      )}
+      {reviewed && (
+        <p className="mb-6 rounded-lg border border-accent/30 bg-accent-soft px-4 py-3 text-sm text-accent">
+          Re-reviewed — trust score updated.
         </p>
       )}
 
@@ -123,6 +146,41 @@ export default async function AdminAgentsPage({
             </div>
           ))}
         </div>
+      )}
+
+      {unscoredApproved.length > 0 && (
+        <>
+          <h2 className="text-balance mb-2 mt-12 font-display text-lg font-semibold">
+            Approved, never AI-reviewed
+          </h2>
+          <p className="mb-6 text-sm text-ink-faint">
+            Already live — no approval decision needed here. These just never got a real
+            safety-review score (missing ANTHROPIC_API_KEY at submission time, or the call
+            failed), so they're stuck showing trust_score=0. Re-run to get a real one.
+          </p>
+          <div className="flex flex-col gap-4">
+            {unscoredApproved.map((agent) => (
+              <div key={agent.id} className="rounded-xl border border-line bg-surface p-5">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="font-mono text-xs text-ink-faint">{agent.status}</span>
+                  <span className="text-xs text-ink-faint">
+                    by {agent.agently_profiles?.display_name ?? "unknown"}
+                  </span>
+                </div>
+                <h3 className="mb-1 font-display text-sm font-semibold">{agent.name}</h3>
+                <p className="mb-3 text-sm text-ink-soft">{agent.tagline}</p>
+                <form action={`/api/admin/agents/${agent.id}/review`} method="POST">
+                  <SubmitButton
+                    pendingText="Reviewing…"
+                    className="magnetic-btn w-fit rounded-full border border-line px-4 py-2 text-xs font-medium text-ink-soft transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:border-accent/50 hover:text-accent"
+                  >
+                    Re-run AI review
+                  </SubmitButton>
+                </form>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </main>
   );

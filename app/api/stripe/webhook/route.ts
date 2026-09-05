@@ -5,7 +5,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyCreatorOfSale } from "@/lib/notifications";
 import { createTeamInvitesAndNotify } from "@/lib/team-invites";
 import { sendNotificationEmail } from "@/lib/email";
-import { PLATFORM_FEE_PERCENT } from "@/lib/membership";
+import { PLATFORM_FEE_PERCENT, MIN_PLATFORM_FEE_CENTS } from "@/lib/membership";
 
 // Shared by charge.refunded and the two dispute events below: the purchases
 // row a charge-level event needs to reach is keyed by whichever id its
@@ -104,7 +104,18 @@ export async function POST(request: Request) {
             // Was a second hard-coded 0.15 — drifted from PLATFORM_FEE_PERCENT
             // the moment anyone changed the real fee, silently misreporting
             // actual platform revenue with no error anywhere.
-            platform_fee_cents: Math.round((session.amount_total ?? 0) * (PLATFORM_FEE_PERCENT / 100)),
+            //
+            // A subscription checkout has no session.subscription-shaped floor
+            // to mirror — Stripe only took application_fee_percent there, no
+            // MIN_PLATFORM_FEE_CENTS was ever applied at charge time — so this
+            // recomputation only floors the one-time-purchase case, matching
+            // what app/api/checkout/route.ts actually told Stripe to collect.
+            platform_fee_cents: session.subscription
+              ? Math.round((session.amount_total ?? 0) * (PLATFORM_FEE_PERCENT / 100))
+              : Math.max(
+                  Math.round((session.amount_total ?? 0) * (PLATFORM_FEE_PERCENT / 100)),
+                  MIN_PLATFORM_FEE_CENTS
+                ),
             status,
             // Only present for pricing_model 'subscription' — what
             // app/api/purchases/[purchaseId]/cancel/route.ts actually cancels.

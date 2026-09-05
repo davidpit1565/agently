@@ -127,7 +127,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ pur
   }
 
   try {
-    await stripe.refunds.create({ payment_intent: paymentIntentId });
+    // This purchase was a destination charge (transfer_data.destination +
+    // application_fee_amount, app/api/checkout/route.ts) — the creator's
+    // share was already transferred out at sale time, separately from this
+    // refund. Without reverse_transfer, Stripe refunds the buyer entirely
+    // out of the platform's own balance while the creator keeps what they
+    // were already paid; refund_application_fee returns the platform's own
+    // cut too. Together these make a refund actually undo the sale's money
+    // movement instead of only the customer-facing half of it.
+    await stripe.refunds.create({
+      payment_intent: paymentIntentId,
+      reverse_transfer: true,
+      refund_application_fee: true,
+    });
   } catch (err) {
     if (err instanceof Stripe.errors.StripeInvalidRequestError && err.code === "charge_already_refunded") {
       return NextResponse.json({ error: "This purchase was already refunded." }, { status: 409 });
