@@ -39,8 +39,9 @@ export default async function MyAgentsPage({
     return <Notice title="Sign in first">You need an account to see your listings.</Notice>;
   }
 
-  const agents = await getMyAgents(user.id);
-  const purchaseCounts = await getPurchaseCounts(agents.map((a) => a.id));
+  const { agents, failed: agentsFailed } = await getMyAgents(user.id);
+  const { counts: purchaseCounts, failed: countsFailed } = await getPurchaseCounts(agents.map((a) => a.id));
+  const failed = agentsFailed || countsFailed;
 
   return (
     <main className="mx-auto max-w-3xl px-6 py-16 sm:py-20">
@@ -77,7 +78,9 @@ export default async function MyAgentsPage({
         </div>
       </div>
 
-      {agents.length === 0 ? (
+      {failed ? (
+        <p className="text-sm text-ink-soft">Couldn't load your agents — try refreshing the page.</p>
+      ) : agents.length === 0 ? (
         <p className="text-sm text-ink-soft">
           Nothing listed yet.{" "}
           <Link href="/dashboard/upload" className="text-accent underline">

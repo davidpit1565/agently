@@ -12,6 +12,8 @@ import { Reveal } from "@/app/components/reveal";
 import { getAgentFiles, getReadmeHtml } from "@/lib/agent-files";
 import { formatEuros } from "@/lib/format";
 import { SubmitButton } from "@/app/components/submit-button";
+import { RefundButton } from "@/app/components/refund-button";
+import { CancelSubscriptionButton } from "@/app/components/cancel-subscription-button";
 import { getAcceptedTeamPurchaseId } from "@/lib/team-invites";
 import { MIN_TEAM_SEATS, MAX_TEAM_SEATS } from "@/lib/team-pricing";
 
@@ -375,14 +377,7 @@ export default async function AgentPage({
               doesn&apos;t work as described. Requesting one revokes your
               access to the delivery link and files once Stripe confirms it.
             </p>
-            <form action={`/api/refunds/${refundEligiblePurchaseId}`} method="POST">
-              <SubmitButton
-                pendingText="Requesting…"
-                className="rounded-full border border-line px-4 py-2 text-xs text-ink-soft hover:border-red-400/50 hover:text-red-400"
-              >
-                Request a refund
-              </SubmitButton>
-            </form>
+            <RefundButton purchaseId={refundEligiblePurchaseId} />
           </Reveal>
         )}
 
@@ -393,14 +388,7 @@ export default async function AgentPage({
               Canceling stops future billing — you keep access through the
               end of what you&apos;ve already paid for, not refunded early.
             </p>
-            <form action={`/api/purchases/${cancelablePurchaseId}/cancel`} method="POST">
-              <SubmitButton
-                pendingText="Canceling…"
-                className="rounded-full border border-line px-4 py-2 text-xs text-ink-soft hover:border-red-400/50 hover:text-red-400"
-              >
-                Cancel subscription
-              </SubmitButton>
-            </form>
+            <CancelSubscriptionButton purchaseId={cancelablePurchaseId} />
           </Reveal>
         )}
 

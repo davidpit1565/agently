@@ -33,7 +33,7 @@ export default async function CreatorPage({
   const creator = await getCreatorProfile(id);
   if (!creator) notFound();
 
-  const agents = await getAgentsByCreator(id);
+  const { agents, failed } = await getAgentsByCreator(id);
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-16 sm:py-20">
@@ -66,7 +66,9 @@ export default async function CreatorPage({
         </Reveal>
       )}
 
-      {agents.length === 0 ? (
+      {failed ? (
+        <p className="text-sm text-ink-soft">Couldn't load this creator's listings — try refreshing the page.</p>
+      ) : agents.length === 0 ? (
         <p className="text-sm text-ink-soft">Nothing listed yet.</p>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

@@ -2,6 +2,11 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { checkRateLimit } from "@/lib/rate-limit";
 
+// Same cap as reviews' MAX_COMMENT_LENGTH (app/api/reviews/route.ts) —
+// without one, this field had no limit at all, unlike every other
+// publicly-rendered or admin-viewed free-text field in the app.
+const MAX_DESCRIPTION_LENGTH = 2000;
+
 // Submits a custom-agent request. Professional-tier only — enforced here
 // and again at the database (schema.sql's "professional members can
 // request an agent" policy), since a Professional-only perk that only the
@@ -46,7 +51,7 @@ export async function POST(request: Request) {
   }
 
   const form = await request.formData();
-  const description = String(form.get("description") ?? "").trim();
+  const description = String(form.get("description") ?? "").trim().slice(0, MAX_DESCRIPTION_LENGTH);
 
   if (!description) {
     return NextResponse.json({ error: "Describe what you need." }, { status: 400 });

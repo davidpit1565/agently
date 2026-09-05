@@ -61,5 +61,18 @@ export function watermarkText(fileName: string, content: string, licenseToken: s
     header = lines.join("\n") + "\n" + "-".repeat(40) + "\n\n";
   }
 
+  // A shebang (#!/usr/bin/env python3) only does anything for the OS's
+  // loader when it's the file's literal first line — prepending the header
+  // above it (as this used to do unconditionally for .py/.sh) still leaves
+  // a syntactically valid file, but silently breaks running it directly
+  // (./script.py) even though `python3 script.py` still works. Keep the
+  // shebang first and insert the header right after it instead.
+  if (content.startsWith("#!")) {
+    const newlineIndex = content.indexOf("\n");
+    const shebangLine = newlineIndex === -1 ? content : content.slice(0, newlineIndex + 1);
+    const rest = newlineIndex === -1 ? "" : content.slice(newlineIndex + 1);
+    return shebangLine + header + rest;
+  }
+
   return header + content;
 }

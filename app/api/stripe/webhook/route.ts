@@ -161,7 +161,22 @@ export async function POST(request: Request) {
       // bought it, and schema.sql's review policy keeps letting them post or
       // keep a "verified buyer" review for an agent they got their money
       // back on.
-      const charge = event.data.object as { payment_intent: string | null; invoice: string | null };
+      const charge = event.data.object as {
+        payment_intent: string | null;
+        invoice: string | null;
+        refunded: boolean;
+        amount_refunded: number;
+        amount: number;
+      };
+      // Stripe fires charge.refunded for a PARTIAL refund too — `refunded`
+      // is only true once amount_refunded has reached the full charge
+      // amount. Without this check, a creator issuing a small goodwill
+      // partial refund from the Stripe dashboard (say €5 back on a €50
+      // purchase) would flip this purchase to status='refunded' — instantly
+      // revoking delivery access, files, and review eligibility — even
+      // though the buyer kept €45 of paid access and never asked for (or
+      // got) all of it back.
+      if (!charge.refunded && charge.amount_refunded < charge.amount) break;
       // The purchases row a refund needs to reach is keyed by whichever id
       // its insert used: the Checkout Session id for a one-time purchase or
       // a subscription's first payment, but the invoice id for every

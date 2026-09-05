@@ -73,9 +73,15 @@ export async function getCreatorProfile(creatorId: string): Promise<CreatorProfi
   return data as CreatorProfile;
 }
 
-export async function getAgentsByCreator(creatorId: string): Promise<Agent[]> {
+export type AgentsResult = { agents: Agent[]; failed: boolean };
+
+// A genuine Supabase failure used to come back identical to "this creator
+// really has zero listings" ([] either way) — a transient blip during a
+// page load rendered a false "nothing here" instead of a retryable error.
+// `failed` lets the caller tell the two apart.
+export async function getAgentsByCreator(creatorId: string): Promise<AgentsResult> {
   if (!supabaseConfigured() || creatorId === "seed-creator") {
-    return SEED_AGENTS.filter((a) => a.creator_id === creatorId);
+    return { agents: SEED_AGENTS.filter((a) => a.creator_id === creatorId), failed: false };
   }
 
   const supabase = await createClient();
@@ -86,8 +92,8 @@ export async function getAgentsByCreator(creatorId: string): Promise<Agent[]> {
     .eq("status", "approved")
     .order("created_at", { ascending: false });
 
-  if (error || !data) return [];
-  return data as Agent[];
+  if (error) return { agents: [], failed: true };
+  return { agents: (data ?? []) as Agent[], failed: false };
 }
 
 /** Every agent a creator owns, any status — for their own dashboard, never
@@ -95,8 +101,8 @@ export async function getAgentsByCreator(creatorId: string): Promise<Agent[]> {
  *  covers this: it reads `status = 'approved' or creator_id = auth.uid()`,
  *  so a signed-in creator querying their own creator_id gets all of theirs
  *  back regardless of status. */
-export async function getMyAgents(userId: string): Promise<Agent[]> {
-  if (!supabaseConfigured()) return [];
+export async function getMyAgents(userId: string): Promise<AgentsResult> {
+  if (!supabaseConfigured()) return { agents: [], failed: false };
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -105,8 +111,8 @@ export async function getMyAgents(userId: string): Promise<Agent[]> {
     .eq("creator_id", userId)
     .order("created_at", { ascending: false });
 
-  if (error || !data) return [];
-  return data as Agent[];
+  if (error) return { agents: [], failed: true };
+  return { agents: (data ?? []) as Agent[], failed: false };
 }
 
 /** Fire-and-forget — a visitor's page render shouldn't wait on this, and a
@@ -125,9 +131,9 @@ export function recordAgentView(agentId: string): void {
 /** One batched query for a creator's whole dashboard instead of one COUNT
  *  per listing. Only `status = 'paid'` counts — a pending or refunded
  *  checkout was never a real sale. */
-export async function getPurchaseCounts(agentIds: string[]): Promise<Map<string, number>> {
+export async function getPurchaseCounts(agentIds: string[]): Promise<{ counts: Map<string, number>; failed: boolean }> {
   const counts = new Map<string, number>();
-  if (!supabaseConfigured() || agentIds.length === 0) return counts;
+  if (!supabaseConfigured() || agentIds.length === 0) return { counts, failed: false };
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -136,11 +142,11 @@ export async function getPurchaseCounts(agentIds: string[]): Promise<Map<string,
     .in("agent_id", agentIds)
     .eq("status", "paid");
 
-  if (error || !data) return counts;
-  for (const row of data) {
+  if (error) return { counts, failed: true };
+  for (const row of data ?? []) {
     counts.set(row.agent_id, (counts.get(row.agent_id) ?? 0) + 1);
   }
-  return counts;
+  return { counts, failed: false };
 }
 
 export type PurchasedAgent = {
@@ -156,8 +162,8 @@ export type PurchasedAgent = {
  *  buyer purchased. RLS ("buyers see their own purchases") already scopes
  *  this to the signed-in user's own rows, and the single agent_id foreign
  *  key on agently_purchases lets Supabase embed the related row directly. */
-export async function getMyPurchases(userId: string): Promise<PurchasedAgent[]> {
-  if (!supabaseConfigured()) return [];
+export async function getMyPurchases(userId: string): Promise<{ purchases: PurchasedAgent[]; failed: boolean }> {
+  if (!supabaseConfigured()) return { purchases: [], failed: false };
 
   const supabase = await createClient();
   const { data, error } = await supabase
@@ -167,13 +173,16 @@ export async function getMyPurchases(userId: string): Promise<PurchasedAgent[]> 
     .eq("status", "paid")
     .order("created_at", { ascending: false });
 
-  if (error || !data) return [];
-  return data
-    .filter((row) => row.agently_agents)
-    .map((row) => ({
-      purchaseId: row.id,
-      purchasedAt: row.created_at,
-      amountPaidCents: row.amount_cents ?? 0,
-      agent: row.agently_agents as unknown as Agent,
-    }));
+  if (error) return { purchases: [], failed: true };
+  return {
+    purchases: (data ?? [])
+      .filter((row) => row.agently_agents)
+      .map((row) => ({
+        purchaseId: row.id,
+        purchasedAt: row.created_at,
+        amountPaidCents: row.amount_cents ?? 0,
+        agent: row.agently_agents as unknown as Agent,
+      })),
+    failed: false,
+  };
 }
