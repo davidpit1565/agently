@@ -361,6 +361,14 @@ alter table agently_notifications drop constraint if exists notifications_type_c
 alter table agently_notifications add constraint notifications_type_check
   check (type in ('agent_updated', 'agent_request_fulfilled', 'agent_approved', 'agent_rejected', 'agent_sale'));
 
+-- A real bank chargeback (app/api/stripe/webhook/route.ts's
+-- charge.dispute.created handler) is time-sensitive — the creator (and the
+-- platform owner, by email) needs to know immediately, not just see it
+-- eventually in Stripe's own dashboard.
+alter table agently_notifications drop constraint if exists notifications_type_check;
+alter table agently_notifications add constraint notifications_type_check
+  check (type in ('agent_updated', 'agent_request_fulfilled', 'agent_approved', 'agent_rejected', 'agent_sale', 'agent_disputed'));
+
 -- "Describe a problem, get a custom agent built for it" — a Professional-
 -- tier perk. Fulfillment itself is manual (someone on the team actually
 -- builds it and marks the request fulfilled); there's no automated

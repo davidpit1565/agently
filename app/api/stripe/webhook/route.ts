@@ -1,9 +1,30 @@
 import { NextResponse } from "next/server";
+import Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyCreatorOfSale } from "@/lib/notifications";
 import { createTeamInvitesAndNotify } from "@/lib/team-invites";
+import { sendNotificationEmail } from "@/lib/email";
 import { PLATFORM_FEE_PERCENT, MIN_PLATFORM_FEE_CENTS } from "@/lib/membership";
+
+// Shared by charge.refunded and the two dispute events below: the purchases
+// row a charge-level event needs to reach is keyed by whichever id its
+// insert used — the Checkout Session id for a one-time purchase or a
+// subscription's first payment, but the invoice id for every renewal after
+// that (renewals never go through Checkout, so there's no Checkout Session
+// for stripe.checkout.sessions.list to find). Looking up by payment_intent
+// alone silently misses any event on a renewal charge.
+async function findPurchaseRowId(
+  stripe: Stripe,
+  charge: { payment_intent: string | null; invoice: string | null }
+): Promise<string | undefined> {
+  let checkoutSessionId: string | undefined;
+  if (charge.payment_intent) {
+    const session = await stripe.checkout.sessions.list({ payment_intent: charge.payment_intent, limit: 1 });
+    checkoutSessionId = session.data[0]?.id;
+  }
+  return checkoutSessionId ?? charge.invoice ?? undefined;
+}
 
 // Point this route at Stripe's dashboard (or `stripe listen` locally) once
 // STRIPE_WEBHOOK_SECRET is set. Handles both one-time agent purchases and
@@ -188,22 +209,7 @@ export async function POST(request: Request) {
       // though the buyer kept €45 of paid access and never asked for (or
       // got) all of it back.
       if (!charge.refunded && charge.amount_refunded < charge.amount) break;
-      // The purchases row a refund needs to reach is keyed by whichever id
-      // its insert used: the Checkout Session id for a one-time purchase or
-      // a subscription's first payment, but the invoice id for every
-      // renewal after that (see invoice.paid below — renewals never go
-      // through Checkout, so there is no Checkout Session for
-      // stripe.checkout.sessions.list to find). Looking up by
-      // payment_intent alone silently missed a refund of any renewal
-      // charge, leaving that row at status='paid' forever even though the
-      // buyer got their money back — the buyer keeps a "verified purchase"
-      // and continued file access after being refunded.
-      let checkoutSessionId: string | undefined;
-      if (charge.payment_intent) {
-        const session = await stripe.checkout.sessions.list({ payment_intent: charge.payment_intent, limit: 1 });
-        checkoutSessionId = session.data[0]?.id;
-      }
-      const purchaseRowId = checkoutSessionId ?? charge.invoice ?? undefined;
+      const purchaseRowId = await findPurchaseRowId(stripe, charge);
       if (purchaseRowId) {
         const { error } = await supabase
           .from("agently_purchases")
@@ -212,6 +218,147 @@ export async function POST(request: Request) {
         if (error) {
           console.error("[stripe/webhook] refund update failed", { eventId: event.id, purchaseRowId, message: error.message });
           return NextResponse.json({ error: "Failed to record refund" }, { status: 500 });
+        }
+      }
+      break;
+    }
+    case "charge.dispute.created": {
+      // A dispute (a real bank chargeback, not a refund through our own
+      // /api/refunds) never goes through app/api/refunds/[purchaseId]/route.ts
+      // at all — the buyer contests the charge with their card issuer
+      // directly, bypassing delivery_accessed_at entirely. Left alone, this
+      // event did nothing: no one found out until checking Stripe's
+      // dashboard by hand, and no evidence was ever submitted to contest it.
+      const dispute = event.data.object as {
+        id: string;
+        charge: string;
+        amount: number;
+        reason: string;
+        evidence_details?: { due_by: number | null };
+      };
+      const charge = (await stripe.charges.retrieve(dispute.charge, {
+        expand: ["invoice"],
+      })) as unknown as {
+        payment_intent: string | null;
+        invoice: string | { id: string } | null;
+      };
+      const purchaseRowId = await findPurchaseRowId(stripe, {
+        payment_intent: charge.payment_intent,
+        invoice: typeof charge.invoice === "string" ? charge.invoice : charge.invoice?.id ?? null,
+      });
+
+      const { data: purchase } = purchaseRowId
+        ? await supabase
+            .from("agently_purchases")
+            .select("id, agent_id, delivery_accessed_at, created_at")
+            .eq("stripe_checkout_session_id", purchaseRowId)
+            .single()
+        : { data: null };
+
+      // Best-effort proof of delivery, attached as a draft — never
+      // auto-submitted. Whether to actually contest a dispute (submitting
+      // locks the evidence in) is a real judgment call each time, not
+      // something to decide here; this only makes sure whoever does decide
+      // has the one fact that matters already typed in for them.
+      if (purchase) {
+        const evidenceText = purchase.delivery_accessed_at
+          ? `Buyer accessed the delivery link/files on ${purchase.delivery_accessed_at} (purchase created ${purchase.created_at}, agently_purchases.id=${purchase.id}).`
+          : `Buyer had NOT accessed the delivery link or files as of this dispute (purchase created ${purchase.created_at}, agently_purchases.id=${purchase.id}).`;
+        try {
+          await stripe.disputes.update(dispute.id, { evidence: { uncategorized_text: evidenceText }, submit: false });
+        } catch (err) {
+          console.error("[stripe/webhook] dispute evidence draft failed", {
+            eventId: event.id,
+            disputeId: dispute.id,
+            message: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+
+      const { data: agent } = purchase
+        ? await supabase.from("agently_agents").select("name, creator_id").eq("id", purchase.agent_id).single()
+        : { data: null };
+
+      const dueBy = dispute.evidence_details?.due_by
+        ? new Date(dispute.evidence_details.due_by * 1000).toISOString().slice(0, 10)
+        : "unknown";
+      const message = `A buyer disputed a charge for ${agent?.name ?? "an agent"} (reason: ${dispute.reason}). Evidence is due by ${dueBy} — review and submit in Stripe: https://dashboard.stripe.com/disputes/${dispute.id}`;
+
+      // Never throw from here — the dispute itself already exists on
+      // Stripe's side by the time this runs regardless of whether these
+      // notifications succeed.
+      try {
+        if (agent?.creator_id) {
+          await supabase.from("agently_notifications").insert({
+            user_id: agent.creator_id,
+            agent_id: purchase?.agent_id ?? null,
+            type: "agent_disputed",
+            message,
+          });
+          const { data: creator } = await supabase.auth.admin.getUserById(agent.creator_id);
+          await sendNotificationEmail(creator.user?.email, "A buyer disputed a purchase", message);
+        }
+        await sendNotificationEmail(process.env.PLATFORM_OWNER_EMAIL, "Stripe dispute opened", message);
+      } catch (err) {
+        console.error("[stripe/webhook] dispute notification failed", {
+          eventId: event.id,
+          disputeId: dispute.id,
+          message: err instanceof Error ? err.message : String(err),
+        });
+      }
+      break;
+    }
+    case "charge.dispute.closed": {
+      // A lost dispute pulls the disputed amount (plus Stripe's own dispute
+      // fee) from the platform's balance — same as a refund, Stripe does
+      // NOT automatically claw back what was already transferred to the
+      // creator for a destination charge. Without reversing that transfer
+      // ourselves, a lost dispute is the same one-sided leak app/api/refunds
+      // used to have: the creator keeps their share, the platform eats the
+      // loss alone. A won dispute needs no correction — the buyer keeps
+      // access, nothing was ever taken back.
+      const dispute = event.data.object as { id: string; charge: string; amount: number; status: string };
+      if (dispute.status !== "lost") break;
+
+      const charge = (await stripe.charges.retrieve(dispute.charge, {
+        expand: ["invoice"],
+      })) as unknown as {
+        payment_intent: string | null;
+        invoice: string | { id: string } | null;
+        transfer: string | null;
+      };
+
+      if (charge.transfer) {
+        try {
+          // Capped at the transfer's own amount by Stripe itself if
+          // dispute.amount somehow exceeded it — never overdraws the
+          // connected account beyond what this specific sale sent them.
+          await stripe.transfers.createReversal(charge.transfer, { amount: dispute.amount });
+        } catch (err) {
+          console.error("[stripe/webhook] dispute transfer reversal failed", {
+            eventId: event.id,
+            disputeId: dispute.id,
+            transfer: charge.transfer,
+            message: err instanceof Error ? err.message : String(err),
+          });
+        }
+      }
+
+      const purchaseRowId = await findPurchaseRowId(stripe, {
+        payment_intent: charge.payment_intent,
+        invoice: typeof charge.invoice === "string" ? charge.invoice : charge.invoice?.id ?? null,
+      });
+      if (purchaseRowId) {
+        const { error } = await supabase
+          .from("agently_purchases")
+          .update({ status: "refunded" })
+          .eq("stripe_checkout_session_id", purchaseRowId);
+        if (error) {
+          console.error("[stripe/webhook] dispute-lost purchase update failed", {
+            eventId: event.id,
+            purchaseRowId,
+            message: error.message,
+          });
         }
       }
       break;
