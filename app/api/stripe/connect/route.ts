@@ -30,7 +30,7 @@ export async function POST(request: Request) {
 
   const { data: profile, error: profileError } = await supabase
     .from("agently_profiles")
-    .select("stripe_connect_id")
+    .select("stripe_connect_id, account_type, company_name")
     .eq("id", user.id)
     .single();
 
@@ -59,9 +59,22 @@ export async function POST(request: Request) {
   // and persists it, so a key-mode switch self-heals on the next visit here
   // instead of leaving a creator stuck.
   async function createAccount() {
+    // Without business_type set here, Stripe's hosted onboarding always
+    // asks the creator to choose Company vs Individual themselves — even
+    // though they already answered that exact question in their Agently
+    // profile (Settings) — and then asks the individual-only fields on top
+    // of the company ones (or vice versa) until they pick. Passing the
+    // profile's own account_type skips that question and the fields that
+    // don't apply, instead of Stripe asking on the platform's behalf a
+    // second time for information Agently already has.
+    const isCompany = profile?.account_type === "company";
     const account = await stripe.accounts.create({
       type: "express",
       email: user!.email,
+      business_type: isCompany ? "company" : "individual",
+      ...(isCompany && profile?.company_name
+        ? { company: { name: profile.company_name } }
+        : {}),
       capabilities: {
         card_payments: { requested: true },
         transfers: { requested: true },
