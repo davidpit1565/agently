@@ -3,7 +3,7 @@ import Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { PLATFORM_FEE_PERCENT } from "@/lib/membership";
+import { PLATFORM_FEE_PERCENT, MIN_PLATFORM_FEE_CENTS } from "@/lib/membership";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { MIN_TEAM_SEATS, MAX_TEAM_SEATS, teamPriceCents } from "@/lib/team-pricing";
 import { isPlatformOwner } from "@/lib/owner";
@@ -259,7 +259,11 @@ export async function POST(request: Request) {
   // with a per-seat unit_amount would round each seat separately and could
   // land a cent or two off from that.
   const chargeAmount = seats === 1 ? agent.price_cents : teamPriceCents(agent.price_cents, seats);
-  const platformFee = Math.round((chargeAmount * PLATFORM_FEE_PERCENT) / 100);
+  // A one-time sale's application_fee_amount is what's left of the platform's
+  // cut after Stripe's own processing fee comes out of it (Stripe deducts
+  // its fee from the platform's share, not the creator's) — floored so that
+  // never goes negative in practice. See MIN_PLATFORM_FEE_CENTS.
+  const platformFee = Math.max(Math.round((chargeAmount * PLATFORM_FEE_PERCENT) / 100), MIN_PLATFORM_FEE_CENTS);
   const origin = new URL(request.url).origin;
 
   const sessionParams: Stripe.Checkout.SessionCreateParams = {
