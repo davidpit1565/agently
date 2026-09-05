@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { reviewAgentSubmission } from "@/lib/safety-review";
+import { reviewAgentSubmission, isAutoApproveEnabled } from "@/lib/safety-review";
 import { notifyBuyersOfUpdate } from "@/lib/notifications";
 import { getEmbedding, embeddableText } from "@/lib/embeddings";
 import { uploadAgentFiles, getAgentIdsWithFiles } from "@/lib/agent-files";
@@ -127,8 +127,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (contentChanged) {
     const verdict = await reviewAgentSubmission({ name, tagline, problemSolved, description, deliveryUrl });
     if (verdict) {
-      status = verdict.risk === "low" ? "approved" : "pending_review";
-      trustScore = { low: 65, medium: 40, high: 15 }[verdict.risk];
+      // isAutoApproveEnabled() is off by default — see lib/safety-review.ts.
+      status = verdict.risk === "low" && isAutoApproveEnabled() ? "approved" : "pending_review";
+      trustScore = verdict.score;
       reviewNotes = `[${verdict.risk}] ${verdict.summary}${verdict.flags.length ? ` — flags: ${verdict.flags.join("; ")}` : ""}`;
     } else {
       // No automated opinion available — a real content change still goes

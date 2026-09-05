@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { MEMBERSHIP_TIERS, canUpload, MIN_AGENT_PRICE_CENTS } from "@/lib/membership";
-import { reviewAgentSubmission } from "@/lib/safety-review";
+import { reviewAgentSubmission, isAutoApproveEnabled } from "@/lib/safety-review";
 import { getEmbedding, embeddableText } from "@/lib/embeddings";
 import { uploadAgentFiles } from "@/lib/agent-files";
 import { sanitizeUrl } from "@/lib/validation";
@@ -201,8 +201,11 @@ export async function POST(request: Request) {
 
   // No verdict (API key missing, or the call failed) means "no automated
   // opinion" — stay pending_review, never auto-approve on a null verdict.
-  const status = verdict?.risk === "low" ? "approved" : "pending_review";
-  const trustScore = verdict ? { low: 65, medium: 40, high: 15 }[verdict.risk] : 0;
+  // isAutoApproveEnabled() is off by default: David decides every listing
+  // in practice for now, regardless of score, until that's flipped on
+  // purpose once the score has a track record.
+  const status = verdict && verdict.risk === "low" && isAutoApproveEnabled() ? "approved" : "pending_review";
+  const trustScore = verdict ? verdict.score : 0;
 
   // Null without VOYAGE_API_KEY configured — /api/search falls back to
   // substring matching for any listing with no embedding, same as today.

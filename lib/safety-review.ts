@@ -1,18 +1,29 @@
 /**
  * The safety-review agent from the market research report (ch. 5) — first
  * real pass. Reviews a submitted listing against what it claims to do, what
- * it asks permission for, and whether the description matches. A "low"
- * verdict auto-approves; anything else stays pending_review for a human,
- * same as today. Needs ANTHROPIC_API_KEY — without it, callers should treat
- * a null return as "skip automated review, leave it for a human" (the
- * existing behavior), not as an error.
+ * it asks permission for, and whether the description matches, and returns
+ * a genuine 0-100 trust score alongside the reasoning behind it. Nothing
+ * auto-approves off this verdict today — see SAFETY_REVIEW_AUTO_APPROVE
+ * below, which is the single switch a future decision to trust it would
+ * flip. Needs ANTHROPIC_API_KEY — without it, callers should treat a null
+ * return as "skip automated review, leave it for a human" (the existing
+ * behavior), not as an error.
  */
 
 export type SafetyVerdict = {
+  score: number;
   risk: "low" | "medium" | "high";
   flags: string[];
   summary: string;
 };
+
+// Flip to "true" once the score above has a track record worth trusting on
+// its own. Until then every submission waits in pending_review for a human
+// regardless of what the model returns — see both call sites' use of
+// isAutoApproveEnabled().
+export function isAutoApproveEnabled(): boolean {
+  return process.env.SAFETY_REVIEW_AUTO_APPROVE === "true";
+}
 
 const REVIEW_TOOL = {
   name: "submit_review",
@@ -20,6 +31,11 @@ const REVIEW_TOOL = {
   input_schema: {
     type: "object",
     properties: {
+      score: {
+        type: "integer",
+        description:
+          "A precise trust score from 0 (actively dangerous or deceptive) to 100 (fully trustworthy, clearly and narrowly scoped). Judge each listing on its own merits — do not round to convenient buckets like 0/25/50/75/100. Two listings that are both broadly fine should still land at different scores if one is more precisely described than the other.",
+      },
       risk: {
         type: "string",
         enum: ["low", "medium", "high"],
@@ -36,7 +52,7 @@ const REVIEW_TOOL = {
         description: "One or two sentences a human reviewer or buyer can read as the review note.",
       },
     },
-    required: ["risk", "flags", "summary"],
+    required: ["score", "risk", "flags", "summary"],
   },
 };
 
@@ -101,7 +117,12 @@ Flag anything where the description implies broad or unrelated access (e.g. "rea
       return null;
     }
 
-    return toolUse.input as SafetyVerdict;
+    const verdict = toolUse.input as SafetyVerdict;
+    // The model is asked for an integer 0-100, but nothing stops a bad or
+    // out-of-range response from reaching here — clamp so a stray -5 or 140
+    // never reaches the trust ring's stroke-offset math as-is.
+    const score = Math.round(Number(verdict.score));
+    return { ...verdict, score: Number.isFinite(score) ? Math.max(0, Math.min(100, score)) : 0 };
   } catch (err) {
     console.error("[safety-review] request failed", err);
     return null;
