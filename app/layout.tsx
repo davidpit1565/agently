@@ -5,6 +5,7 @@ import { Header } from "./components/header";
 import { Footer } from "./components/footer";
 import { PageWipe } from "./components/page-wipe";
 import { createClient } from "@/lib/supabase/server";
+import { isPlatformOwner } from "@/lib/owner";
 
 const display = Bricolage_Grotesque({
   subsets: ["latin"],
@@ -46,12 +47,19 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   let signedIn = false;
+  let isAdmin = false;
   if (process.env.NEXT_PUBLIC_SUPABASE_URL) {
     const supabase = await createClient();
     const {
       data: { user },
     } = await supabase.auth.getUser();
     signedIn = !!user;
+    // isPlatformOwner is the same single-owner check /dashboard/admin/agents
+    // and /dashboard/admin/requests already gate on — this only decides
+    // whether the nav link is worth showing, not who can reach those pages.
+    // If a real admin role is ever added, only isPlatformOwner would need
+    // to change; this stays correct without touching the nav again.
+    isAdmin = isPlatformOwner(user?.email);
   }
 
   return (
@@ -67,7 +75,7 @@ export default async function RootLayout({
           Skip to content
         </a>
         <div className="flex min-h-screen flex-col">
-          <Header signedIn={signedIn} />
+          <Header signedIn={signedIn} isAdmin={isAdmin} />
           <div id="main-content" className="flex-1">{children}</div>
           <Footer />
         </div>

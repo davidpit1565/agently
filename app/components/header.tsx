@@ -21,7 +21,7 @@ function NavLink({ href, label, onClick }: { href: string; label: string; onClic
   );
 }
 
-export function Header({ signedIn }: { signedIn: boolean }) {
+export function Header({ signedIn, isAdmin = false }: { signedIn: boolean; isAdmin?: boolean }) {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -43,6 +43,11 @@ export function Header({ signedIn }: { signedIn: boolean }) {
       <Link href="/dashboard/settings" className="hover:text-ink">
         Settings
       </Link>
+      {isAdmin && (
+        <Link href="/dashboard/admin/agents" className="hover:text-ink">
+          Admin
+        </Link>
+      )}
       <form action="/auth/sign-out" method="POST">
         <button
           type="submit"
@@ -162,6 +167,15 @@ export function Header({ signedIn }: { signedIn: boolean }) {
               >
                 Settings
               </Link>
+              {isAdmin && (
+                <Link
+                  href="/dashboard/admin/agents"
+                  onClick={() => setOpen(false)}
+                  className="flex min-h-11 items-center rounded-lg px-2 hover:bg-surface hover:text-ink"
+                >
+                  Admin
+                </Link>
+              )}
             </>
           )}
         </nav>
