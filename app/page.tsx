@@ -71,6 +71,7 @@ export default async function Home() {
       <div className="hero-glow">
         <div className="hero-glow-a" />
         <div className="hero-glow-b" />
+        <div className="hero-glow-c" />
       </div>
 
       <div className="relative mx-auto flex max-w-6xl flex-col gap-28 px-6 py-24 sm:py-32">
@@ -80,13 +81,15 @@ export default async function Home() {
         <div className="grid items-center gap-16 lg:grid-cols-[1.1fr_0.9fr] lg:gap-12">
           <div className="flex max-w-xl flex-col gap-6">
             <div
-              className="flex w-fit animate-fade-up items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 font-mono text-xs uppercase tracking-wide text-ink-soft"
+              className="magnetic-btn flex w-fit animate-fade-up items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 font-mono text-xs uppercase tracking-wide text-ink-soft transition-colors duration-200 hover:border-accent/40"
               style={{ animationDelay: "0ms" }}
             >
-              <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-accent" aria-hidden />
+              <span className="pulse-ring relative flex h-1.5 w-1.5 items-center justify-center">
+                <span className="relative z-10 h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />
+              </span>
               <CounterUp value={agents.length} duration={700} /> agent{agents.length === 1 ? "" : "s"} live now
             </div>
-            <h1 className="text-balance font-display text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
+            <h1 className="animate-tracking-in text-balance font-display text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
               <span>
                 <span className="inline-block overflow-hidden">
                   <span className="inline-block animate-word-in" style={{ animationDelay: "90ms" }}>
@@ -107,7 +110,7 @@ export default async function Home() {
               <br />
               <span className="inline-block overflow-hidden">
                 <span
-                  className="inline-block animate-word-in bg-gradient-to-r from-accent to-accent-strong bg-clip-text text-transparent"
+                  className="gradient-drift inline-block animate-word-in bg-gradient-to-r from-accent to-accent-strong bg-clip-text text-transparent"
                   style={{ animationDelay: "300ms" }}
                 >
                   AI agents.
@@ -115,17 +118,18 @@ export default async function Home() {
               </span>
             </h1>
             <p
-              className="max-w-xl animate-fade-up text-pretty text-lg leading-relaxed text-ink-soft"
-              style={{ animationDelay: "180ms" }}
+              className="max-w-xl animate-reveal-up text-pretty text-lg leading-relaxed text-ink-soft"
+              style={{ animationDelay: "220ms" }}
             >
               Built for the people making agents and the people who need one. The
               first agents in the catalog are the ones already running on our own
               channel — we&apos;re the first customer, not just the platform.
             </p>
-            <div className="flex animate-fade-up flex-wrap gap-3 pt-2" style={{ animationDelay: "270ms" }}>
+            <div className="flex flex-wrap gap-3 pt-2">
               <Link
                 href="/browse"
-                className="shine-sweep magnetic-btn group flex items-center gap-2 rounded-full bg-accent py-1.5 pl-5 pr-1.5 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
+                className="cta-glow shine-sweep magnetic-btn group flex animate-fade-up items-center gap-2 rounded-full bg-accent py-1.5 pl-5 pr-1.5 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
+                style={{ animationDelay: "300ms" }}
               >
                 Browse the catalog
                 <span className="magnetic-icon flex h-7 w-7 items-center justify-center rounded-full bg-black/10">
@@ -134,7 +138,8 @@ export default async function Home() {
               </Link>
               <Link
                 href="/pricing"
-                className="magnetic-btn rounded-full border border-line px-5 py-2.5 text-sm font-medium text-ink transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:border-accent/50"
+                className="border-glow-hover magnetic-btn animate-fade-up rounded-full border border-line px-5 py-2.5 text-sm font-medium text-ink transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:border-accent/50"
+                style={{ animationDelay: "380ms" }}
               >
                 Become a member
               </Link>
@@ -147,13 +152,15 @@ export default async function Home() {
                   cascade) — carries no independent content of its own. */}
               <div
                 data-decor
-                className="absolute -right-5 -top-5 h-full w-full rotate-2 rounded-[1.7rem] border border-line/60 bg-surface/40"
+                className="scroll-parallax absolute -right-5 -top-5 h-full w-full rotate-2 rounded-[1.7rem] border border-line/60 bg-surface/40"
               />
-              <Reveal delay={220} className="bezel-shell relative">
+              <Reveal delay={220} className="bezel-shell console-breathe relative">
                 <div className="bezel-core flex flex-col gap-4 border border-line bg-surface p-5 font-mono text-xs">
                   <div className="flex items-center justify-between border-b border-line pb-3 text-ink-faint">
                     <span className="flex items-center gap-1.5">
-                      <span className="h-1.5 w-1.5 animate-pulse-dot rounded-full bg-accent" aria-hidden />
+                      <span className="pulse-ring relative flex h-1.5 w-1.5 items-center justify-center">
+                        <span className="relative z-10 h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />
+                      </span>
                       agently / catalog
                     </span>
                     <span>newest listing</span>
@@ -162,7 +169,7 @@ export default async function Home() {
                     <span className="text-ink-faint">{agentCode(newest.id)}</span>
                     <TrustRing score={newest.trust_score} />
                   </div>
-                  <div>
+                  <div className="animate-fade-up" style={{ animationDelay: "380ms" }}>
                     <p className="font-display text-base font-semibold normal-case tracking-normal text-ink">
                       {newest.name}
                     </p>
@@ -170,9 +177,14 @@ export default async function Home() {
                       {newest.tagline}
                     </p>
                   </div>
-                  <div className="flex items-center justify-between border-t border-line pt-3">
+                  <div
+                    className="animate-fade-up flex items-center justify-between border-t border-line pt-3"
+                    style={{ animationDelay: "460ms" }}
+                  >
                     <span className="text-ink-faint">just listed</span>
-                    <span className="font-medium tabular-nums text-accent">{priceLabel(newest)}</span>
+                    <span className="value-flash rounded px-1 font-medium tabular-nums text-accent">
+                      {priceLabel(newest)}
+                    </span>
                   </div>
                 </div>
               </Reveal>
@@ -187,17 +199,18 @@ export default async function Home() {
           {PILLARS.map((p, i) => (
             <Reveal
               key={p.n}
-              delay={i * 110}
-              className={`bezel-shell group ${i === 1 ? "sm:-translate-y-3" : ""}`}
+              delay={i * 130}
+              className={`tilt-hover bezel-shell group ${i === 1 ? "sm:-translate-y-3" : ""}`}
             >
-              <div className="bezel-core relative flex h-full flex-col gap-4 overflow-hidden border border-line bg-surface p-6 transition-all duration-300 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] group-hover:-translate-y-1 group-hover:border-accent/40 group-hover:bg-surface-raised group-hover:shadow-[0_20px_48px_-18px_rgba(47,224,173,0.28)]">
+              <div className="shine-sweep bezel-core relative flex h-full flex-col gap-4 overflow-hidden border border-line bg-surface p-6 transition-all duration-300 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] group-hover:-translate-y-1 group-hover:border-accent/40 group-hover:bg-surface-raised group-hover:shadow-[0_20px_48px_-18px_rgba(47,224,173,0.28)]">
+                <span aria-hidden data-decor className="accent-bar-grow" />
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute -right-2 -top-4 select-none font-display text-6xl font-bold text-ink/[0.04] transition-colors duration-300 group-hover:text-accent/10"
+                  className="pointer-events-none absolute -right-2 -top-4 select-none font-display text-6xl font-bold text-ink/[0.04] transition-all duration-300 group-hover:translate-y-1 group-hover:text-accent/10"
                 >
                   {p.n}
                 </span>
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-accent transition-transform duration-300 group-hover:scale-110">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-accent transition-transform duration-300 group-hover:rotate-6 group-hover:scale-110">
                   <svg viewBox="0 0 20 20" width="18" height="18" fill="none">
                     {p.icon}
                   </svg>
@@ -215,7 +228,10 @@ export default async function Home() {
           <div className="flex flex-col gap-5">
             <Reveal className="flex items-end justify-between">
               <div className="flex flex-col gap-1.5">
-                <span className="font-mono text-[11px] uppercase tracking-[0.2em] text-ink-faint">
+                <span className="flex items-center gap-1.5 font-mono text-[11px] uppercase tracking-[0.2em] text-ink-faint">
+                  <span className="pulse-ring relative flex h-1.5 w-1.5 items-center justify-center">
+                    <span className="relative z-10 h-1.5 w-1.5 rounded-full bg-accent" aria-hidden />
+                  </span>
                   Live catalog
                 </span>
                 <h2 className="font-display text-lg font-semibold">Newest in the catalog</h2>
@@ -224,7 +240,9 @@ export default async function Home() {
                 href="/browse"
                 className="group text-sm text-ink-faint transition-colors hover:text-accent"
               >
-                See all {agents.length}{" "}
+                <span className="underline-grow">
+                  See all <CounterUp value={agents.length} duration={600} />
+                </span>{" "}
                 <span className="inline-block transition-transform duration-200 group-hover:translate-x-1">
                   →
                 </span>
@@ -243,18 +261,18 @@ export default async function Home() {
         {/* Closing band — the same two paths as the hero CTAs, so someone who scrolled
             the whole page without clicking still leaves with an obvious next step
             instead of the page trailing off after the agent grid. */}
-        <Reveal className="bezel-shell">
+        <Reveal className="bezel-shell console-breathe">
           <div className="bezel-core flex flex-col items-start gap-5 border border-line bg-surface p-8 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex flex-col gap-1.5">
+            <Reveal delay={0} className="flex flex-col gap-1.5">
               <h2 className="font-display text-xl font-semibold">Ready when you are.</h2>
               <p className="text-sm text-ink-soft">
                 Browsing and buying is free. Listing your own agent takes a membership.
               </p>
-            </div>
-            <div className="flex flex-wrap gap-3">
+            </Reveal>
+            <Reveal delay={110} className="flex flex-wrap gap-3">
               <Link
                 href="/browse"
-                className="shine-sweep magnetic-btn group flex items-center gap-2 rounded-full bg-accent py-1.5 pl-5 pr-1.5 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
+                className="cta-glow shine-sweep magnetic-btn group flex items-center gap-2 rounded-full bg-accent py-1.5 pl-5 pr-1.5 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
               >
                 Browse the catalog
                 <span className="magnetic-icon flex h-7 w-7 items-center justify-center rounded-full bg-black/10">
@@ -263,11 +281,11 @@ export default async function Home() {
               </Link>
               <Link
                 href="/pricing"
-                className="magnetic-btn rounded-full border border-line px-5 py-2.5 text-sm font-medium text-ink transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:border-accent/50"
+                className="border-glow-hover magnetic-btn rounded-full border border-line px-5 py-2.5 text-sm font-medium text-ink transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:border-accent/50"
               >
                 Become a member
               </Link>
-            </div>
+            </Reveal>
           </div>
         </Reveal>
       </div>
