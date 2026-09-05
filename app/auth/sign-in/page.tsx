@@ -17,10 +17,12 @@ function SignInForm() {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [verifying, setVerifying] = useState(false);
+  const [sending, setSending] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setSending(true);
     const supabase = createClient();
     const callbackUrl = new URL(`${window.location.origin}/auth/callback`);
     if (next) callbackUrl.searchParams.set("next", next);
@@ -32,6 +34,7 @@ function SignInForm() {
       // domain someone actually opened this page from.
       options: { emailRedirectTo: callbackUrl.toString() },
     });
+    setSending(false);
     if (error) setError(error.message);
     else setSent(true);
   }
@@ -127,9 +130,10 @@ function SignInForm() {
             />
             <button
               type="submit"
-              className="shine-sweep magnetic-btn rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
+              disabled={sending}
+              className="shine-sweep magnetic-btn rounded-full bg-accent px-5 py-2.5 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90 disabled:opacity-60"
             >
-              Send link
+              {sending ? "Sending…" : "Send link"}
             </button>
             {error && <p className="animate-shake text-sm text-red-400">{error}</p>}
           </form>

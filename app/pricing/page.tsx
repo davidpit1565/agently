@@ -3,6 +3,7 @@ import Link from "next/link";
 import { MEMBERSHIP_TIERS } from "@/lib/membership";
 import { createClient } from "@/lib/supabase/server";
 import { Reveal } from "@/app/components/reveal";
+import { SubmitButton } from "@/app/components/submit-button";
 
 const TIER_ORDER = ["basic", "pro", "professional"] as const;
 
@@ -120,23 +121,23 @@ export default async function PricingPage({
                   <form action="/api/membership/switch" method="POST" className="flex-1">
                     <input type="hidden" name="tier" value={tier} />
                     <input type="hidden" name="interval" value="monthly" />
-                    <button
-                      type="submit"
+                    <SubmitButton
+                      pendingText="Switching…"
                       className="w-full rounded-full border border-line px-4 py-2 text-center text-sm font-medium text-ink-soft hover:border-accent/50 hover:text-ink"
                     >
                       Switch from {currentTier}
-                    </button>
+                    </SubmitButton>
                   </form>
                   <form action="/api/membership/switch" method="POST">
                     <input type="hidden" name="tier" value={tier} />
                     <input type="hidden" name="interval" value="yearly" />
-                    <button
-                      type="submit"
-                      className="rounded-full border border-line px-3 py-2 text-xs text-ink-soft hover:border-accent/50 hover:text-accent"
+                    <SubmitButton
+                      pendingText="Switching…"
                       title="Switch and pay yearly instead"
+                      className="rounded-full border border-line px-3 py-2 text-xs text-ink-soft hover:border-accent/50 hover:text-accent"
                     >
                       Yearly
-                    </button>
+                    </SubmitButton>
                   </form>
                 </div>
               ) : signedIn ? (
@@ -144,23 +145,23 @@ export default async function PricingPage({
                   <form action="/api/membership/checkout" method="POST" className="flex-1">
                     <input type="hidden" name="tier" value={tier} />
                     <input type="hidden" name="interval" value="monthly" />
-                    <button
-                      type="submit"
+                    <SubmitButton
+                      pendingText="Redirecting to Stripe…"
                       className="shine-sweep magnetic-btn w-full rounded-full bg-accent px-4 py-2 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
                     >
                       Join monthly
-                    </button>
+                    </SubmitButton>
                   </form>
                   <form action="/api/membership/checkout" method="POST">
                     <input type="hidden" name="tier" value={tier} />
                     <input type="hidden" name="interval" value="yearly" />
-                    <button
-                      type="submit"
-                      className="rounded-full border border-line px-3 py-2 text-xs text-ink-soft hover:border-accent/50 hover:text-accent"
+                    <SubmitButton
+                      pendingText="Redirecting to Stripe…"
                       title="Pay yearly instead"
+                      className="rounded-full border border-line px-3 py-2 text-xs text-ink-soft hover:border-accent/50 hover:text-accent"
                     >
                       Yearly
-                    </button>
+                    </SubmitButton>
                   </form>
                 </div>
               ) : (

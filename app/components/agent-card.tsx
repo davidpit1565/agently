@@ -34,9 +34,9 @@ export function AgentCard({ agent, hasFiles }: { agent: Agent; hasFiles?: boolea
           <TrustRing score={agent.trust_score} />
         </div>
 
-        <div>
-          <h2 className="text-balance font-display font-semibold">{agent.name}</h2>
-          <p className="mt-1 text-sm text-ink-soft">{agent.tagline}</p>
+        <div className="min-w-0">
+          <h2 className="line-clamp-1 text-balance font-display font-semibold">{agent.name}</h2>
+          <p className="mt-1 line-clamp-2 text-sm text-ink-soft">{agent.tagline}</p>
         </div>
 
         <div className="mt-auto flex items-center justify-between pt-2 text-xs">

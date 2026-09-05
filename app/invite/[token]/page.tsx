@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Notice } from "@/app/components/form-field";
+import { SubmitButton } from "@/app/components/submit-button";
 
 // Where a team-purchase invite email (lib/team-invites.ts) actually points.
 // Uses the admin client throughout — no RLS policy grants any role direct
@@ -110,12 +111,12 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         you the same delivery link and files access as the buyer.
       </p>
       <form action={`/api/invite/${token}/accept`} method="POST">
-        <button
-          type="submit"
+        <SubmitButton
+          pendingText="Joining…"
           className="shine-sweep magnetic-btn rounded-full bg-accent px-6 py-3 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
         >
           Accept and join
-        </button>
+        </SubmitButton>
       </form>
     </main>
   );

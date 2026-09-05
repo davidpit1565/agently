@@ -86,6 +86,7 @@ export default async function AdminRequestsPage({
                 <input
                   type="text"
                   name="fulfilled_agent_slug"
+                  aria-label="Agent slug, once it's listed"
                   placeholder="Agent slug, once it's listed (only needed when marking fulfilled)"
                   className="rounded-lg border border-line bg-surface-raised px-3 py-2 text-sm text-ink outline-none transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] placeholder:text-ink-faint focus:border-accent focus:shadow-[0_0_0_3px_rgba(47,224,173,0.12)]"
                 />
@@ -93,6 +94,7 @@ export default async function AdminRequestsPage({
                   type="text"
                   name="admin_notes"
                   defaultValue={r.admin_notes ?? ""}
+                  aria-label="Note the requester will see"
                   placeholder="Note the requester will see"
                   className="rounded-lg border border-line bg-surface-raised px-3 py-2 text-sm text-ink outline-none transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] placeholder:text-ink-faint focus:border-accent focus:shadow-[0_0_0_3px_rgba(47,224,173,0.12)]"
                 />
