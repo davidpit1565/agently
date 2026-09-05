@@ -68,18 +68,24 @@ export default async function Home() {
 
   return (
     <main className="relative overflow-hidden">
+      <div className="film-grain" aria-hidden data-decor />
       <div className="hero-glow">
         <div className="hero-glow-a" />
         <div className="hero-glow-b" />
         <div className="hero-glow-c" />
       </div>
 
-      <div className="relative mx-auto flex max-w-6xl flex-col gap-28 px-6 py-24 sm:py-32">
+      <div className="relative mx-auto flex max-w-6xl flex-col gap-32 px-6 py-28 sm:py-40">
         {/* Hero: text column left, live-catalog console panel right on wide screens —
             an asymmetric split instead of one centered narrow column, with a real,
-            currently-listed agent (not placeholder data) giving the right side weight. */}
-        <div className="grid items-center gap-16 lg:grid-cols-[1.1fr_0.9fr] lg:gap-12">
-          <div className="flex max-w-xl flex-col gap-6">
+            currently-listed agent (not placeholder data) giving the right side weight.
+            The split is deliberately lopsided (1.35fr/0.65fr, not ~1.1/0.9) and the
+            headline is no longer capped by the same max-w-xl as the paragraph below it
+            — two elements of near-equal visual mass were competing for the first glance
+            instead of one clearly winning it, so the console card now reads as
+            supporting evidence for the headline rather than a second focal point. */}
+        <div className="grid items-center gap-20 lg:grid-cols-[1.35fr_0.65fr] lg:gap-16">
+          <div className="flex flex-col gap-7">
             <div
               className="magnetic-btn flex w-fit animate-fade-up items-center gap-2 rounded-full border border-line bg-surface px-3 py-1 font-mono text-xs uppercase tracking-wide text-ink-soft transition-colors duration-200 hover:border-accent/40"
               style={{ animationDelay: "0ms" }}
@@ -89,7 +95,7 @@ export default async function Home() {
               </span>
               <CounterUp value={agents.length} duration={700} /> agent{agents.length === 1 ? "" : "s"} live now
             </div>
-            <h1 className="animate-tracking-in text-balance font-display text-5xl font-bold leading-[1.05] tracking-tight sm:text-6xl">
+            <h1 className="animate-tracking-in text-balance font-display text-6xl font-bold leading-[1.02] tracking-tight sm:text-7xl lg:text-[5.25rem]">
               <span>
                 <span className="inline-block overflow-hidden">
                   <span className="inline-block animate-word-in" style={{ animationDelay: "90ms" }}>
@@ -125,6 +131,30 @@ export default async function Home() {
               first agents in the catalog are the ones already running on our own
               channel — we&apos;re the first customer, not just the platform.
             </p>
+            {agents.length > 0 && (
+              <div
+                className="flex animate-fade-up items-center gap-5 font-mono text-xs uppercase tracking-wide text-ink-faint"
+                style={{ animationDelay: "260ms" }}
+              >
+                <span className="flex items-baseline gap-1.5">
+                  <CounterUp
+                    value={Math.round(agents.reduce((sum, a) => sum + a.trust_score, 0) / agents.length)}
+                    duration={900}
+                    className="font-display text-lg font-semibold normal-case tracking-normal text-ink"
+                  />
+                  avg. trust score
+                </span>
+                <span className="h-3 w-px bg-line" aria-hidden />
+                <span className="flex items-baseline gap-1.5">
+                  <CounterUp
+                    value={new Set(agents.map((a) => a.category_slug)).size}
+                    duration={900}
+                    className="font-display text-lg font-semibold normal-case tracking-normal text-ink"
+                  />
+                  categories
+                </span>
+              </div>
+            )}
             <div className="flex flex-wrap gap-3 pt-2">
               <Link
                 href="/browse"
@@ -154,7 +184,7 @@ export default async function Home() {
                 data-decor
                 className="scroll-parallax absolute -right-5 -top-5 h-full w-full rotate-2 rounded-[1.7rem] border border-line/60 bg-surface/40"
               />
-              <Reveal delay={220} className="bezel-shell console-breathe relative">
+              <Reveal delay={220} className="bezel-shell console-breathe spotlight-ring tilt-hover relative">
                 <div className="bezel-core flex flex-col gap-4 border border-line bg-surface p-5 font-mono text-xs">
                   <div className="flex items-center justify-between border-b border-line pb-3 text-ink-faint">
                     <span className="flex items-center gap-1.5">
@@ -163,7 +193,12 @@ export default async function Home() {
                       </span>
                       agently / catalog
                     </span>
-                    <span>newest listing</span>
+                    <span>
+                      newest listing
+                      <span className="blink-cursor" aria-hidden>
+                        &nbsp;
+                      </span>
+                    </span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-ink-faint">{agentCode(newest.id)}</span>
@@ -210,7 +245,7 @@ export default async function Home() {
                 >
                   {p.n}
                 </span>
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-accent transition-transform duration-300 group-hover:rotate-6 group-hover:scale-110">
+                <span className="spotlight-ring flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-accent transition-transform duration-300 group-hover:rotate-6 group-hover:scale-110">
                   <svg viewBox="0 0 20 20" width="18" height="18" fill="none">
                     {p.icon}
                   </svg>

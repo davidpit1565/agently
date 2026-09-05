@@ -297,11 +297,16 @@ details.details-anim > :not(summary) > * {
 
 /* A third, dimmer ambient blob low on the page — bookends the two hero blobs so the
    glow doesn't read as "only happens up top." Same technique (radial-gradient + slow
-   transform drift), different position and period so the three never sync up. */
+   transform drift), different position and period so the three never sync up.
+   Deliberately a *different hue* (cool violet) rather than a third shade of the same
+   teal: comparison against Linear/Vercel/Stripe showed our glow was one color at two
+   opacities, which reads as "safe," not "lit" — a second hue at low opacity is what
+   turns a glow into an actual lighting scheme, while staying far enough under the
+   teal in both area and opacity that the brand color still owns the page. */
 .hero-glow-c {
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse 45% 30% at 12% 70%, rgba(47, 224, 173, 0.07), transparent 70%);
+  background: radial-gradient(ellipse 45% 30% at 12% 70%, rgba(124, 143, 245, 0.1), transparent 70%);
 }
 @media (prefers-reduced-motion: no-preference) {
   .hero-glow-c {
@@ -555,5 +560,105 @@ details.details-anim > :not(summary) > * {
   }
   .tilt-hover:hover {
     transform: none !important;
+  }
+}
+
+/* ---- Homepage premium-polish pass 3: diagnosis-driven, not just "more animation" ----
+   Comparison research (Linear, Vercel, Stripe) plus first-impression-psychology's "one
+   focal point, not several" turned up two gaps pass 2's motion work didn't touch: the
+   hero's text column and console panel carried near-equal visual weight (nothing in the
+   viewport clearly won the first glance), and every glow/shadow on the page was one hue
+   at varying opacity (no real lighting depth). The type-scale, grid-ratio and stat
+   changes for the first problem live in page.tsx; hero-glow-c's new violet hue above is
+   the color-depth fix. These three classes are the genuinely new motion added this pass
+   — distinct from (not a re-skin of) console-breathe/cta-glow/tilt-hover/pulse-ring. */
+
+/* Fixed, page-wide grain — the difference between a flat vector gradient and something
+   that feels like it has material to it (Linear/Vercel's own hero backgrounds do the
+   same). Pointer-events-none and fixed per the performance guardrail: never attached to
+   a scrolling container, so it costs one paint, not one per frame. */
+.film-grain {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.05;
+  mix-blend-mode: overlay;
+  background-image: radial-gradient(rgba(237, 243, 238, 0.9) 1px, transparent 1px);
+  background-size: 3px 3px;
+}
+
+/* A slow conic sweep used as a rotating "spotlight" ring — the cheap, CSS-only version
+   of a mouse-tracked spotlight border, for the console panel and the pillar icon badges.
+   Needs the host element's own border-radius set (bezel-shell/rounded-full both qualify)
+   since the pseudo inherits it to keep the ring's curve concentric. */
+@property --spotlight-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+.spotlight-ring {
+  position: relative;
+}
+.spotlight-ring::before {
+  content: "";
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: conic-gradient(
+    from var(--spotlight-angle),
+    transparent 0%,
+    rgba(47, 224, 173, 0.55) 8%,
+    transparent 22%
+  );
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .spotlight-ring::before {
+    animation: spotlight-spin 5s linear infinite;
+  }
+}
+@keyframes spotlight-spin {
+  to {
+    --spotlight-angle: 360deg;
+  }
+}
+
+/* A single blinking terminal caret next to the console panel's status line — the
+   smallest possible signal that it's a live process, not a screenshot. */
+.blink-cursor {
+  display: inline-block;
+  width: 0.5em;
+  height: 1em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  background: currentColor;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .blink-cursor {
+    animation: blink-cursor 1.1s step-end infinite;
+  }
+}
+@keyframes blink-cursor {
+  0%,
+  49% {
+    opacity: 1;
+  }
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .spotlight-ring::before {
+    animation: none !important;
+  }
+  .blink-cursor {
+    animation: none !important;
+    opacity: 1;
   }
 }
