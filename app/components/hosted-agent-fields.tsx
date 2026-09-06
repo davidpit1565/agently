@@ -61,7 +61,7 @@ export function HostedAgentFields({
             className={fieldClass}
           />
           <span className="text-xs text-ink-faint">
-            Deducted from the buyer&apos;s wallet on every real call to /api/agents/[slug]/invoke.
+            Deducted from the buyer&apos;s wallet on every real call to /api/hosted-agents/[slug]/invoke.
           </span>
         </label>
       )}

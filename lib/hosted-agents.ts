@@ -59,7 +59,7 @@ export function validateHostedAgentFields(input: {
 }
 
 /**
- * The access gate for invoke (app/api/agents/[slug]/invoke/route.ts, steps
+ * The access gate for invoke (app/api/hosted-agents/[slug]/invoke/route.ts, steps
  * 4-5) — decided by David 2026-09-06: a non-member can invoke on their own
  * free trial credits alone, no active membership required, because the
  * whole point of the free-credit signup grant is to lower purchase friction
@@ -104,7 +104,7 @@ export function checkInvokeEligibility(
 }
 
 /**
- * The actual race-condition guard for invoke (app/api/agents/[slug]/invoke/
+ * The actual race-condition guard for invoke (app/api/hosted-agents/[slug]/invoke/
  * route.ts, step 6): two concurrent calls on a wallet with just enough
  * credits for one of them must not both succeed and both deduct, dropping
  * the balance below zero. A plain "read balance, check >= cost, then
