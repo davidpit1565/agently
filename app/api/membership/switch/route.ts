@@ -205,9 +205,23 @@ export async function POST(request: Request) {
   // update on delivery, so a retried or delayed webhook doesn't fight this.
   const admin = createAdminClient();
   if (admin) {
+    // Same immediate-update reasoning as membership_tier/membership_status
+    // right above — credits are the actual usable thing a tier switch pays
+    // for, so a member switching up shouldn't be stuck on their old, lower
+    // balance for however long the customer.subscription.updated webhook
+    // takes to arrive. The webhook (app/api/stripe/webhook/route.ts) also
+    // refills this on delivery, so a delayed or retried webhook doesn't
+    // fight this — both set the same tier's monthlyCredits, never add to it.
+    const tierCredits = MEMBERSHIP_TIERS[tier].monthlyCredits;
     await admin
       .from("agently_profiles")
-      .update({ membership_tier: tier, membership_status: updated.status === "active" ? "active" : "past_due" })
+      .update({
+        membership_tier: tier,
+        membership_status: updated.status === "active" ? "active" : "past_due",
+        ...(updated.status === "active"
+          ? { api_credits: tierCredits, api_credits_refreshed_at: new Date().toISOString() }
+          : {}),
+      })
       .eq("id", user.id);
   }
 
