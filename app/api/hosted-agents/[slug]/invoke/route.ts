@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { extractBearerKey, hashApiKey } from "@/lib/api-keys";
 import { deductCredits, refundCredits, checkInvokeEligibility, checkAndAlertOnFailureRate } from "@/lib/hosted-agents";
 import { errorMessage } from "@/lib/errors";
+import { isSafeExternalUrl } from "@/lib/validation";
 
 const MAX_INPUT_LENGTH = 20_000; // a reasonable ceiling on the caller's own request body — not a measured limit, just a sane guard.
 const WEBHOOK_TIMEOUT_MS = 25_000;
@@ -253,6 +254,17 @@ async function runHostedPrompt(systemPrompt: string, input: string): Promise<str
 // caller here only ever sees a generic "workflow timed out"/"failed to
 // produce a result" message — see the catch block above).
 async function runHostedWorkflow(webhookUrl: string, input: string): Promise<unknown> {
+  // Re-checked here, not only at creation time (validateHostedAgentFields,
+  // lib/hosted-agents.ts) — a hostname that resolved to a public address
+  // when the creator saved the listing can resolve to an internal one by
+  // the time it's actually called (DNS rebinding, or just a dynamic-DNS
+  // host under the creator's control), and this is the request that
+  // actually reaches the network, so this is the check that has to hold.
+  // See lib/validation.ts's isSafeExternalUrl for the full reasoning.
+  if (!(await isSafeExternalUrl(webhookUrl))) {
+    throw new Error("Webhook call failed (blocked: private/internal address)");
+  }
+
   const res = await fetch(webhookUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },

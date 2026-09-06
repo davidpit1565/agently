@@ -1,4 +1,4 @@
-import { sanitizeUrl } from "@/lib/validation";
+import { sanitizeUrl, isPrivateOrReservedHostname } from "@/lib/validation";
 import { sendNotificationEmail } from "@/lib/email";
 import { SITE_URL } from "@/lib/site";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -54,6 +54,18 @@ export function validateHostedAgentFields(input: {
   const hostedWebhookUrl = sanitizeUrl(input.hostedWebhookUrl);
   if (!hostedWebhookUrl) {
     return { ok: false, error: "A hosted workflow agent needs a valid http:// or https:// webhook URL." };
+  }
+  // sanitizeUrl above only guards the javascript:/data: XSS threat model — a
+  // private IP or localhost is a perfectly valid https:// URL, and this
+  // field is actually fetched server-to-server (the invoke route), unlike
+  // every other URL field in this app which is only ever rendered as a
+  // link. Catches the obvious cases immediately as a form error; the real,
+  // DNS-lookup-backed guard runs again right before every call (see
+  // isSafeExternalUrl in lib/validation.ts and its use in the invoke
+  // route), since a hostname can resolve differently by the time it's
+  // actually dialed than it did here at save time.
+  if (isPrivateOrReservedHostname(new URL(hostedWebhookUrl).hostname)) {
+    return { ok: false, error: "That webhook URL points at a private or internal address, which isn't allowed." };
   }
   return { ok: true, fields: { agentKind, hostedSystemPrompt: null, hostedWebhookUrl, creditsPerCall } };
 }
