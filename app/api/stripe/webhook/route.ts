@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { notifyCreatorOfSale } from "@/lib/notifications";
+import { recordMembershipEvent } from "@/lib/membership-events";
 import { createTeamInvitesAndNotify } from "@/lib/team-invites";
 import { sendNotificationEmail } from "@/lib/email";
 import { PLATFORM_FEE_PERCENT, MIN_PLATFORM_FEE_CENTS } from "@/lib/membership";
@@ -549,6 +550,16 @@ export async function POST(request: Request) {
         const liveActive = live.status === "active";
         const liveTier = live.metadata?.membership_tier;
 
+        // Read before the update below overwrites it — this is the "from"
+        // tier for a tier_changed event, and the id/tier a cancellation
+        // needs to notify and record against. Looked up by
+        // stripe_customer_id, same key the update itself uses.
+        const { data: priorProfile } = await supabase
+          .from("agently_profiles")
+          .select("id, membership_tier")
+          .eq("stripe_customer_id", subscription.customer)
+          .maybeSingle();
+
         // membership_tier drives canUpload() (lib/membership.ts) — it isn't
         // enough to just flip membership_status to 'canceled' here, or a
         // lapsed subscription would keep uploading forever with whatever
@@ -571,6 +582,44 @@ export async function POST(request: Request) {
           .eq("stripe_customer_id", subscription.customer);
         if (subError) {
           console.error("[stripe/webhook] subscription status update failed", { eventId: event.id, message: subError.message });
+        }
+
+        // A cancellation via the Customer Portal sets cancel_at_period_end
+        // immediately — status stays "active" for weeks, until the period
+        // actually ends. Reacting only to status (as the update above does)
+        // would notify David and the customer at the wrong moment: the
+        // actual lapse, not when the customer told Stripe to cancel. This
+        // is what makes the notification fire the moment cancellation is
+        // initiated, carrying whatever reason Stripe's own cancellation
+        // survey collected (cancellation_details — requires "Collect a
+        // reason for cancellation" turned on in the Stripe Dashboard's
+        // Customer Portal settings; null fields otherwise, never guessed).
+        if (priorProfile && liveActive && live.cancel_at_period_end) {
+          await recordMembershipEvent(supabase, {
+            eventId: event.id,
+            eventType: "cancel_scheduled",
+            userId: priorProfile.id,
+            subscriptionId: subscription.id,
+            fromTier: priorProfile.membership_tier,
+            cancellationDetails: live.cancellation_details,
+            periodEnd: live.current_period_end,
+          });
+        }
+
+        // A tier switch (app/api/membership/switch/route.ts) fires this
+        // same event with the new tier already live. Stripe has no
+        // upgrade/downgrade "why" survey — this records what changed, not
+        // why, so it can only ever answer "which switches are common," not
+        // "why did they switch."
+        if (priorProfile && liveActive && liveTier && priorProfile.membership_tier && priorProfile.membership_tier !== liveTier) {
+          await recordMembershipEvent(supabase, {
+            eventId: event.id,
+            eventType: "tier_changed",
+            userId: priorProfile.id,
+            subscriptionId: subscription.id,
+            fromTier: priorProfile.membership_tier,
+            toTier: liveTier,
+          });
         }
       } else if (agent_id && buyer_id && !active) {
         // A buyer canceling their subscription to one specific agent stops

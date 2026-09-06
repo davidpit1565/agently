@@ -4,6 +4,7 @@ import { getAllAgentRequests } from "@/lib/requests";
 import { Notice } from "@/app/components/form-field";
 import { SubmitButton } from "@/app/components/submit-button";
 import { Reveal } from "@/app/components/reveal";
+import { AdminNav } from "@/app/components/admin-nav";
 import { isPlatformOwner } from "@/lib/owner";
 
 export default async function AdminRequestsPage({
@@ -30,6 +31,7 @@ export default async function AdminRequestsPage({
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16 sm:py-20">
+      <AdminNav active="requests" />
       <h1 className="text-balance mb-8 font-display text-2xl font-semibold">Agent requests</h1>
 
       {saved && (
