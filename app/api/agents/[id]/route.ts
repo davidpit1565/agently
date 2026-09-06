@@ -8,6 +8,7 @@ import { getEmbedding, embeddableText } from "@/lib/embeddings";
 import { uploadAgentFiles, getAgentIdsWithFiles } from "@/lib/agent-files";
 import { sanitizeUrl } from "@/lib/validation";
 import { MIN_AGENT_PRICE_CENTS } from "@/lib/membership";
+import { validateHostedAgentFields } from "@/lib/hosted-agents";
 
 // Edits an existing listing. When the edit is a real new version — the
 // delivery link or the buyer-facing content actually changed, not just
@@ -39,7 +40,23 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     return NextResponse.redirect(new URL("/auth/sign-in", request.url));
   }
 
-  const { data: existing } = await supabase.from("agently_agents").select("*").eq("id", id).single();
+  // Via the admin client, not the user's own session — hosted_system_prompt/
+  // hosted_webhook_url have their column-level SELECT revoked from
+  // authenticated entirely (supabase/schema.sql), and this route needs
+  // hosted_webhook_url below (to detect a hosted agent's target changing)
+  // regardless of who's editing. Ownership is still checked explicitly
+  // right after, same as every other admin-client read in this file.
+  const admin = createAdminClient();
+  if (!admin) {
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/agents/${id}/edit?error=${encodeURIComponent("Not connected yet — Supabase isn't configured.")}`,
+        request.url
+      ),
+      303
+    );
+  }
+  const { data: existing } = await admin.from("agently_agents").select("*").eq("id", id).single();
   if (!existing || existing.creator_id !== user.id) {
     return NextResponse.redirect(
       new URL(
@@ -60,6 +77,20 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const priceEur = form.get("price");
   const deliveryUrl = sanitizeUrl((form.get("delivery_url") as string) || null);
   const newFiles = form.getAll("files").filter((f): f is File => f instanceof File && f.size > 0);
+
+  const hostedValidation = validateHostedAgentFields({
+    agentKind: String(form.get("agent_kind") ?? "file"),
+    hostedSystemPrompt: (form.get("hosted_system_prompt") as string) || null,
+    hostedWebhookUrl: (form.get("hosted_webhook_url") as string) || null,
+    creditsPerCall: (form.get("credits_per_call") as string) || null,
+  });
+  if (!hostedValidation.ok) {
+    return NextResponse.redirect(
+      new URL(`/dashboard/agents/${id}/edit?error=${encodeURIComponent(hostedValidation.error)}`, request.url),
+      303
+    );
+  }
+  const hosted = hostedValidation.fields;
 
   // Monthly subscription is no longer offered — same business decision as
   // app/api/agents/route.ts (creating a new listing). An agent that's
@@ -121,8 +152,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   // Same rule as creating a listing: clearing the delivery link with no
   // files (existing or newly attached) left to fall back on would leave a
-  // buyer with nothing to receive.
-  if (!deliveryUrl && newFiles.length === 0) {
+  // buyer with nothing to receive. Doesn't apply to a hosted agent — see
+  // app/api/agents/route.ts's identical check.
+  if (hosted.agentKind === "file" && !deliveryUrl && newFiles.length === 0) {
     const hasExistingFiles = (await getAgentIdsWithFiles([id])).has(id);
     if (!hasExistingFiles) {
       return NextResponse.redirect(
@@ -144,8 +176,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // A real new version — something a buyer running the delivered code
   // would actually want to know about — only when the code's own
   // location changed, new files were attached, or its description changed
-  // enough to re-review. A price or category edit isn't that.
-  const isNewVersion = contentChanged || deliveryUrl !== existing.delivery_url || newFiles.length > 0;
+  // enough to re-review. A price or category edit isn't that. A hosted
+  // agent's webhook target changing is the same class of change as
+  // delivery_url changing for a file agent — the buyer's calls now hit
+  // different logic.
+  const hostedTargetChanged =
+    hosted.agentKind !== existing.agent_kind || hosted.hostedWebhookUrl !== existing.hosted_webhook_url;
+  const isNewVersion = contentChanged || deliveryUrl !== existing.delivery_url || newFiles.length > 0 || hostedTargetChanged;
   const version = isNewVersion ? existing.version + 1 : existing.version;
 
   let status = existing.status;
@@ -189,21 +226,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   }
 
   // Ownership was already checked above with the user's own session. The
-  // write itself goes through the service-role client — "authenticated" has
-  // no update privilege at all on agently_agents (see supabase/schema.sql),
+  // write itself goes through the service-role client (`admin`, already
+  // created above for the initial read) — "authenticated" has no update
+  // privilege at all on agently_agents (see supabase/schema.sql),
   // specifically so a creator can't PATCH their own row directly to
   // status='approved'/trust_score=100, bypassing the safety-review verdict
   // computed just above.
-  const admin = createAdminClient();
-  if (!admin) {
-    return NextResponse.redirect(
-      new URL(
-        `/dashboard/agents/${id}/edit?error=${encodeURIComponent("Not connected yet — Supabase isn't configured.")}`,
-        request.url
-      ),
-      303
-    );
-  }
 
   // Optimistic lock on `version`: a double form-submit (slow network
   // retry, or two native submissions slipping past SubmitButton's
@@ -226,6 +254,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       pricing_model: pricingModel,
       price_cents: pricingModel === "free" ? null : Math.round(Number(priceEur) * 100),
       delivery_url: deliveryUrl,
+      agent_kind: hosted.agentKind,
+      hosted_system_prompt: hosted.hostedSystemPrompt,
+      hosted_webhook_url: hosted.hostedWebhookUrl,
+      credits_per_call: hosted.creditsPerCall,
       status,
       trust_score: trustScore,
       review_notes: reviewNotes,

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { headers } from "next/headers";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { getAgentBySlug, getCreatorProfile, recordAgentView } from "@/lib/catalog";
@@ -98,6 +99,13 @@ export default async function AgentPage({
 }) {
   const { slug } = await params;
   const { purchased, reviewed, updated, saved, skipped_files: skippedFiles, refunded, canceled, joined, error } = await searchParams;
+  // For the curl example in the hosted-agent "Use via API" block below — this
+  // app has no single hardcoded production domain anywhere else, so this
+  // derives the real one from the incoming request the same way every
+  // route.ts in this app already does with `new URL(request.url).origin`,
+  // just via next/headers since a page component has no `request` object.
+  const requestHeaders = await headers();
+  const siteOrigin = `${requestHeaders.get("x-forwarded-proto") ?? "https"}://${requestHeaders.get("host") ?? "agently.app"}`;
   const agent = await getAgentBySlug(slug);
   if (!agent) notFound();
 
@@ -315,7 +323,7 @@ export default async function AgentPage({
           )}
         </div>
 
-        {(hasPurchased || isOwner) && agent.delivery_url && (
+        {(hasPurchased || isOwner) && agent.agent_kind === "file" && agent.delivery_url && (
           <Reveal className="bezel-shell">
             <div className="bezel-core border border-accent/30 bg-accent-soft p-5">
               <h2 className="mb-2 font-display text-sm font-semibold text-accent">
@@ -350,6 +358,33 @@ export default async function AgentPage({
                   </div>
                 </details>
               )}
+            </div>
+          </Reveal>
+        )}
+
+        {/* Hosted ('prompt'/'workflow') agent: never a delivery_url — the
+            buyer calls the invoke endpoint with their own API key instead.
+            No real key is ever shown here, only a placeholder — see
+            /dashboard/api-keys for how to actually get one. */}
+        {(hasPurchased || isOwner) && agent.agent_kind !== "file" && (
+          <Reveal className="bezel-shell">
+            <div className="bezel-core border border-accent/30 bg-accent-soft p-5">
+              <h2 className="mb-2 font-display text-sm font-semibold text-accent">Use via API</h2>
+              <p className="mb-3 text-xs leading-relaxed text-ink-faint">
+                This agent runs on Agently — there&apos;s no file or link to download. Call it with your
+                own API key ({" "}
+                <Link href="/dashboard/api-keys" className="text-accent underline">
+                  get one here
+                </Link>
+                {" "}if you don&apos;t have one) and an active membership. Each call spends{" "}
+                {agent.credits_per_call ?? "?"} credit{agent.credits_per_call === 1 ? "" : "s"} from your wallet.
+              </p>
+              <pre className="overflow-x-auto rounded-lg border border-line bg-surface p-4 font-mono text-xs text-ink-soft">
+{`curl -X POST ${siteOrigin}/api/agents/${agent.slug}/invoke \\
+  -H "Authorization: Bearer <YOUR_API_KEY>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"input": "your request here"}'`}
+              </pre>
             </div>
           </Reveal>
         )}
