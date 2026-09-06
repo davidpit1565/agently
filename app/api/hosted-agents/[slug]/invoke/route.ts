@@ -4,6 +4,7 @@ import { extractBearerKey, hashApiKey } from "@/lib/api-keys";
 import { deductCredits, refundCredits, checkInvokeEligibility, checkAndAlertOnFailureRate } from "@/lib/hosted-agents";
 import { errorMessage } from "@/lib/errors";
 import { isSafeExternalUrl } from "@/lib/validation";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const MAX_INPUT_LENGTH = 20_000; // a reasonable ceiling on the caller's own request body — not a measured limit, just a sane guard.
 const WEBHOOK_TIMEOUT_MS = 25_000;
@@ -53,6 +54,25 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
   if (!keyRow) {
     return NextResponse.json({ error: "Invalid or revoked API key." }, { status: 401 });
+  }
+
+  // Every other endpoint in this codebase that triggers a real per-call cost
+  // (search's embedding call, agent submission's Anthropic+Voyage calls,
+  // checkout) is rate-limited — this one wasn't, despite being the one that
+  // makes a real Anthropic call or forwards to a third party's webhook on
+  // every request. The credit wallet caps total spend, but nothing capped
+  // *rate*: a valid key (even a free-trial one with no active membership)
+  // could otherwise be hammered in a tight loop, and a failed call refunds
+  // its credit (see the catch block below), so a failing call is free to
+  // retry indefinitely — a zero-cost way to flood a creator's webhook.
+  // Scoped by user id, not key id or IP: a caller generating several keys
+  // (nothing here limits that) shouldn't be able to multiply their
+  // effective rate by spreading calls across them, and server-to-server
+  // calls all sharing one outbound IP (or a shared proxy) shouldn't get
+  // lumped in with every other caller behind the same address.
+  const allowed = await checkRateLimit(`hosted_invoke:${keyRow.user_id}`, 30, 60);
+  if (!allowed) {
+    return NextResponse.json({ error: "Too many calls — slow down and try again shortly." }, { status: 429 });
   }
 
   // Step 3: the agent. Only an approved, hosted (non-file) agent applies here.
@@ -265,12 +285,24 @@ async function runHostedWorkflow(webhookUrl: string, input: string): Promise<unk
     throw new Error("Webhook call failed (blocked: private/internal address)");
   }
 
+  // redirect: "manual" is the other half of this guard — fetch's default
+  // ("follow") would happily chase a 3xx from a webhook that passed the
+  // isSafeExternalUrl check straight to an internal address (the cloud
+  // metadata endpoint, localhost, an RFC1918 host) with no further check at
+  // all. A creator's webhook has no legitimate reason to redirect, so any
+  // redirect response is treated as a failure rather than re-validated and
+  // followed.
   const res = await fetch(webhookUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ input }),
     signal: AbortSignal.timeout(WEBHOOK_TIMEOUT_MS),
+    redirect: "manual",
   });
+
+  if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {
+    throw new Error("Webhook call failed (blocked: redirect not allowed)");
+  }
 
   if (!res.ok) {
     throw new Error(`Webhook call failed (${res.status})`);
