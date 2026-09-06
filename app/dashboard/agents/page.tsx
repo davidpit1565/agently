@@ -68,6 +68,9 @@ export default async function MyAgentsPage({
       <div className="mb-8 flex animate-fade-up items-center justify-between gap-4">
         <h1 className="text-balance font-display text-2xl font-semibold">Your agents</h1>
         <div className="flex shrink-0 items-center gap-3">
+          <Link href="/dashboard/analytics" className="text-sm text-ink-soft transition-colors hover:text-accent">
+            Analytics
+          </Link>
           <Link href="/dashboard/payouts" className="text-sm text-ink-soft transition-colors hover:text-accent">
             Payouts
           </Link>
