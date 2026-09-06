@@ -7,6 +7,7 @@ import { DelistButton } from "@/app/components/delist-button";
 import { DeleteAgentButton } from "@/app/components/delete-agent-button";
 import { Reveal } from "@/app/components/reveal";
 import { CounterUp } from "@/app/components/counter-up";
+import { UpgradeReasonPrompt } from "@/app/components/upgrade-reason-prompt";
 
 const STATUS_LABEL: Record<string, string> = {
   approved: "Live",
@@ -46,9 +47,12 @@ export default async function MyAgentsPage({
   return (
     <main className="mx-auto max-w-3xl px-6 py-16 sm:py-20">
       {membership && (
-        <div className="mb-6 rounded-lg border border-accent/30 bg-accent-soft px-4 py-2.5 text-sm text-accent">
-          You're a member — you can list agents now.
-        </div>
+        <>
+          <div className="mb-6 rounded-lg border border-accent/30 bg-accent-soft px-4 py-2.5 text-sm text-accent">
+            You're a member — you can list agents now.
+          </div>
+          <UpgradeReasonPrompt storageKey={`upgrade-reason-dismissed:membership:${new Date().toDateString()}`} />
+        </>
       )}
       {delisted && (
         <div className="mb-6 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm text-ink-soft">

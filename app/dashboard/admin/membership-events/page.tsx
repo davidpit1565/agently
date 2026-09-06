@@ -5,6 +5,7 @@ import { Notice } from "@/app/components/form-field";
 import { Reveal } from "@/app/components/reveal";
 import { AdminNav } from "@/app/components/admin-nav";
 import { isPlatformOwner } from "@/lib/owner";
+import { UPGRADE_REASON_LABELS } from "@/lib/upgrade-reasons";
 
 const REASON_LABELS: Record<string, string> = {
   too_expensive: "Too expensive",
@@ -82,6 +83,18 @@ export default async function AdminMembershipEventsPage() {
   }
   const tierMoveRows = [...tierMoveCounts.entries()].sort((a, b) => b[1] - a[1]);
 
+  // Unlike cancellations (Stripe's own survey), an upgrade reason only ever
+  // gets here through the optional in-app prompt (app/components/upgrade-reason-prompt.tsx)
+  // right after a Checkout purchase or a tier switch — so most rows will
+  // read "No reason given" for a long time, and that's shown as plainly as
+  // a real one, not smoothed over.
+  const upgradeReasonCounts = new Map<string, number>();
+  for (const t of tierChanges) {
+    const key = t.reason_code ? UPGRADE_REASON_LABELS[t.reason_code] ?? t.reason_code : "No reason given";
+    upgradeReasonCounts.set(key, (upgradeReasonCounts.get(key) ?? 0) + 1);
+  }
+  const upgradeReasonRows = [...upgradeReasonCounts.entries()].sort((a, b) => b[1] - a[1]);
+
   return (
     <main className="mx-auto max-w-2xl px-6 py-16 sm:py-20">
       <AdminNav active="membership-events" />
@@ -133,8 +146,19 @@ export default async function AdminMembershipEventsPage() {
           </div>
         )}
         <p className="mt-2 text-xs text-ink-faint">
-          Stripe has no &quot;why did you upgrade&quot; survey — this shows what changed, not why.
+          Stripe has no &quot;why did you upgrade&quot; survey — the reasons below come only from
+          the optional in-app prompt shown right after a switch, not Stripe.
         </p>
+        {upgradeReasonRows.length > 0 && (
+          <div className="mt-3 flex flex-col gap-2">
+            {upgradeReasonRows.map(([label, count]) => (
+              <div key={label} className="flex items-center justify-between rounded-xl border border-line px-4 py-2.5 text-sm">
+                <span className="text-ink">{label}</span>
+                <span className="font-mono text-xs text-ink-faint">{count}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section>
@@ -171,9 +195,15 @@ export default async function AdminMembershipEventsPage() {
                       )}
                     </>
                   ) : (
-                    <p className="text-ink-soft">
-                      Switched {e.from_tier ?? "?"} → {e.to_tier ?? "?"}
-                    </p>
+                    <>
+                      <p className="text-ink-soft">
+                        Switched {e.from_tier ?? "?"} → {e.to_tier ?? "?"}
+                        {e.reason_code && ` — ${UPGRADE_REASON_LABELS[e.reason_code] ?? e.reason_code}`}
+                      </p>
+                      {e.reason_comment && (
+                        <p className="text-xs italic text-ink-faint">&quot;{e.reason_comment}&quot;</p>
+                      )}
+                    </>
                   )}
                 </div>
               </Reveal>
