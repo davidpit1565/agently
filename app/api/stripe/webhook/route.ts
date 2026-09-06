@@ -654,6 +654,28 @@ export async function POST(request: Request) {
         // why, so it can only ever answer "which switches are common," not
         // "why did they switch."
         if (priorProfile && liveActive && liveTier && priorProfile.membership_tier && priorProfile.membership_tier !== liveTier) {
+          // Same reasoning as the checkout/renewal refill sites above: the
+          // credit wallet is a monthly allotment tied to the *current*
+          // tier, not something that only updates on the next billing
+          // cycle. Without this, someone paying for Professional today
+          // stayed capped at whatever Basic/Pro left them until their next
+          // renewal — a real gap, not just a display detail, since it's
+          // the actual usable amount of the thing they just paid more for.
+          const tierCredits = MEMBERSHIP_TIERS[liveTier as Exclude<MembershipTier, "free">]?.monthlyCredits;
+          if (tierCredits !== undefined) {
+            const { error: creditsError } = await supabase
+              .from("agently_profiles")
+              .update({ api_credits: tierCredits, api_credits_refreshed_at: new Date().toISOString() })
+              .eq("id", priorProfile.id);
+            if (creditsError) {
+              console.error("[stripe/webhook] tier-switch credit refill failed", {
+                eventId: event.id,
+                userId: priorProfile.id,
+                message: creditsError.message,
+              });
+            }
+          }
+
           await recordMembershipEvent(supabase, {
             eventId: event.id,
             eventType: "tier_changed",
