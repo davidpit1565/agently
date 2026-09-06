@@ -19,6 +19,10 @@ function euros(cents: number): string {
   return `€${formatEuros(cents)}`;
 }
 
+function negativeEuros(cents: number): string {
+  return cents > 0 ? `−${euros(cents)}` : euros(cents);
+}
+
 export default async function AnalyticsPage() {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return (
@@ -152,7 +156,7 @@ export default async function AnalyticsPage() {
                       <td className="px-3 py-3 text-right font-mono tabular-nums text-ink-soft">{agent.sales}</td>
                       <td className="px-3 py-3 text-right font-mono tabular-nums text-ink-soft">{euros(agent.grossCents)}</td>
                       <td className="px-3 py-3 text-right font-mono tabular-nums text-ink-faint">
-                        −{euros(agent.platformFeeCents)}
+                        {negativeEuros(agent.platformFeeCents)}
                       </td>
                       <td className="px-3 py-3 text-right font-mono tabular-nums text-ink">{euros(agent.netCents)}</td>
                     </tr>
@@ -166,7 +170,7 @@ export default async function AnalyticsPage() {
                     <td className="px-3 py-3 text-right font-mono tabular-nums">{analytics.totalSales}</td>
                     <td className="px-3 py-3 text-right font-mono tabular-nums">{euros(analytics.totalGrossCents)}</td>
                     <td className="px-3 py-3 text-right font-mono tabular-nums text-ink-faint">
-                      −{euros(analytics.totalPlatformFeeCents)}
+                      {negativeEuros(analytics.totalPlatformFeeCents)}
                     </td>
                     <td className="px-3 py-3 text-right font-mono tabular-nums text-accent">
                       {euros(analytics.totalNetCents)}
