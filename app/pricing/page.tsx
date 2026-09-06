@@ -4,6 +4,7 @@ import { MEMBERSHIP_TIERS } from "@/lib/membership";
 import { createClient } from "@/lib/supabase/server";
 import { Reveal } from "@/app/components/reveal";
 import { SubmitButton } from "@/app/components/submit-button";
+import { UpgradeReasonPrompt } from "@/app/components/upgrade-reason-prompt";
 import { ApproxPrice } from "@/app/components/approx-price";
 
 const TIER_ORDER = ["basic", "pro", "professional"] as const;
@@ -53,9 +54,12 @@ export default async function PricingPage({
   return (
     <main className="mx-auto max-w-4xl px-6 py-16 sm:py-24">
       {switched && (
-        <div className="mb-6 rounded-lg border border-accent/30 bg-accent-soft px-4 py-2.5 text-sm text-accent">
-          Switched — the new rate applies with Stripe's usual proration for the rest of this billing period.
-        </div>
+        <>
+          <div className="mb-6 rounded-lg border border-accent/30 bg-accent-soft px-4 py-2.5 text-sm text-accent">
+            Switched — the new rate applies with Stripe's usual proration for the rest of this billing period.
+          </div>
+          <UpgradeReasonPrompt storageKey={`upgrade-reason-dismissed:switched:${new Date().toDateString()}`} />
+        </>
       )}
       {error && (
         <div className="mb-6 animate-shake rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-400">
