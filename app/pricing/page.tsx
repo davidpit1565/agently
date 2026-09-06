@@ -4,6 +4,7 @@ import { MEMBERSHIP_TIERS } from "@/lib/membership";
 import { createClient } from "@/lib/supabase/server";
 import { Reveal } from "@/app/components/reveal";
 import { SubmitButton } from "@/app/components/submit-button";
+import { ApproxPrice } from "@/app/components/approx-price";
 
 const TIER_ORDER = ["basic", "pro", "professional"] as const;
 
@@ -102,7 +103,10 @@ export default async function PricingPage({
                 <span className="font-display text-2xl font-semibold tabular-nums">
                   €{(config.monthlyPriceCents / 100).toFixed(0)}
                 </span>
-                <span className="text-ink-faint"> / month</span>
+                <span className="text-ink-faint"> / month</span>{" "}
+                <span className="text-sm">
+                  <ApproxPrice cents={config.monthlyPriceCents} />
+                </span>
               </div>
               <p className="font-mono text-xs tabular-nums text-ink-faint">
                 or €{(config.yearlyPriceCents / 100).toFixed(0)} / year
