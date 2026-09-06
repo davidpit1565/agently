@@ -31,10 +31,30 @@ export async function POST(request: Request) {
       ? ((form.get("company_name") as string) || "").trim().slice(0, MAX_NAME_LENGTH) || null
       : null;
   const bio = ((form.get("bio") as string)?.trim().slice(0, MAX_BIO_LENGTH)) || null;
-  const websiteUrl = sanitizeUrl((form.get("website_url") as string)?.trim() || null);
+  const rawWebsiteUrl = (form.get("website_url") as string)?.trim() || null;
+  const websiteUrl = sanitizeUrl(rawWebsiteUrl);
 
   if (!displayName) {
-    return NextResponse.json({ error: "Display name can't be empty." }, { status: 400 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/settings?error=${encodeURIComponent("Display name can't be empty.")}`, request.url),
+      303
+    );
+  }
+
+  // sanitizeUrl silently returns null for anything that isn't http(s) — fine
+  // as a security backstop, but applied to a non-empty value it used to
+  // just erase what was typed with zero explanation. A field's own type="url"
+  // catches most malformed input before this ever runs, but not a scheme
+  // other than http/https (mailto:, ftp:, javascript:), so this still needs
+  // its own message rather than silently discarding the input.
+  if (rawWebsiteUrl && !websiteUrl) {
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/settings?error=${encodeURIComponent("Website must be a valid http:// or https:// link.")}`,
+        request.url
+      ),
+      303
+    );
   }
 
   const { error } = await supabase
@@ -49,7 +69,14 @@ export async function POST(request: Request) {
     .eq("id", user.id);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    // This is a plain HTML <form> POST, not a fetch call — a JSON body here
+    // used to render as a raw JSON page instead of the settings form, so a
+    // failed save looked like the whole page had broken rather than "try
+    // again." Redirecting back with the message keeps the form on screen.
+    return NextResponse.redirect(
+      new URL(`/dashboard/settings?error=${encodeURIComponent(error.message)}`, request.url),
+      303
+    );
   }
 
   return NextResponse.redirect(new URL("/dashboard/settings?saved=1", request.url), 303);

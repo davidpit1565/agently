@@ -53,16 +53,23 @@ export default async function CreatorPage({
       {(creator.bio || creator.website_url) && (
         <Reveal delay={70} className="mb-10 flex flex-col gap-2 border-b border-line pb-8">
           {creator.bio && <p className="max-w-2xl text-pretty leading-relaxed text-ink-soft">{creator.bio}</p>}
-          {creator.website_url && (
-            <a
-              href={creator.website_url}
-              target="_blank"
-              rel="noopener noreferrer nofollow"
-              className="w-fit text-sm text-accent transition-colors duration-200 hover:underline"
-            >
-              {creator.website_url.replace(/^https?:\/\//, "")}
-            </a>
-          )}
+          {/* Only ever rendered as a clickable link when it's actually http(s) —
+              a stored `javascript:` or `data:` URL would otherwise execute on
+              click. Still shown as plain text if the scheme isn't safe, rather
+              than silently disappearing. */}
+          {creator.website_url &&
+            (/^https?:\/\//i.test(creator.website_url) ? (
+              <a
+                href={creator.website_url}
+                target="_blank"
+                rel="noopener noreferrer nofollow"
+                className="w-fit text-sm text-accent transition-colors duration-200 hover:underline"
+              >
+                {creator.website_url.replace(/^https?:\/\//, "")}
+              </a>
+            ) : (
+              <span className="w-fit text-sm text-ink-faint">{creator.website_url}</span>
+            ))}
         </Reveal>
       )}
 

@@ -16,6 +16,7 @@ import { RefundButton } from "@/app/components/refund-button";
 import { CancelSubscriptionButton } from "@/app/components/cancel-subscription-button";
 import { getAcceptedTeamPurchaseId } from "@/lib/team-invites";
 import { MIN_TEAM_SEATS, MAX_TEAM_SEATS } from "@/lib/team-pricing";
+import { TeamSeatsPicker } from "@/app/components/team-seats-picker";
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -459,15 +460,15 @@ export default async function AgentPage({
         {!isOwner && !hasPurchased && (
           <form action="/api/checkout" method="POST" className="flex flex-col gap-3 pt-4">
             <input type="hidden" name="agentId" value={agent.id} />
-            <button
-              type="submit"
+            <SubmitButton
+              pendingText={agent.pricing_model === "free" ? "Getting it…" : "Redirecting to checkout…"}
               className="shine-sweep magnetic-btn group flex w-fit items-center gap-2 rounded-full bg-accent py-2 pl-6 pr-2 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
             >
               {agent.pricing_model === "free" ? "Get this agent" : `Buy — ${priceLabel(agent)}`}
               <span className="magnetic-icon flex h-8 w-8 items-center justify-center rounded-full bg-black/10">
                 →
               </span>
-            </button>
+            </SubmitButton>
 
             {/* Team licensing (lib/team-pricing.ts): only makes sense for a
                 one-time purchase — a subscription's recurring billing has no
@@ -487,24 +488,7 @@ export default async function AgentPage({
                     From {MIN_TEAM_SEATS} to {MAX_TEAM_SEATS} seats, cheaper per seat the more you add.
                     Everyone you list gets an email with their own access link right after checkout.
                   </p>
-                  <label className="flex flex-col gap-1 text-xs text-ink-soft">
-                    Seats
-                    <select
-                      name="seats"
-                      defaultValue="1"
-                      className="w-32 rounded-lg border border-line bg-surface-raised px-2 py-1.5 text-sm text-ink"
-                    >
-                      <option value="1">Just me</option>
-                      {Array.from(
-                        { length: MAX_TEAM_SEATS - MIN_TEAM_SEATS + 1 },
-                        (_, i) => MIN_TEAM_SEATS + i
-                      ).map((n) => (
-                        <option key={n} value={n}>
-                          {n} seats
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <TeamSeatsPicker basePriceCents={agent.price_cents ?? 0} />
                   <label className="flex flex-col gap-1 text-xs text-ink-soft">
                     Teammate emails — one per line, one fewer than the seat count above
                     <textarea

@@ -20,11 +20,13 @@ export function SubmitButton({
   pendingText,
   className,
   disabled,
+  title,
 }: {
   children: React.ReactNode;
   pendingText: string;
   className?: string;
   disabled?: boolean;
+  title?: string;
 }) {
   const [pending, setPending] = useState(false);
   return (
@@ -32,6 +34,7 @@ export function SubmitButton({
       type="submit"
       disabled={disabled || pending}
       onClick={() => setTimeout(() => setPending(true), 0)}
+      title={title}
       className={`${className ?? ""} disabled:cursor-not-allowed disabled:opacity-60`}
     >
       {pending ? pendingText : children}
