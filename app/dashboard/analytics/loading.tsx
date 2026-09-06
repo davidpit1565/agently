@@ -18,6 +18,19 @@ export default function AnalyticsLoading() {
         ))}
       </div>
 
+      <div className="mb-6 h-[70px] rounded-2xl border border-line bg-surface p-4">
+        <div className="flex h-full items-center gap-4">
+          <div className="h-9 w-9 shrink-0 skeleton-shimmer rounded-full bg-surface-raised" />
+          <div className="h-4 flex-1 skeleton-shimmer rounded bg-surface-raised" />
+          <div className="h-5 w-16 skeleton-shimmer rounded bg-surface-raised" />
+        </div>
+      </div>
+
+      <div className="mb-3 flex items-center justify-between">
+        <div className="h-3 w-16 skeleton-shimmer rounded bg-surface-raised" />
+        <div className="h-6 w-28 skeleton-shimmer rounded-full bg-surface-raised" />
+      </div>
+
       <div className="mb-6 grid gap-3 sm:grid-cols-2">
         {Array.from({ length: 2 }).map((_, i) => (
           <div key={i} className="rounded-2xl border border-line bg-surface p-5">

@@ -1,6 +1,14 @@
 import { createClient } from "@/lib/supabase/server";
 
-const DAILY_WINDOW_DAYS = 30;
+// The chart/table only ever show the last 30 days, but the daily buckets go back
+// 90 so a client-side range toggle (7/30/90) and the prior-30-vs-current-30
+// comparison badge can both slice this same array — no second Supabase round trip.
+const DAILY_WINDOW_DAYS = 90;
+const COMPARISON_WINDOW_DAYS = 30;
+// Per-agent sparkline: a cheap trend indicator built from rows already in memory,
+// deliberately shorter than the full daily window so a quiet agent's line isn't
+// mostly flat zeros.
+const SPARKLINE_WINDOW_DAYS = 14;
 
 function supabaseConfigured() {
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
@@ -18,6 +26,8 @@ export type AgentEarnings = {
   grossCents: number;
   platformFeeCents: number;
   netCents: number;
+  /** Net revenue per day for the last SPARKLINE_WINDOW_DAYS days, oldest first. */
+  sparkline: number[];
 };
 
 export type CreatorAnalytics = {
@@ -27,7 +37,11 @@ export type CreatorAnalytics = {
   totalNetCents: number;
   last30DaysNetCents: number;
   last30DaysSales: number;
+  /** The 30 days immediately before last30Days*, for the comparison badge. */
+  prev30DaysNetCents: number;
+  prev30DaysSales: number;
   perAgent: AgentEarnings[];
+  /** Oldest-first, DAILY_WINDOW_DAYS long — a client-side range toggle slices from the end. */
   daily: DailyPoint[];
   failed: boolean;
 };
@@ -40,6 +54,8 @@ function emptyAnalytics(failed: boolean): CreatorAnalytics {
     totalNetCents: 0,
     last30DaysNetCents: 0,
     last30DaysSales: 0,
+    prev30DaysNetCents: 0,
+    prev30DaysSales: 0,
     perAgent: [],
     daily: [],
     failed,
@@ -98,6 +114,17 @@ export async function getCreatorAnalytics(userId: string): Promise<CreatorAnalyt
     dailyMap.set(key, { date: key, netCents: 0, grossCents: 0, sales: 0 });
   }
 
+  // Index into the sparkline array (oldest first) for each date within its window,
+  // so per-agent sparklines can be filled in the same pass instead of a second query.
+  const sparklineStart = new Date(today);
+  sparklineStart.setUTCDate(sparklineStart.getUTCDate() - (SPARKLINE_WINDOW_DAYS - 1));
+  const sparklineIndex = new Map<string, number>();
+  for (let i = 0; i < SPARKLINE_WINDOW_DAYS; i++) {
+    const d = new Date(sparklineStart);
+    d.setUTCDate(d.getUTCDate() + i);
+    sparklineIndex.set(d.toISOString().slice(0, 10), i);
+  }
+
   for (const row of rows) {
     if (!row.agently_agents) continue; // agent deleted since — nothing left to attribute this sale to
 
@@ -123,6 +150,7 @@ export async function getCreatorAnalytics(userId: string): Promise<CreatorAnalyt
         grossCents: row.amount_cents,
         platformFeeCents: row.platform_fee_cents,
         netCents: net,
+        sparkline: new Array(SPARKLINE_WINDOW_DAYS).fill(0),
       });
     }
 
@@ -133,11 +161,22 @@ export async function getCreatorAnalytics(userId: string): Promise<CreatorAnalyt
       bucket.grossCents += row.amount_cents;
       bucket.netCents += net;
     }
+
+    const sparkIdx = sparklineIndex.get(key);
+    if (sparkIdx !== undefined) {
+      // Look the entry back up rather than reusing `existing` — it may have
+      // just been created a few lines above, in this same iteration.
+      perAgentMap.get(row.agent_id)!.sparkline[sparkIdx] += net;
+    }
   }
 
   const daily = [...dailyMap.values()];
-  const last30DaysNetCents = daily.reduce((sum, d) => sum + d.netCents, 0);
-  const last30DaysSales = daily.reduce((sum, d) => sum + d.sales, 0);
+  const last30 = daily.slice(-COMPARISON_WINDOW_DAYS);
+  const prev30 = daily.slice(-COMPARISON_WINDOW_DAYS * 2, -COMPARISON_WINDOW_DAYS);
+  const last30DaysNetCents = last30.reduce((sum, d) => sum + d.netCents, 0);
+  const last30DaysSales = last30.reduce((sum, d) => sum + d.sales, 0);
+  const prev30DaysNetCents = prev30.reduce((sum, d) => sum + d.netCents, 0);
+  const prev30DaysSales = prev30.reduce((sum, d) => sum + d.sales, 0);
 
   const perAgent = [...perAgentMap.values()].sort((a, b) => b.netCents - a.netCents);
 
@@ -148,6 +187,8 @@ export async function getCreatorAnalytics(userId: string): Promise<CreatorAnalyt
     totalNetCents: totalGrossCents - totalPlatformFeeCents,
     last30DaysNetCents,
     last30DaysSales,
+    prev30DaysNetCents,
+    prev30DaysSales,
     perAgent,
     daily,
     failed: false,
