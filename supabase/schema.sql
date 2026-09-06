@@ -606,6 +606,27 @@ create table if not exists agently_agent_invocations (
 
 create index if not exists agently_agent_invocations_agent_idx on agently_agent_invocations (agent_id, created_at desc);
 
+-- Before this, a failed hosted call (the catch block in app/api/agents/
+-- [slug]/invoke/route.ts) only ever produced a console.error line — this
+-- table got a row on the success path alone, so there was no record at all
+-- that a call failed, and no way to notice a hosted agent's webhook or
+-- Anthropic calls dying repeatedly short of a buyer complaining. Now every
+-- invocation is logged, success or failure.
+alter table agently_agent_invocations add column if not exists succeeded boolean not null default true;
+-- A short, safe failure classification — reuses exactly what the invoke
+-- route's catch block already classifies today (e.g. "Anthropic API call
+-- failed (529)", "Webhook call failed (503)", "Workflow timed out"). Never
+-- anything that could contain hosted_system_prompt content — same
+-- never-log-the-secret discipline as hosted_system_prompt itself above.
+alter table agently_agent_invocations add column if not exists error_message text;
+
+-- The alerting cooldown (lib/hosted-agents.ts's checkAndAlertOnFailureRate,
+-- called from the invoke route's failure path): once a broken agent has
+-- triggered one alert email to the platform owner, this is checked before
+-- sending another, so a webhook that stays dead doesn't spam the owner's
+-- inbox on every subsequent failed call.
+alter table agently_agents add column if not exists last_alert_sent_at timestamptz;
+
 -- Same "no per-row owner concept RLS can usefully check" reasoning as
 -- agently_agent_requests and agently_membership_events above: every read or
 -- write of an invocation log goes through the service-role client from

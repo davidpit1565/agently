@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { extractBearerKey, hashApiKey } from "@/lib/api-keys";
-import { deductCredits, refundCredits, checkInvokeEligibility } from "@/lib/hosted-agents";
+import { deductCredits, refundCredits, checkInvokeEligibility, checkAndAlertOnFailureRate } from "@/lib/hosted-agents";
 import { errorMessage } from "@/lib/errors";
 
 const MAX_INPUT_LENGTH = 20_000; // a reasonable ceiling on the caller's own request body — not a measured limit, just a sane guard.
@@ -57,7 +57,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
   // Step 3: the agent. Only an approved, hosted (non-file) agent applies here.
   const { data: agent } = await admin
     .from("agently_agents")
-    .select("id, slug, status, agent_kind, hosted_system_prompt, hosted_webhook_url, credits_per_call")
+    .select("id, slug, name, status, agent_kind, hosted_system_prompt, hosted_webhook_url, credits_per_call")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -148,6 +148,35 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
       message: errorMessage(err),
     });
     const isTimeout = err instanceof Error && err.name === "TimeoutError";
+    // A short, safe classification for the log — the same one already
+    // thrown inside runHostedPrompt/runHostedWorkflow ("Anthropic API call
+    // failed (529)", "Webhook call failed (503)"), never the buyer-facing
+    // generic message below and never anything that could echo
+    // hosted_system_prompt content (see runHostedPrompt's own comment).
+    const errorClassification = isTimeout ? "Workflow timed out" : errorMessage(err);
+
+    // Log the failure too — before this, a failed call left no trace
+    // anywhere but a console.error line, so nobody would find out a hosted
+    // agent's webhook or Anthropic calls were failing repeatedly short of a
+    // buyer complaining. credits_charged is 0: the deduction above was just
+    // refunded, so this call cost the buyer nothing.
+    const { error: logError } = await admin.from("agently_agent_invocations").insert({
+      agent_id: agent.id,
+      user_id: keyRow.user_id,
+      credits_charged: 0,
+      succeeded: false,
+      error_message: errorClassification,
+    });
+    if (logError) {
+      console.error("[invoke] failed-invocation log insert failed", { agentSlug: slug, message: logError.message });
+    }
+
+    // Never blocks or slows down the buyer's response — awaited here (this
+    // codebase's existing pattern is to await non-critical side effects
+    // rather than fire-and-forget) but everything inside it is itself
+    // never-throwing.
+    await checkAndAlertOnFailureRate(admin, agent.id, agent.name);
+
     return NextResponse.json(
       { error: isTimeout ? "The agent's workflow timed out." : "The hosted agent failed to produce a result." },
       { status: 502 }
@@ -161,6 +190,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     agent_id: agent.id,
     user_id: keyRow.user_id,
     credits_charged: cost,
+    succeeded: true,
+    error_message: null,
   });
   if (logError) {
     console.error("[invoke] invocation log insert failed", { agentSlug: slug, message: logError.message });

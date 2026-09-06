@@ -1,5 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { validateHostedAgentFields, deductCredits, refundCredits, checkInvokeEligibility } from "./hosted-agents";
+import {
+  validateHostedAgentFields,
+  deductCredits,
+  refundCredits,
+  checkInvokeEligibility,
+  checkAndAlertOnFailureRate,
+} from "./hosted-agents";
 
 describe("validateHostedAgentFields", () => {
   it("accepts 'file' and blanks out every hosted-only field regardless of what was submitted", () => {
@@ -196,5 +202,144 @@ describe("refundCredits", () => {
   it("logs but does not throw when the refund RPC itself fails", async () => {
     const { admin } = fakeAdmin({ data: null, error: { message: "db down" } });
     await expect(refundCredits(admin, "user-1", 10)).resolves.toBeUndefined();
+  });
+});
+
+// A minimal fake of the .from(...).select(...).eq(...).order(...).limit(...)
+// (recent invocations), .from(...).select(...).eq(...).maybeSingle() (the
+// agent's last_alert_sent_at) and .from(...).update(...).eq(...) (stamping
+// last_alert_sent_at) chains checkAndAlertOnFailureRate actually calls —
+// same "fake only the methods actually used" spirit as fakeAdmin() above,
+// just extended to a chained query builder instead of a single .rpc() call.
+function fakeAlertAdmin(opts: {
+  invocations: { data?: unknown; error?: { message: string } | null };
+  agent?: { data?: unknown; error?: { message: string } | null };
+}) {
+  const updateEq = vi.fn().mockResolvedValue({ error: null });
+  const update = vi.fn(() => ({ eq: updateEq }));
+
+  const maybeSingle = vi.fn().mockResolvedValue(opts.agent ?? { data: null, error: null });
+  const agentEq = vi.fn(() => ({ maybeSingle }));
+  const agentSelect = vi.fn(() => ({ eq: agentEq }));
+
+  const limit = vi.fn().mockResolvedValue(opts.invocations);
+  const order = vi.fn(() => ({ limit }));
+  const invocationsEq = vi.fn(() => ({ order }));
+  const invocationsSelect = vi.fn(() => ({ eq: invocationsEq }));
+
+  const from = vi.fn((table: string) => {
+    if (table === "agently_agent_invocations") return { select: invocationsSelect };
+    if (table === "agently_agents") return { select: agentSelect, update };
+    throw new Error(`fakeAlertAdmin: unexpected table ${table}`);
+  });
+
+  return {
+    admin: { from } as unknown as Parameters<typeof checkAndAlertOnFailureRate>[0],
+    from,
+    update,
+    updateEq,
+  };
+}
+
+describe("checkAndAlertOnFailureRate", () => {
+  it("does not alert when fewer than 3 of the last 10 invocations failed", async () => {
+    const { admin, from } = fakeAlertAdmin({
+      invocations: {
+        data: [
+          { succeeded: false, error_message: "Webhook call failed (503)" },
+          { succeeded: true, error_message: null },
+          { succeeded: true, error_message: null },
+        ],
+        error: null,
+      },
+    });
+
+    await checkAndAlertOnFailureRate(admin, "agent-1", "My Agent");
+
+    // Only ever queried the invocations table — never even looked at
+    // last_alert_sent_at, since the threshold wasn't met.
+    expect(from).toHaveBeenCalledTimes(1);
+    expect(from).toHaveBeenCalledWith("agently_agent_invocations");
+  });
+
+  it("alerts when 3 or more of the last 10 invocations failed and there is no prior alert", async () => {
+    const { admin, update, updateEq } = fakeAlertAdmin({
+      invocations: {
+        data: [
+          { succeeded: false, error_message: "Anthropic API call failed (529)" },
+          { succeeded: false, error_message: "Anthropic API call failed (529)" },
+          { succeeded: false, error_message: "Anthropic API call failed (529)" },
+          { succeeded: true, error_message: null },
+        ],
+        error: null,
+      },
+      agent: { data: { last_alert_sent_at: null }, error: null },
+    });
+
+    await checkAndAlertOnFailureRate(admin, "agent-1", "My Agent");
+
+    expect(update).toHaveBeenCalledWith({ last_alert_sent_at: expect.any(String) });
+    expect(updateEq).toHaveBeenCalledWith("id", "agent-1");
+  });
+
+  it("treats fewer than 10 logged calls total as eligible, as long as at least 3 failed", async () => {
+    const { admin, update } = fakeAlertAdmin({
+      invocations: {
+        data: [
+          { succeeded: false, error_message: "Workflow timed out" },
+          { succeeded: false, error_message: "Workflow timed out" },
+          { succeeded: false, error_message: "Workflow timed out" },
+        ],
+        error: null,
+      },
+      agent: { data: { last_alert_sent_at: null }, error: null },
+    });
+
+    await checkAndAlertOnFailureRate(admin, "agent-1", "My Agent");
+
+    expect(update).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not send a second alert while the cooldown (1 hour) hasn't passed", async () => {
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    const { admin, update } = fakeAlertAdmin({
+      invocations: {
+        data: [
+          { succeeded: false, error_message: "Webhook call failed (500)" },
+          { succeeded: false, error_message: "Webhook call failed (500)" },
+          { succeeded: false, error_message: "Webhook call failed (500)" },
+        ],
+        error: null,
+      },
+      agent: { data: { last_alert_sent_at: fiveMinutesAgo }, error: null },
+    });
+
+    await checkAndAlertOnFailureRate(admin, "agent-1", "My Agent");
+
+    expect(update).not.toHaveBeenCalled();
+  });
+
+  it("alerts again once the cooldown has expired", async () => {
+    const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+    const { admin, update } = fakeAlertAdmin({
+      invocations: {
+        data: [
+          { succeeded: false, error_message: "Webhook call failed (500)" },
+          { succeeded: false, error_message: "Webhook call failed (500)" },
+          { succeeded: false, error_message: "Webhook call failed (500)" },
+        ],
+        error: null,
+      },
+      agent: { data: { last_alert_sent_at: twoHoursAgo }, error: null },
+    });
+
+    await checkAndAlertOnFailureRate(admin, "agent-1", "My Agent");
+
+    expect(update).toHaveBeenCalledTimes(1);
+  });
+
+  it("never throws when the invocations query itself fails", async () => {
+    const { admin } = fakeAlertAdmin({ invocations: { data: null, error: { message: "connection refused" } } });
+    await expect(checkAndAlertOnFailureRate(admin, "agent-1", "My Agent")).resolves.toBeUndefined();
   });
 });

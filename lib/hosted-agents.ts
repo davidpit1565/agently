@@ -1,4 +1,6 @@
 import { sanitizeUrl } from "@/lib/validation";
+import { sendNotificationEmail } from "@/lib/email";
+import { SITE_URL } from "@/lib/site";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type AgentKind = "file" | "prompt" | "workflow";
@@ -135,5 +137,101 @@ export async function refundCredits(admin: SupabaseClient, userId: string, amoun
   const { error } = await admin.rpc("agently_add_credits", { profile_id: userId, amount });
   if (error) {
     console.error("[hosted-agents] credit refund failed", { userId, amount, message: error.message });
+  }
+}
+
+const FAILURE_ALERT_THRESHOLD = 3;
+const FAILURE_ALERT_WINDOW = 10;
+const ALERT_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour — see agently_agents.last_alert_sent_at in supabase/schema.sql
+
+/**
+ * Called from the invoke route's failure path only (app/api/agents/[slug]/
+ * invoke/route.ts's catch block), after that call's failed-invocation row is
+ * already logged. Before this, the only way anyone found out a hosted
+ * agent's webhook died, or that Anthropic calls to a specific agent were
+ * failing repeatedly, was a buyer complaining — possibly long after it broke.
+ *
+ * Looks at the last FAILURE_ALERT_WINDOW logged invocations for this agent
+ * (success or failure, oldest-first doesn't matter — only the count of
+ * `succeeded: false` among them). If at least FAILURE_ALERT_THRESHOLD of
+ * those are failures — which also covers the "fewer than 10 logged so far"
+ * case, since the query only ever returns what actually exists — and this
+ * agent hasn't already alerted within the last hour (last_alert_sent_at),
+ * sends one alert email to the platform owner and stamps last_alert_sent_at
+ * so the next several failures on the same broken agent don't each send
+ * their own email.
+ *
+ * Never throws and never blocks the buyer's actual response: every read/
+ * write error here is logged and swallowed, same "a side-channel failure
+ * must never turn into a 500 for the request that triggered it" reasoning
+ * as refundCredits above and notifyOwnerOfPendingReview in
+ * lib/notifications.ts. sendNotificationEmail itself already no-ops
+ * cleanly when PLATFORM_OWNER_EMAIL/RESEND_API_KEY aren't set.
+ */
+export async function checkAndAlertOnFailureRate(
+  admin: SupabaseClient,
+  agentId: string,
+  agentName: string
+): Promise<void> {
+  const { data: recent, error: recentError } = await admin
+    .from("agently_agent_invocations")
+    .select("succeeded, error_message")
+    .eq("agent_id", agentId)
+    .order("created_at", { ascending: false })
+    .limit(FAILURE_ALERT_WINDOW);
+
+  if (recentError) {
+    console.error("[hosted-agents] failure-rate check: could not read recent invocations", {
+      agentId,
+      message: recentError.message,
+    });
+    return;
+  }
+
+  const rows = (recent ?? []) as { succeeded: boolean; error_message: string | null }[];
+  const failures = rows.filter((r) => r.succeeded === false);
+  if (failures.length < FAILURE_ALERT_THRESHOLD) return;
+
+  const { data: agentRow, error: agentError } = await admin
+    .from("agently_agents")
+    .select("last_alert_sent_at")
+    .eq("id", agentId)
+    .maybeSingle();
+
+  if (agentError) {
+    console.error("[hosted-agents] failure-rate check: could not read last_alert_sent_at", {
+      agentId,
+      message: agentError.message,
+    });
+    return;
+  }
+
+  const lastAlertSentAt = (agentRow as { last_alert_sent_at: string | null } | null)?.last_alert_sent_at ?? null;
+  if (lastAlertSentAt && Date.now() - new Date(lastAlertSentAt).getTime() < ALERT_COOLDOWN_MS) {
+    return; // already alerted recently — the cooldown that keeps one broken agent from spamming the inbox
+  }
+
+  const mostRecentError = failures[0]?.error_message ?? "unknown error";
+  const owner = process.env.PLATFORM_OWNER_EMAIL;
+  await sendNotificationEmail(
+    owner,
+    `${agentName} is failing repeatedly`,
+    [
+      `${agentName} has failed ${failures.length} of its last ${rows.length} logged calls.`,
+      `Most recent error: ${mostRecentError}`,
+      "",
+      `Check it: ${SITE_URL}/dashboard/agents/${agentId}/edit`,
+    ].join("\n")
+  );
+
+  const { error: updateError } = await admin
+    .from("agently_agents")
+    .update({ last_alert_sent_at: new Date().toISOString() })
+    .eq("id", agentId);
+  if (updateError) {
+    console.error("[hosted-agents] failure-rate check: could not stamp last_alert_sent_at", {
+      agentId,
+      message: updateError.message,
+    });
   }
 }
