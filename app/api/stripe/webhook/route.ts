@@ -70,6 +70,7 @@ export async function POST(request: Request) {
         amount_total: number | null;
         customer: string | null;
         subscription: string | null;
+        payment_status: string;
         metadata: Record<string, string>;
       };
       const { agent_id, buyer_id, user_id, membership_tier, seats: seatsRaw, team_emails } = session.metadata ?? {};
@@ -88,12 +89,24 @@ export async function POST(request: Request) {
         // current status here (rather than assuming "paid" because this
         // event fired) makes the recorded outcome match Stripe's actual
         // state regardless of which webhook happened to arrive first.
+        //
+        // checkout.session.completed fires as soon as the buyer submits
+        // payment details — for a delayed-notification method (SEPA Debit,
+        // bank transfers; reachable the moment "automatic payment methods"
+        // is on in the Stripe dashboard, which nothing here restricts),
+        // session.payment_status is still "unpaid" at that point and the
+        // money hasn't actually moved yet. Recording "paid" here would grant
+        // delivery access and notify the creator for a sale that could still
+        // fail — checkout.session.async_payment_succeeded/failed below are
+        // what Stripe actually settles on.
         let status = "paid";
         if (session.subscription) {
           const subscription = await stripe.subscriptions.retrieve(session.subscription);
           if (subscription.status !== "active" && subscription.status !== "trialing") {
             status = "canceled";
           }
+        } else if (session.payment_status !== "paid") {
+          status = "pending";
         }
         const { data: insertedPurchase, error } = await supabase
           .from("agently_purchases")
@@ -186,6 +199,70 @@ export async function POST(request: Request) {
           return NextResponse.json({ error: "Failed to record membership" }, { status: 500 });
         }
       }
+      break;
+    }
+    // A one-time purchase left status='pending' above (a delayed-notification
+    // payment method — SEPA Debit, bank transfers) is settled by one of these
+    // two events, never by checkout.session.completed itself.
+    case "checkout.session.async_payment_succeeded": {
+      const session = event.data.object as {
+        id: string;
+        amount_total: number | null;
+        metadata: Record<string, string>;
+      };
+      const { seats: seatsRaw, team_emails } = session.metadata ?? {};
+      const seats = seatsRaw ? Number(seatsRaw) : 1;
+      const { data: purchase } = await supabase
+        .from("agently_purchases")
+        .update({ status: "paid" })
+        .eq("stripe_checkout_session_id", session.id)
+        .eq("status", "pending")
+        .select("id, agent_id")
+        .single();
+      // No row updated means this wasn't a pending one-time purchase (a
+      // membership/subscription session, or an already-settled retry) —
+      // nothing further to do.
+      if (purchase) {
+        const { data: agent } = await supabase
+          .from("agently_agents")
+          .select("creator_id, name, currency, slug")
+          .eq("id", purchase.agent_id)
+          .single();
+        if (agent) {
+          await notifyCreatorOfSale(supabase, {
+            creatorId: agent.creator_id,
+            agentId: purchase.agent_id,
+            agentName: agent.name,
+            amountCents: session.amount_total ?? 0,
+            currency: agent.currency,
+          });
+          if (seats > 1 && team_emails) {
+            const emails = team_emails.split(",").filter(Boolean);
+            await createTeamInvitesAndNotify(supabase, {
+              purchaseId: purchase.id,
+              agentId: purchase.agent_id,
+              agentName: agent.name,
+              agentSlug: agent.slug,
+              emails,
+            });
+          }
+        }
+      }
+      break;
+    }
+    case "checkout.session.async_payment_failed": {
+      // The buyer never actually paid — this purchase row was already left
+      // at status='pending' (no delivery access, no notification sent) by
+      // checkout.session.completed above, so there's nothing to revoke.
+      // Recorded as 'canceled' (same status a subscription buyer's canceled
+      // agently_purchases row gets) purely so it stops showing as a live
+      // pending purchase anywhere that might surface it.
+      const session = event.data.object as { id: string };
+      await supabase
+        .from("agently_purchases")
+        .update({ status: "canceled" })
+        .eq("stripe_checkout_session_id", session.id)
+        .eq("status", "pending");
       break;
     }
     case "charge.refunded": {
