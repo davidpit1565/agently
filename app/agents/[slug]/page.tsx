@@ -15,6 +15,7 @@ import { RefundButton } from "@/app/components/refund-button";
 import { CancelSubscriptionButton } from "@/app/components/cancel-subscription-button";
 import { getAcceptedTeamPurchaseId } from "@/lib/team-invites";
 import { PurchaseButton } from "@/app/components/purchase-button";
+import { ApproxPrice } from "@/app/components/approx-price";
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -302,6 +303,11 @@ export default async function AgentPage({
           <span className="rounded-full bg-accent-soft px-3 py-1 font-mono font-medium tabular-nums text-accent">
             {priceLabel(agent)}
           </span>
+          {agent.pricing_model !== "free" && (
+            <span className="font-mono text-xs tabular-nums">
+              <ApproxPrice cents={agent.price_cents ?? 0} />
+            </span>
+          )}
           {agent.status === "approved" && (
             <span className="text-ink-faint">Safety-reviewed ✓</span>
           )}

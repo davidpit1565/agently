@@ -3,6 +3,7 @@ import { CATEGORIES_FALLBACK } from "@/data/categories";
 import { agentCode } from "@/lib/agent-code";
 import { TrustRing } from "@/app/components/trust-ring";
 import { formatEuros } from "@/lib/format";
+import { ApproxPrice } from "@/app/components/approx-price";
 import type { Agent } from "@/lib/types";
 
 function priceLabel(agent: Agent) {
@@ -55,7 +56,14 @@ export function AgentCard({ agent, hasFiles }: { agent: Agent; hasFiles?: boolea
                 </svg>
               </span>
             )}
-            <span className="font-mono font-medium tabular-nums text-accent">{priceLabel(agent)}</span>
+            <span className="flex items-center gap-1 font-mono font-medium tabular-nums text-accent">
+              {priceLabel(agent)}
+              {agent.pricing_model !== "free" && (
+                <span className="text-[11px] font-normal">
+                  <ApproxPrice cents={agent.price_cents ?? 0} />
+                </span>
+              )}
+            </span>
           </div>
         </div>
       </div>
