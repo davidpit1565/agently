@@ -193,6 +193,12 @@ create table if not exists agently_purchases (
 -- notifyBuyersOfUpdate() (lib/notifications.ts) filters by agent_id+status
 -- on every listing edit — both were sequential scans without this.
 create index if not exists agently_purchases_agent_buyer_idx on agently_purchases (agent_id, buyer_id, status);
+-- getMyPurchases() (lib/catalog.ts) and the "buyers see their own purchases"
+-- RLS policy below both filter by buyer_id alone, which isn't a usable
+-- prefix of the composite index above (agent_id first) — every load of
+-- /dashboard/purchases was a full-table scan on this column for every
+-- signed-in user.
+create index if not exists agently_purchases_buyer_idx on agently_purchases (buyer_id, status, created_at desc);
 
 -- A buyer of a per-agent subscription (agent.pricing_model = 'subscription')
 -- who cancels needs their access revoked, not just their next Stripe
@@ -523,12 +529,40 @@ create policy "buyers can claim free agents" on agently_purchases for insert
 -- this agent" always hits the ON CONFLICT DO UPDATE branch, not a fresh
 -- insert. RLS checks that branch as an UPDATE — without this, the very
 -- first claim would succeed and every one after it would fail.
+-- Missing a WITH CHECK here (before this fix) meant Postgres reused USING
+-- for the new row too — which never excluded creator_id = auth.uid(), unlike
+-- the INSERT policy right above it. Concrete exploit: a creator who already
+-- holds any free-agent purchase row (buyer_id = self) could call the
+-- Supabase REST API directly with their own session — bypassing
+-- app/api/checkout/route.ts's explicit self-buy check entirely — and PATCH
+-- that row's agent_id to their own free listing, self-servicing a
+-- fabricated status='paid' purchase and unlocking a "verified buyer" review
+-- on their own agent. WITH CHECK re-validates the *new* row against the same
+-- creator exclusion the INSERT policy already enforces.
 drop policy if exists "buyers can re-claim free agents" on agently_purchases;
 create policy "buyers can re-claim free agents" on agently_purchases for update
   using (
     buyer_id = auth.uid()
     and exists (select 1 from agently_agents where agently_agents.id = agent_id and agently_agents.pricing_model = 'free')
+  )
+  with check (
+    buyer_id = auth.uid()
+    and exists (
+      select 1 from agently_agents
+      where agently_agents.id = agent_id
+        and agently_agents.pricing_model = 'free'
+        and agently_agents.creator_id <> auth.uid()
+    )
   );
+-- Belt-and-suspenders alongside the WITH CHECK above, matching the pattern
+-- already used for agently_profiles/agently_agents: the only legitimate
+-- update through this policy (app/api/checkout/route.ts's free-agent
+-- upsert, re-clicking "Get this agent") only ever re-sets status to the
+-- same 'paid' value — agent_id, buyer_id, and the amount columns never need
+-- to change. Revoking broad UPDATE means a direct REST call can't touch
+-- agent_id even if some future edit to the policy above reopened the gap.
+revoke update on agently_purchases from authenticated;
+grant update (status) on agently_purchases to authenticated;
 
 drop policy if exists "reviews are public" on agently_reviews;
 create policy "reviews are public" on agently_reviews for select using (true);
@@ -552,9 +586,31 @@ create policy "buyers can write their own review" on agently_reviews for insert
 -- unique constraint — but RLS checks the actual UPDATE that runs on a
 -- conflict, and without this policy there was none, so the row a buyer
 -- already owns could be inserted once and never touched again.
+-- Same missing-WITH CHECK gap as agently_purchases above: without one, a
+-- buyer could PATCH their own existing review row's agent_id directly via
+-- the Supabase REST API to point at a different agent — including one they
+-- never bought or their own listing — fabricating a "verified" review with
+-- no re-check against agently_purchases. WITH CHECK re-runs the same
+-- paid-purchase-exists condition the INSERT policy already requires,
+-- against the row's new agent_id.
 drop policy if exists "buyers can update their own review" on agently_reviews;
 create policy "buyers can update their own review" on agently_reviews for update
-  using (buyer_id = auth.uid());
+  using (buyer_id = auth.uid())
+  with check (
+    buyer_id = auth.uid()
+    and exists (
+      select 1 from agently_purchases
+      where agently_purchases.agent_id = agently_reviews.agent_id
+        and agently_purchases.buyer_id = auth.uid()
+        and agently_purchases.status = 'paid'
+    )
+  );
+-- Same belt-and-suspenders as agently_purchases/agently_profiles: the only
+-- legitimate update through this policy (app/api/reviews/route.ts's upsert
+-- on re-submitting a review) only ever touches rating/comment — agent_id
+-- and buyer_id never need to change on an existing review row.
+revoke update on agently_reviews from authenticated;
+grant update (rating, comment) on agently_reviews to authenticated;
 
 drop policy if exists "users see their own notifications" on agently_notifications;
 create policy "users see their own notifications" on agently_notifications for select using (user_id = auth.uid());

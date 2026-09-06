@@ -63,39 +63,46 @@ export async function uploadAgentFiles(agentId: string, files: File[]): Promise<
   const admin = createAdminClient();
   if (!admin || files.length === 0) return result;
 
-  for (const file of files) {
-    if (file.size === 0) continue; // an empty <input type="file"> still submits one zero-byte entry
+  // Each file's storage upload + row insert is independent of every other
+  // file's — a creator attaching several files at once previously paid the
+  // full round-trip latency of each one in sequence for no reason.
+  const outcomes = await Promise.all(
+    files.map(async (file): Promise<{ uploaded: boolean; rejected?: { name: string; reason: string } }> => {
+      if (file.size === 0) return { uploaded: false }; // an empty <input type="file"> still submits one zero-byte entry
 
-    if (file.size > MAX_FILE_SIZE_BYTES) {
-      result.rejected.push({ name: file.name, reason: "over the 50MB limit" });
-      continue;
-    }
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        return { uploaded: false, rejected: { name: file.name, reason: "over the 50MB limit" } };
+      }
 
-    const path = storagePath(agentId, file.name);
-    const { error: uploadError } = await admin.storage
-      .from(BUCKET)
-      .upload(path, file, { contentType: file.type || "application/octet-stream" });
-    if (uploadError) {
-      result.rejected.push({ name: file.name, reason: "upload failed" });
-      continue; // one bad file shouldn't fail the whole submission
-    }
+      const path = storagePath(agentId, file.name);
+      const { error: uploadError } = await admin.storage
+        .from(BUCKET)
+        .upload(path, file, { contentType: file.type || "application/octet-stream" });
+      if (uploadError) {
+        return { uploaded: false, rejected: { name: file.name, reason: "upload failed" } }; // one bad file shouldn't fail the whole submission
+      }
 
-    const { error: insertError } = await admin.from("agently_agent_files").insert({
-      agent_id: agentId,
-      file_name: file.name,
-      storage_path: path,
-      size_bytes: file.size,
-      is_readme: looksLikeReadme(file.name),
-    });
-    if (insertError) {
-      // The blob is already in Storage but with no row pointing at it —
-      // clean it up rather than leaving an orphaned file no UI ever lists.
-      await admin.storage.from(BUCKET).remove([path]);
-      result.rejected.push({ name: file.name, reason: "upload failed" });
-      continue;
-    }
+      const { error: insertError } = await admin.from("agently_agent_files").insert({
+        agent_id: agentId,
+        file_name: file.name,
+        storage_path: path,
+        size_bytes: file.size,
+        is_readme: looksLikeReadme(file.name),
+      });
+      if (insertError) {
+        // The blob is already in Storage but with no row pointing at it —
+        // clean it up rather than leaving an orphaned file no UI ever lists.
+        await admin.storage.from(BUCKET).remove([path]);
+        return { uploaded: false, rejected: { name: file.name, reason: "upload failed" } };
+      }
 
-    result.uploaded++;
+      return { uploaded: true };
+    })
+  );
+
+  for (const outcome of outcomes) {
+    if (outcome.uploaded) result.uploaded++;
+    if (outcome.rejected) result.rejected.push(outcome.rejected);
   }
 
   return result;

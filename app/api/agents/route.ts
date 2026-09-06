@@ -221,13 +221,16 @@ export async function POST(request: Request) {
 
   const dedupeBucket = Math.floor(Date.now() / 15_000);
 
-  const verdict = await reviewAgentSubmission({
-    name,
-    tagline,
-    problemSolved,
-    description,
-    deliveryUrl,
-  });
+  // Two independent network calls (Anthropic, Voyage) over the same input
+  // text — neither depends on the other's result, so running them
+  // sequentially only ever added their full combined latency to every
+  // upload instead of the slower of the two.
+  const [verdict, embedding] = await Promise.all([
+    reviewAgentSubmission({ name, tagline, problemSolved, description, deliveryUrl }),
+    // Null without VOYAGE_API_KEY configured — /api/search falls back to
+    // substring matching for any listing with no embedding, same as today.
+    getEmbedding(embeddableText({ name, tagline, problem_solved: problemSolved })),
+  ]);
 
   // No verdict (API key missing, or the call failed) means "no automated
   // opinion" — stay pending_review, never auto-approve on a null verdict.
@@ -236,10 +239,6 @@ export async function POST(request: Request) {
   // purpose once the score has a track record.
   const status = verdict && verdict.risk === "low" && isAutoApproveEnabled() ? "approved" : "pending_review";
   const trustScore = verdict ? verdict.score : 0;
-
-  // Null without VOYAGE_API_KEY configured — /api/search falls back to
-  // substring matching for any listing with no embedding, same as today.
-  const embedding = await getEmbedding(embeddableText({ name, tagline, problem_solved: problemSolved }));
 
   // Ownership/membership/limit are all verified above with the user's own
   // session. The insert itself goes through the service-role client — the

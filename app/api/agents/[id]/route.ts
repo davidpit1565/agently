@@ -161,7 +161,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   if (contentChanged) {
     editDiff = buildAgentEditDiff(existing, { name, tagline, problemSolved, description });
-    verdict = await reviewAgentSubmission({ name, tagline, problemSolved, description, deliveryUrl });
+    // Two independent network calls (Anthropic, Voyage) over the same input
+    // text — run in parallel rather than adding their full combined latency
+    // to every edit.
+    let newEmbedding: typeof embedding;
+    [verdict, newEmbedding] = await Promise.all([
+      reviewAgentSubmission({ name, tagline, problemSolved, description, deliveryUrl }),
+      // The text a buyer's search matches against changed — re-embed, or the
+      // listing keeps ranking against wording it no longer has.
+      getEmbedding(embeddableText({ name, tagline, problem_solved: problemSolved })),
+    ]);
+    embedding = newEmbedding;
     if (verdict) {
       // isAutoApproveEnabled() is off by default — see lib/safety-review.ts.
       status = verdict.risk === "low" && isAutoApproveEnabled() ? "approved" : "pending_review";
@@ -176,10 +186,6 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       status = "pending_review";
       reviewNotes = `No automated verdict (check ANTHROPIC_API_KEY).\n\nWhat changed:\n${editDiff}`;
     }
-
-    // The text a buyer's search matches against changed — re-embed, or the
-    // listing keeps ranking against wording it no longer has.
-    embedding = await getEmbedding(embeddableText({ name, tagline, problem_solved: problemSolved }));
   }
 
   // Ownership was already checked above with the user's own session. The
