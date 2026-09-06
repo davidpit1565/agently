@@ -120,7 +120,12 @@ export default async function PricingPage({
                 <div className="mt-4 flex gap-2">
                   <form action="/api/membership/switch" method="POST" className="flex-1">
                     <input type="hidden" name="tier" value={tier} />
-                    <input type="hidden" name="interval" value="monthly" />
+                    {/* Not "monthly" — this button means "keep whatever
+                        billing frequency I'm already on," and
+                        /api/membership/switch resolves that live from
+                        Stripe. A yearly member clicking this stays yearly
+                        instead of silently dropping to monthly. */}
+                    <input type="hidden" name="interval" value="keep" />
                     <SubmitButton
                       pendingText="Switching…"
                       className="w-full rounded-full border border-line px-4 py-2 text-center text-sm font-medium text-ink-soft hover:border-accent/50 hover:text-ink"

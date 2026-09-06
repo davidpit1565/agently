@@ -106,7 +106,11 @@ export default async function ManageMembershipPage() {
             </p>
             <form action="/api/membership/switch" method="POST">
               <input type="hidden" name="tier" value={downgradeTarget} />
-              <input type="hidden" name="interval" value="monthly" />
+              {/* Not "monthly" — this button means "keep whatever billing
+                  frequency I'm already on," and /api/membership/switch
+                  resolves that live from Stripe. A yearly member clicking
+                  this stays yearly instead of silently dropping to monthly. */}
+              <input type="hidden" name="interval" value="keep" />
               <SubmitButton
                 pendingText="Switching…"
                 className="shine-sweep magnetic-btn w-full rounded-full bg-accent px-4 py-2.5 text-center text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
