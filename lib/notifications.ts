@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { sendNotificationEmail } from "@/lib/email";
+import { errorMessage } from "@/lib/errors";
 
 export type Notification = {
   id: string;
@@ -130,7 +131,7 @@ export async function notifyCreatorOfSale(
     console.error("[notifications] notifyCreatorOfSale failed", {
       creatorId,
       agentId,
-      message: err instanceof Error ? err.message : String(err),
+      message: errorMessage(err),
     });
   }
 }

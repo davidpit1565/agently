@@ -6,6 +6,7 @@ import { notifyCreatorOfSale } from "@/lib/notifications";
 import { createTeamInvitesAndNotify } from "@/lib/team-invites";
 import { sendNotificationEmail } from "@/lib/email";
 import { PLATFORM_FEE_PERCENT, MIN_PLATFORM_FEE_CENTS } from "@/lib/membership";
+import { errorMessage } from "@/lib/errors";
 
 // Shared by charge.refunded and the two dispute events below: the purchases
 // row a charge-level event needs to reach is keyed by whichever id its
@@ -270,7 +271,7 @@ export async function POST(request: Request) {
           console.error("[stripe/webhook] dispute evidence draft failed", {
             eventId: event.id,
             disputeId: dispute.id,
-            message: err instanceof Error ? err.message : String(err),
+            message: errorMessage(err),
           });
         }
       }
@@ -303,7 +304,7 @@ export async function POST(request: Request) {
         console.error("[stripe/webhook] dispute notification failed", {
           eventId: event.id,
           disputeId: dispute.id,
-          message: err instanceof Error ? err.message : String(err),
+          message: errorMessage(err),
         });
       }
       break;
@@ -339,7 +340,7 @@ export async function POST(request: Request) {
             eventId: event.id,
             disputeId: dispute.id,
             transfer: charge.transfer,
-            message: err instanceof Error ? err.message : String(err),
+            message: errorMessage(err),
           });
         }
       }

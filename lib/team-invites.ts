@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendNotificationEmail } from "@/lib/email";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { errorMessage } from "@/lib/errors";
 
 // Same hardcoded-base-URL pattern already used in app/sitemap.ts,
 // app/robots.ts, and lib/watermark.ts — this app has no custom domain yet.
@@ -41,7 +42,7 @@ export async function createTeamInvitesAndNotify(
       console.error("[team-invites] unexpected failure", {
         purchaseId,
         email,
-        message: err instanceof Error ? err.message : String(err),
+        message: errorMessage(err),
       });
     }
   }
