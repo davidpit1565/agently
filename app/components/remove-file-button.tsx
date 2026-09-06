@@ -29,7 +29,7 @@ export function RemoveFileButton({
         setPending(true);
       }}
     >
-      <button type="submit" disabled={pending} className="text-xs text-ink-faint hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-60">
+      <button type="submit" disabled={pending} className="px-2 py-1.5 text-xs text-ink-faint hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-60">
         {pending ? "Removing…" : "Remove"}
       </button>
     </form>

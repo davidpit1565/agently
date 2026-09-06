@@ -5,8 +5,14 @@ import type { Metadata } from "next";
 // still hasn't been reviewed by a lawyer (see the notice below); that
 // stayed true when the page came out of noindex, it just isn't the loud,
 // site-blocking caveat it was before launch.
+const title = "Terms of service — Agently";
+const description = "The terms that govern buying, selling, and listing on Agently.";
+
 export const metadata: Metadata = {
-  title: "Terms of Service — Agently",
+  title,
+  description,
+  openGraph: { title, description, type: "website" },
+  twitter: { card: "summary_large_image", title, description },
 };
 
 // Placeholder until Agently has its own company/domain (David's own words) —
@@ -17,7 +23,7 @@ const SUPPORT_EMAIL = "dp@solfaygroup.com";
 export default function TermsPage() {
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
-      <h1 className="text-balance mb-6 font-display text-2xl font-semibold">Terms of Service</h1>
+      <h1 className="text-balance mb-6 font-display text-2xl font-semibold">Terms of service</h1>
 
       <div className="flex flex-col gap-6 text-sm leading-relaxed text-ink-soft">
         <Section title="What Agently is">

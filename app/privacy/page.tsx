@@ -3,8 +3,14 @@ import type { Metadata } from "next";
 // Same status as app/terms/page.tsx: real and live, not a placeholder, but
 // not yet reviewed by a lawyer — that caveat is stated plainly at the bottom
 // instead of smoothed over.
+const title = "Privacy policy — Agently";
+const description = "How Agently collects, uses, and stores your data.";
+
 export const metadata: Metadata = {
-  title: "Privacy Policy — Agently",
+  title,
+  description,
+  openGraph: { title, description, type: "website" },
+  twitter: { card: "summary_large_image", title, description },
 };
 
 // Same placeholder as app/terms/page.tsx — a real inbox, not the final one.
@@ -13,7 +19,7 @@ const SUPPORT_EMAIL = "dp@solfaygroup.com";
 export default function PrivacyPage() {
   return (
     <main className="mx-auto max-w-2xl px-6 py-16">
-      <h1 className="text-balance mb-6 font-display text-2xl font-semibold">Privacy Policy</h1>
+      <h1 className="text-balance mb-6 font-display text-2xl font-semibold">Privacy policy</h1>
 
       <div className="flex flex-col gap-6 text-sm leading-relaxed text-ink-soft">
         <Section title="What's collected">
