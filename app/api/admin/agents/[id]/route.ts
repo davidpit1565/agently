@@ -14,7 +14,13 @@ const VALID_STATUSES: AgentStatus[] = ["pending_review", "approved", "rejected",
 // see schema.sql).
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/admin/agents?error=${encodeURIComponent("Not connected yet — Supabase isn't configured.")}`,
+        request.url
+      ),
+      303
+    );
   }
 
   const supabase = await createClient();
@@ -23,7 +29,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } = await supabase.auth.getUser();
 
   if (!isPlatformOwner(user?.email)) {
-    return NextResponse.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/admin/agents?error=${encodeURIComponent("Not found.")}`, request.url),
+      303
+    );
   }
 
   const { id } = await params;
@@ -31,12 +40,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const status = String(form.get("status")) as AgentStatus;
 
   if (!VALID_STATUSES.includes(status)) {
-    return NextResponse.json({ error: "Unknown status." }, { status: 400 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/admin/agents?error=${encodeURIComponent("Unknown status.")}`, request.url),
+      303
+    );
   }
 
   const admin = createAdminClient();
   if (!admin) {
-    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY not configured" }, { status: 500 });
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/admin/agents?error=${encodeURIComponent("SUPABASE_SERVICE_ROLE_KEY not configured")}`,
+        request.url
+      ),
+      303
+    );
   }
 
   const { data: existing } = await admin
@@ -46,13 +64,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .single();
 
   if (!existing) {
-    return NextResponse.json({ error: "Agent not found." }, { status: 404 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/admin/agents?error=${encodeURIComponent("Agent not found.")}`, request.url),
+      303
+    );
   }
 
   const { error } = await admin.from("agently_agents").update({ status }).eq("id", id);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/admin/agents?error=${encodeURIComponent(error.message)}`, request.url),
+      303
+    );
   }
 
   // Only worth telling the creator about a decision, not every no-op re-save

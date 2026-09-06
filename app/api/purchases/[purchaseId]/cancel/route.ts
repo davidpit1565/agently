@@ -52,24 +52,51 @@ export async function POST(request: Request, { params }: { params: Promise<{ pur
     return NextResponse.json({ error: "Purchase not found." }, { status: 404 });
   }
 
+  // Looked up here (rather than down where it used to sit, right before the
+  // Stripe call) so every failure from this point on — buyer mismatch, no
+  // subscription to cancel, already inactive, the Stripe call itself — can
+  // redirect back to the agent page it came from instead of rendering raw
+  // JSON. Mirrors the success redirect below, which already falls back to
+  // /dashboard/agents when the agent can't be found.
+  const { data: agent } = await supabase.from("agently_agents").select("slug").eq("id", purchase.agent_id).single();
+
   // Same reasoning as app/api/refunds/[purchaseId]/route.ts: RLS also lets a
   // creator SELECT purchases of their own agents, so this can't be skipped.
   if (purchase.buyer_id !== user.id) {
-    return NextResponse.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.redirect(
+      new URL(
+        agent
+          ? `/agents/${agent.slug}?error=${encodeURIComponent("Not found.")}`
+          : `/dashboard/agents?error=${encodeURIComponent("Not found.")}`,
+        request.url
+      ),
+      303
+    );
   }
 
   if (!purchase.stripe_subscription_id) {
-    return NextResponse.json(
-      { error: "This wasn't a subscription purchase — there's nothing to cancel." },
-      { status: 400 }
+    return NextResponse.redirect(
+      new URL(
+        agent
+          ? `/agents/${agent.slug}?error=${encodeURIComponent("This wasn't a subscription purchase — there's nothing to cancel.")}`
+          : `/dashboard/agents?error=${encodeURIComponent("This wasn't a subscription purchase — there's nothing to cancel.")}`,
+        request.url
+      ),
+      303
     );
   }
 
   if (purchase.status !== "paid") {
-    return NextResponse.json({ error: "This subscription is already inactive." }, { status: 409 });
+    return NextResponse.redirect(
+      new URL(
+        agent
+          ? `/agents/${agent.slug}?error=${encodeURIComponent("This subscription is already inactive.")}`
+          : `/dashboard/agents?error=${encodeURIComponent("This subscription is already inactive.")}`,
+        request.url
+      ),
+      303
+    );
   }
-
-  const { data: agent } = await supabase.from("agently_agents").select("slug").eq("id", purchase.agent_id).single();
 
   const stripe = getStripe();
   try {
@@ -79,7 +106,15 @@ export async function POST(request: Request, { params }: { params: Promise<{ pur
       purchaseId,
       message: err instanceof Error ? err.message : String(err),
     });
-    return NextResponse.json({ error: "Couldn't reach Stripe to cancel — try again in a moment." }, { status: 502 });
+    return NextResponse.redirect(
+      new URL(
+        agent
+          ? `/agents/${agent.slug}?error=${encodeURIComponent("Couldn't reach Stripe to cancel — try again in a moment.")}`
+          : `/dashboard/agents?error=${encodeURIComponent("Couldn't reach Stripe to cancel — try again in a moment.")}`,
+        request.url
+      ),
+      303
+    );
   }
 
   return NextResponse.redirect(

@@ -15,9 +15,9 @@ import type { Agent } from "@/lib/types";
 export default async function AdminAgentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; reviewed?: string }>;
+  searchParams: Promise<{ saved?: string; reviewed?: string; error?: string }>;
 }) {
-  const { saved, reviewed } = await searchParams;
+  const { saved, reviewed, error } = await searchParams;
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return <Notice title="Not connected yet">This page needs Supabase configured.</Notice>;
@@ -82,6 +82,11 @@ export default async function AdminAgentsPage({
       {reviewed && (
         <p className="mb-6 rounded-lg border border-accent/30 bg-accent-soft px-4 py-3 text-sm text-accent">
           Re-reviewed — trust score updated.
+        </p>
+      )}
+      {error && (
+        <p className="mb-6 animate-shake rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          {error}
         </p>
       )}
 

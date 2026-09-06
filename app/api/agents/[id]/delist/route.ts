@@ -10,7 +10,10 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // has no update privilege at all on agently_agents (see supabase/schema.sql).
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/agents?error=${encodeURIComponent("Not connected yet — Supabase isn't configured.")}`, request.url),
+      303
+    );
   }
 
   const { id } = await params;
@@ -25,17 +28,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const { data: existing } = await supabase.from("agently_agents").select("creator_id, slug").eq("id", id).single();
   if (!existing || existing.creator_id !== user.id) {
-    return NextResponse.json({ error: "Agent not found, or you don't own it." }, { status: 404 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/agents?error=${encodeURIComponent("Agent not found, or you don't own it.")}`, request.url),
+      303
+    );
   }
 
   const admin = createAdminClient();
   if (!admin) {
-    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/agents?error=${encodeURIComponent("Not connected yet — Supabase isn't configured.")}`, request.url),
+      303
+    );
   }
 
   const { error } = await admin.from("agently_agents").update({ status: "delisted" }).eq("id", id);
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/agents?error=${encodeURIComponent(error.message)}`, request.url),
+      303
+    );
   }
 
   return NextResponse.redirect(new URL("/dashboard/agents?delisted=1", request.url), 303);

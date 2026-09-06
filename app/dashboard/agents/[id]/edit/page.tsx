@@ -15,10 +15,13 @@ function formatSize(bytes: number) {
 
 export default async function EditAgentPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
 }) {
   const { id } = await params;
+  const { error } = await searchParams;
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return <Notice title="Not connected yet">This page needs Supabase configured first.</Notice>;
@@ -58,6 +61,12 @@ export default async function EditAgentPage({
         buyer who owns it — price and category changes alone don&apos;t
         count as a new version.
       </p>
+
+      {error && (
+        <p className="mb-6 animate-shake rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          {error}
+        </p>
+      )}
 
       {files.length > 0 && (
         <div className="mb-6 flex flex-col gap-2">

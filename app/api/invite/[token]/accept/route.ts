@@ -8,14 +8,24 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // show the "Accept and join" button is re-verified here, since this is the
 // real write and the only page-rendered check isn't a security boundary.
 export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
+
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(`/invite/${token}?error=${encodeURIComponent("Not connected yet — Supabase isn't configured.")}`, request.url),
+      303
+    );
   }
 
-  const { token } = await params;
   const admin = createAdminClient();
   if (!admin) {
-    return NextResponse.json({ error: "Not connected yet — the service role key isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(
+        `/invite/${token}?error=${encodeURIComponent("Not connected yet — the service role key isn't configured.")}`,
+        request.url
+      ),
+      303
+    );
   }
 
   const { data: invite } = await admin
@@ -24,7 +34,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     .eq("token", token)
     .maybeSingle();
   if (!invite) {
-    return NextResponse.json({ error: "This invite link isn't valid." }, { status: 404 });
+    return NextResponse.redirect(
+      new URL(`/invite/${token}?error=${encodeURIComponent("This invite link isn't valid.")}`, request.url),
+      303
+    );
   }
   if (invite.accepted_by) {
     return NextResponse.redirect(new URL(`/invite/${token}`, request.url), 303);
@@ -39,7 +52,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     ? (await admin.from("agently_agents").select("slug").eq("id", purchase.agent_id).single()).data
     : null;
   if (!purchase || purchase.status !== "paid" || !agent) {
-    return NextResponse.json({ error: "This invite isn't active anymore (refunded or canceled)." }, { status: 409 });
+    return NextResponse.redirect(
+      new URL(
+        `/invite/${token}?error=${encodeURIComponent("This invite isn't active anymore (refunded or canceled).")}`,
+        request.url
+      ),
+      303
+    );
   }
 
   const supabase = await createClient();
@@ -59,7 +78,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
     .eq("id", invite.id)
     .is("accepted_by", null); // last-write-wins guard: don't reassign a seat someone else's concurrent accept already claimed
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.redirect(
+      new URL(`/invite/${token}?error=${encodeURIComponent(error.message)}`, request.url),
+      303
+    );
   }
 
   return NextResponse.redirect(new URL(`/agents/${agent.slug}?joined=1`, request.url), 303);

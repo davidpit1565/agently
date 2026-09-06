@@ -41,8 +41,23 @@ export async function POST(request: Request) {
   const rawComment = form.get("comment");
   const comment = typeof rawComment === "string" ? rawComment.trim().slice(0, MAX_COMMENT_LENGTH) : null;
 
+  // Looked up here (rather than after the rating validation, where it used
+  // to sit) so a bad rating can redirect back to the agent page too, not
+  // just the "can't review your own agent" and upsert-error cases below.
+  // Falls back to /browse when the agent can't be found, same fallback the
+  // success redirect below already uses.
+  const { data: agent } = await supabase.from("agently_agents").select("slug, creator_id").eq("id", agentId).single();
+
   if (!agentId || !Number.isInteger(rating) || rating < 1 || rating > 5) {
-    return NextResponse.json({ error: "A rating from 1 to 5 is required." }, { status: 400 });
+    return NextResponse.redirect(
+      new URL(
+        agent
+          ? `/agents/${agent.slug}?error=${encodeURIComponent("A rating from 1 to 5 is required.")}`
+          : `/browse?error=${encodeURIComponent("A rating from 1 to 5 is required.")}`,
+        request.url
+      ),
+      303
+    );
   }
 
   // Reviewing your own listing is blocked at the source — /api/checkout
@@ -51,9 +66,16 @@ export async function POST(request: Request) {
   // satisfied by an owner. This is a second, explicit check for the same
   // rule, so the failure a creator sees names the actual reason instead of
   // a generic RLS-denied error.
-  const { data: agent } = await supabase.from("agently_agents").select("slug, creator_id").eq("id", agentId).single();
   if (agent?.creator_id === user.id) {
-    return NextResponse.json({ error: "You can't review your own agent." }, { status: 403 });
+    return NextResponse.redirect(
+      new URL(
+        agent
+          ? `/agents/${agent.slug}?error=${encodeURIComponent("You can't review your own agent.")}`
+          : `/browse?error=${encodeURIComponent("You can't review your own agent.")}`,
+        request.url
+      ),
+      303
+    );
   }
 
   const { error } = await supabase
@@ -64,7 +86,15 @@ export async function POST(request: Request) {
     );
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.redirect(
+      new URL(
+        agent?.slug
+          ? `/agents/${agent.slug}?error=${encodeURIComponent(error.message)}`
+          : `/browse?error=${encodeURIComponent(error.message)}`,
+        request.url
+      ),
+      303
+    );
   }
 
   const redirectTo = agent?.slug ? `/agents/${agent.slug}?reviewed=1` : "/browse";

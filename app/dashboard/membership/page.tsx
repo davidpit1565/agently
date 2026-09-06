@@ -22,7 +22,13 @@ export const dynamic = "force-dynamic";
 // invented urgency, no hidden or relabeled cancel path. Stripe's own portal
 // (linked below, same as before) is still exactly one click away and does
 // the actual canceling; this page only adds context before that click.
-export default async function ManageMembershipPage() {
+export default async function ManageMembershipPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ error?: string }>;
+}) {
+  const { error } = await searchParams;
+
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return (
       <Notice title="Not connected yet">
@@ -86,6 +92,12 @@ export default async function ManageMembershipPage() {
           <span className="tabular-nums text-ink">{config.maxActiveListings}</span> active listings used.
         </p>
       </div>
+
+      {error && (
+        <p className="mb-6 animate-shake rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          {error}
+        </p>
+      )}
 
       <Reveal delay={80} className="bezel-shell mb-4">
         <div className="bezel-core border border-line bg-surface p-6">

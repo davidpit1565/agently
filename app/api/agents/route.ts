@@ -16,7 +16,10 @@ import type { MembershipTier } from "@/lib/types";
 // a human, same as before that existed.
 export async function POST(request: Request) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/upload?error=${encodeURIComponent("Not connected yet — Supabase isn't configured.")}`, request.url),
+      303
+    );
   }
 
   const supabase = await createClient();
@@ -38,18 +41,24 @@ export async function POST(request: Request) {
   // a paying creator "A paid membership is required" on a plain Supabase
   // blip, masking an infra failure as a billing problem.
   if (profileError) {
-    return NextResponse.json(
-      { error: "Couldn't verify your membership — try again in a moment." },
-      { status: 503 }
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/upload?error=${encodeURIComponent("Couldn't verify your membership — try again in a moment.")}`,
+        request.url
+      ),
+      303
     );
   }
 
   const tier = (profile?.membership_tier ?? "free") as MembershipTier;
 
   if (!canUpload(tier)) {
-    return NextResponse.json(
-      { error: "A paid membership is required to list an agent. See /pricing." },
-      { status: 403 }
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/upload?error=${encodeURIComponent("A paid membership is required to list an agent. See /pricing.")}`,
+        request.url
+      ),
+      303
     );
   }
 
@@ -64,19 +73,23 @@ export async function POST(request: Request) {
   // A failed count is not "zero active listings" — treating it that way let
   // a transient query failure bypass the tier's listing cap entirely.
   if (countError) {
-    return NextResponse.json(
-      { error: "Couldn't verify your active listings — try again in a moment." },
-      { status: 503 }
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/upload?error=${encodeURIComponent("Couldn't verify your active listings — try again in a moment.")}`,
+        request.url
+      ),
+      303
     );
   }
 
   const limit = MEMBERSHIP_TIERS[tier as Exclude<MembershipTier, "free">].maxActiveListings;
   if ((count ?? 0) >= limit) {
-    return NextResponse.json(
-      {
-        error: `Your ${tier} membership allows up to ${limit} active listings. Delist one, or upgrade at /pricing.`,
-      },
-      { status: 403 }
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/upload?error=${encodeURIComponent(`Your ${tier} membership allows up to ${limit} active listings. Delist one, or upgrade at /pricing.`)}`,
+        request.url
+      ),
+      303
     );
   }
 
@@ -90,9 +103,12 @@ export async function POST(request: Request) {
   // per 10 minutes is well above any real creator submitting real listings.
   const allowedToSubmit = await checkRateLimit(`agent_submit:${user.id}`, 8, 600);
   if (!allowedToSubmit) {
-    return NextResponse.json(
-      { error: "Too many submissions in a short time — wait a few minutes and try again." },
-      { status: 429 }
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/upload?error=${encodeURIComponent("Too many submissions in a short time — wait a few minutes and try again.")}`,
+        request.url
+      ),
+      303
     );
   }
 
@@ -104,9 +120,12 @@ export async function POST(request: Request) {
   // form doesn't offer the option either, but this is the real gate, not
   // that removed <option>.
   if (pricingModel !== "free" && pricingModel !== "one_time") {
-    return NextResponse.json(
-      { error: "Only 'free' or a one-time purchase are available for a new listing." },
-      { status: 400 }
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/upload?error=${encodeURIComponent("Only 'free' or a one-time purchase are available for a new listing.")}`,
+        request.url
+      ),
+      303
     );
   }
   const priceEur = form.get("price");
@@ -125,23 +144,30 @@ export async function POST(request: Request) {
   // that left a dead listing sitting on the catalog looking purchasable.
   // Catch it here instead, before any paid safety-review/embedding calls run.
   if (pricingModel !== "free" && !profile?.stripe_connect_ready) {
-    return NextResponse.json(
-      { error: "Connect Stripe payouts before listing a paid agent — see /dashboard/payouts." },
-      { status: 403 }
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/upload?error=${encodeURIComponent("Connect Stripe payouts before listing a paid agent — see /dashboard/payouts.")}`,
+        request.url
+      ),
+      303
     );
   }
 
   if (pricingModel !== "free") {
     const price = Number(priceEur);
     if (!Number.isFinite(price) || price <= 0) {
-      return NextResponse.json({ error: "Enter a price for a paid agent." }, { status: 400 });
+      return NextResponse.redirect(
+        new URL(`/dashboard/upload?error=${encodeURIComponent("Enter a price for a paid agent.")}`, request.url),
+        303
+      );
     }
     if (Math.round(price * 100) < MIN_AGENT_PRICE_CENTS) {
-      return NextResponse.json(
-        {
-          error: `A paid agent must be priced at least €${(MIN_AGENT_PRICE_CENTS / 100).toFixed(2)} — below that, Stripe's own processing fee can cost more than the platform earns on the sale.`,
-        },
-        { status: 400 }
+      return NextResponse.redirect(
+        new URL(
+          `/dashboard/upload?error=${encodeURIComponent(`A paid agent must be priced at least €${(MIN_AGENT_PRICE_CENTS / 100).toFixed(2)} — below that, Stripe's own processing fee can cost more than the platform earns on the sale.`)}`,
+          request.url
+        ),
+        303
       );
     }
   }
@@ -151,9 +177,12 @@ export async function POST(request: Request) {
   // seed agents all shipped with delivery_url: null and no files, meaning a
   // real purchase would have paid and gotten nothing back.
   if (!deliveryUrl && files.length === 0) {
-    return NextResponse.json(
-      { error: "Add a delivery link or attach at least one file — a buyer needs to actually receive something." },
-      { status: 400 }
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/upload?error=${encodeURIComponent("Add a delivery link or attach at least one file — a buyer needs to actually receive something.")}`,
+        request.url
+      ),
+      303
     );
   }
 
@@ -220,7 +249,10 @@ export async function POST(request: Request) {
   // reviewAgentSubmission() above.
   const admin = createAdminClient();
   if (!admin) {
-    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/upload?error=${encodeURIComponent("Not connected yet — Supabase isn't configured.")}`, request.url),
+      303
+    );
   }
 
   const { data: inserted, error } = await admin
@@ -253,7 +285,13 @@ export async function POST(request: Request) {
     if (error?.code === "23505") {
       return NextResponse.redirect(new URL("/dashboard/upload?submitted=1", request.url));
     }
-    return NextResponse.json({ error: error?.message ?? "Could not save the listing." }, { status: 400 });
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/upload?error=${encodeURIComponent(error?.message ?? "Could not save the listing.")}`,
+        request.url
+      ),
+      303
+    );
   }
 
   if (status === "pending_review") {

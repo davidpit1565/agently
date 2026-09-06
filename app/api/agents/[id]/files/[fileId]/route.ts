@@ -9,11 +9,15 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string; fileId: string }> }
 ) {
+  const { id, fileId } = await params;
+
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/agents/${id}/edit?error=${encodeURIComponent("Not connected yet — Supabase isn't configured.")}`, request.url),
+      303
+    );
   }
 
-  const { id, fileId } = await params;
   const supabase = await createClient();
   const {
     data: { user },
@@ -29,7 +33,10 @@ export async function POST(
     .eq("id", id)
     .single();
   if (!agent || agent.creator_id !== user.id) {
-    return NextResponse.json({ error: "Agent not found, or you don't own it." }, { status: 404 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/agents/${id}/edit?error=${encodeURIComponent("Agent not found, or you don't own it.")}`, request.url),
+      303
+    );
   }
 
   // Same rule the edit form already enforces when it clears the delivery
@@ -43,12 +50,14 @@ export async function POST(
     const target = files.find((f) => f.id === fileId);
     const deliverableCount = files.filter((f) => !f.is_readme).length;
     if (target && !target.is_readme && deliverableCount <= 1) {
-      return NextResponse.json(
-        {
-          error:
-            "This is the only file on a listing with no delivery link — removing it would leave buyers with nothing. Add a delivery link or another file first.",
-        },
-        { status: 400 }
+      return NextResponse.redirect(
+        new URL(
+          `/dashboard/agents/${id}/edit?error=${encodeURIComponent(
+            "This is the only file on a listing with no delivery link — removing it would leave buyers with nothing. Add a delivery link or another file first."
+          )}`,
+          request.url
+        ),
+        303
       );
     }
   }

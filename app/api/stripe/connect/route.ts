@@ -10,10 +10,16 @@ import { createAdminClient } from "@/lib/supabase/admin";
 // route could honestly claim to split payment with the creator.
 export async function POST(request: Request) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/payouts?error=${encodeURIComponent("Not connected yet — Supabase isn't configured.")}`, request.url),
+      303
+    );
   }
   if (!process.env.STRIPE_SECRET_KEY) {
-    return NextResponse.json({ error: "Not connected yet — Stripe isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/payouts?error=${encodeURIComponent("Not connected yet — Stripe isn't configured.")}`, request.url),
+      303
+    );
   }
 
   const supabase = await createClient();
@@ -40,9 +46,12 @@ export async function POST(request: Request) {
   // stripe_connect_id with the new (unonboarded) one below, orphaning the
   // original account that checkout's payouts actually point to.
   if (profileError) {
-    return NextResponse.json(
-      { error: "Couldn't verify your payout account — try again in a moment." },
-      { status: 503 }
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/payouts?error=${encodeURIComponent("Couldn't verify your payout account — try again in a moment.")}`,
+        request.url
+      ),
+      303
     );
   }
 

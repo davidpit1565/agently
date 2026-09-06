@@ -26,9 +26,9 @@ export const metadata: Metadata = {
 export default async function PricingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ switched?: string }>;
+  searchParams: Promise<{ switched?: string; error?: string }>;
 }) {
-  const { switched } = await searchParams;
+  const { switched, error } = await searchParams;
   let signedIn = false;
   let currentTier: string | null = null;
   let hasActiveMembership = false;
@@ -54,6 +54,11 @@ export default async function PricingPage({
       {switched && (
         <div className="mb-6 rounded-lg border border-accent/30 bg-accent-soft px-4 py-2.5 text-sm text-accent">
           Switched — the new rate applies with Stripe's usual proration for the rest of this billing period.
+        </div>
+      )}
+      {error && (
+        <div className="mb-6 animate-shake rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-400">
+          {error}
         </div>
       )}
       <Reveal className="mb-10 flex flex-col gap-3">

@@ -93,10 +93,11 @@ export default async function AgentPage({
     refunded?: string;
     canceled?: string;
     joined?: string;
+    error?: string;
   }>;
 }) {
   const { slug } = await params;
-  const { purchased, reviewed, updated, saved, skipped_files: skippedFiles, refunded, canceled, joined } = await searchParams;
+  const { purchased, reviewed, updated, saved, skipped_files: skippedFiles, refunded, canceled, joined, error } = await searchParams;
   const agent = await getAgentBySlug(slug);
   if (!agent) notFound();
 
@@ -248,6 +249,11 @@ export default async function AgentPage({
                       : joined
                         ? "You're in — check the delivery link and files below."
                         : "Saved."}
+          </div>
+        )}
+        {error && (
+          <div className="animate-shake rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-400">
+            {error}
           </div>
         )}
         {skippedFiles && (

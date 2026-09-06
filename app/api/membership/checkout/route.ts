@@ -12,10 +12,16 @@ import type { MembershipTier } from "@/lib/types";
 // grants access on its own.
 export async function POST(request: Request) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(`/pricing?error=${encodeURIComponent("Not connected yet — Supabase isn't configured.")}`, request.url),
+      303
+    );
   }
   if (!process.env.STRIPE_SECRET_KEY) {
-    return NextResponse.json({ error: "Not connected yet — Stripe isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(`/pricing?error=${encodeURIComponent("Not connected yet — Stripe isn't configured.")}`, request.url),
+      303
+    );
   }
 
   const form = await request.formData();
@@ -23,7 +29,10 @@ export async function POST(request: Request) {
   const interval = form.get("interval") === "yearly" ? "yearly" : "monthly";
 
   if (tier === "free" || !(tier in MEMBERSHIP_TIERS)) {
-    return NextResponse.json({ error: "Unknown membership tier." }, { status: 400 });
+    return NextResponse.redirect(
+      new URL(`/pricing?error=${encodeURIComponent("Unknown membership tier.")}`, request.url),
+      303
+    );
   }
 
   const supabase = await createClient();
@@ -39,7 +48,10 @@ export async function POST(request: Request) {
   // account from looping this endpoint and burning Stripe API quota.
   const allowedToCheckout = await checkRateLimit(`membership_checkout:${user.id}`, 10, 60);
   if (!allowedToCheckout) {
-    return NextResponse.json({ error: "Too many attempts — wait a moment and try again." }, { status: 429 });
+    return NextResponse.redirect(
+      new URL(`/pricing?error=${encodeURIComponent("Too many attempts — wait a moment and try again.")}`, request.url),
+      303
+    );
   }
 
   const { data: profile } = await supabase
@@ -55,9 +67,14 @@ export async function POST(request: Request) {
   // portal instead (/api/membership/portal), which edits the one real
   // subscription rather than stacking a new one on top of it.
   if (profile?.membership_status === "active") {
-    return NextResponse.json(
-      { error: "You already have an active membership — manage or change it from your dashboard instead of starting a new one." },
-      { status: 409 }
+    return NextResponse.redirect(
+      new URL(
+        `/pricing?error=${encodeURIComponent(
+          "You already have an active membership — manage or change it from your dashboard instead of starting a new one."
+        )}`,
+        request.url
+      ),
+      303
     );
   }
 

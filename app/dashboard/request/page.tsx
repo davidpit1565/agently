@@ -15,9 +15,9 @@ const STATUS_LABEL: Record<AgentRequestStatus, string> = {
 export default async function RequestAgentPage({
   searchParams,
 }: {
-  searchParams: Promise<{ submitted?: string }>;
+  searchParams: Promise<{ submitted?: string; error?: string }>;
 }) {
-  const { submitted } = await searchParams;
+  const { submitted, error } = await searchParams;
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return (
@@ -71,6 +71,11 @@ export default async function RequestAgentPage({
       {submitted && (
         <p className="mb-6 rounded-lg border border-accent/30 bg-accent-soft px-4 py-3 text-sm text-accent">
           Sent. You&apos;ll get a notification here once it&apos;s ready.
+        </p>
+      )}
+      {error && (
+        <p className="mb-6 animate-shake rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          {error}
         </p>
       )}
 

@@ -1,6 +1,10 @@
 "use client";
 
+import { useState } from "react";
+
 export function DeleteAgentButton({ agentId, agentName }: { agentId: string; agentName: string }) {
+  const [pending, setPending] = useState(false);
+
   return (
     <form
       action={`/api/agents/${agentId}/delete`}
@@ -12,14 +16,17 @@ export function DeleteAgentButton({ agentId, agentName }: { agentId: string; age
           )
         ) {
           e.preventDefault();
+          return;
         }
+        setPending(true);
       }}
     >
       <button
         type="submit"
-        className="rounded-full border border-red-500/30 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors duration-150 hover:border-red-400 hover:bg-red-500/10"
+        disabled={pending}
+        className="rounded-full border border-red-500/30 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors duration-150 hover:border-red-400 hover:bg-red-500/10 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        Delete
+        {pending ? "Deleting…" : "Delete"}
       </button>
     </form>
   );

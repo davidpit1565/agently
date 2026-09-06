@@ -52,22 +52,38 @@ export async function POST(request: Request, { params }: { params: Promise<{ pur
     return NextResponse.json({ error: "Purchase not found." }, { status: 404 });
   }
 
-  // RLS on agently_purchases also lets a creator SELECT purchases of their
-  // own agents (so notifyBuyersOfUpdate can find who to notify) — without
-  // this explicit check, a creator could pass a buyer's purchase id for
-  // their own agent and trigger a refund the buyer never asked for.
-  if (purchase.buyer_id !== user.id) {
-    return NextResponse.json({ error: "Not found." }, { status: 404 });
-  }
-
+  // Looked up here (rather than after the buyer check, where it used to
+  // sit) so every failure from this point on — buyer mismatch included —
+  // can redirect back to the agent page it came from instead of rendering
+  // raw JSON. Falls back to /browse when the agent can't be found, same as
+  // app/api/reviews/route.ts's own redirect fallback.
   const { data: agent } = await supabase
     .from("agently_agents")
     .select("pricing_model, slug")
     .eq("id", purchase.agent_id)
     .single();
 
+  // RLS on agently_purchases also lets a creator SELECT purchases of their
+  // own agents (so notifyBuyersOfUpdate can find who to notify) — without
+  // this explicit check, a creator could pass a buyer's purchase id for
+  // their own agent and trigger a refund the buyer never asked for.
+  if (purchase.buyer_id !== user.id) {
+    return NextResponse.redirect(
+      new URL(
+        agent
+          ? `/agents/${agent.slug}?error=${encodeURIComponent("Not found.")}`
+          : `/browse?error=${encodeURIComponent("Not found.")}`,
+        request.url
+      ),
+      303
+    );
+  }
+
   if (!agent) {
-    return NextResponse.json({ error: "This agent no longer exists." }, { status: 404 });
+    return NextResponse.redirect(
+      new URL(`/browse?error=${encodeURIComponent("This agent no longer exists.")}`, request.url),
+      303
+    );
   }
 
   // Matches app/terms/page.tsx's Refunds section: subscriptions (both an
@@ -75,19 +91,26 @@ export async function POST(request: Request, { params }: { params: Promise<{ pur
   // future billing stops, the current period isn't refunded. Only a
   // one-time purchase gets a real refund here.
   if (agent.pricing_model !== "one_time") {
-    return NextResponse.json(
-      {
-        error:
-          "Subscriptions aren't refunded through this — cancel it from your dashboard to stop future billing instead.",
-      },
-      { status: 400 }
+    return NextResponse.redirect(
+      new URL(
+        `/agents/${agent.slug}?error=${encodeURIComponent(
+          "Subscriptions aren't refunded through this — cancel it from your dashboard to stop future billing instead."
+        )}`,
+        request.url
+      ),
+      303
     );
   }
 
   if (purchase.status !== "paid") {
-    return NextResponse.json(
-      { error: "This purchase isn't eligible for a refund (already refunded, or never completed)." },
-      { status: 409 }
+    return NextResponse.redirect(
+      new URL(
+        `/agents/${agent.slug}?error=${encodeURIComponent(
+          "This purchase isn't eligible for a refund (already refunded, or never completed)."
+        )}`,
+        request.url
+      ),
+      303
     );
   }
 
@@ -100,20 +123,27 @@ export async function POST(request: Request, { params }: { params: Promise<{ pur
   // path in app/terms/page.tsx, which goes to a human instead of an
   // automatic Stripe refund.
   if (purchase.delivery_accessed_at) {
-    return NextResponse.json(
-      {
-        error:
-          "You've already accessed the delivery link or files for this purchase, so it isn't eligible for an automatic refund. Contact the creator directly, or email support, to work it out.",
-      },
-      { status: 409 }
+    return NextResponse.redirect(
+      new URL(
+        `/agents/${agent.slug}?error=${encodeURIComponent(
+          "You've already accessed the delivery link or files for this purchase, so it isn't eligible for an automatic refund. Contact the creator directly, or email support, to work it out."
+        )}`,
+        request.url
+      ),
+      303
     );
   }
 
   const daysSincePurchase = (Date.now() - new Date(purchase.created_at).getTime()) / (1000 * 60 * 60 * 24);
   if (daysSincePurchase > REFUND_WINDOW_DAYS) {
-    return NextResponse.json(
-      { error: "The 7-day refund window has passed. Contact the creator directly, or email support." },
-      { status: 409 }
+    return NextResponse.redirect(
+      new URL(
+        `/agents/${agent.slug}?error=${encodeURIComponent(
+          "The 7-day refund window has passed. Contact the creator directly, or email support."
+        )}`,
+        request.url
+      ),
+      303
     );
   }
 
@@ -123,7 +153,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ pur
     typeof session.payment_intent === "string" ? session.payment_intent : session.payment_intent?.id;
 
   if (!paymentIntentId) {
-    return NextResponse.json({ error: "Couldn't find the original payment — email support instead." }, { status: 500 });
+    return NextResponse.redirect(
+      new URL(
+        `/agents/${agent.slug}?error=${encodeURIComponent("Couldn't find the original payment — email support instead.")}`,
+        request.url
+      ),
+      303
+    );
   }
 
   try {
@@ -142,7 +178,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ pur
     });
   } catch (err) {
     if (err instanceof Stripe.errors.StripeInvalidRequestError && err.code === "charge_already_refunded") {
-      return NextResponse.json({ error: "This purchase was already refunded." }, { status: 409 });
+      return NextResponse.redirect(
+        new URL(`/agents/${agent.slug}?error=${encodeURIComponent("This purchase was already refunded.")}`, request.url),
+        303
+      );
     }
     throw err;
   }
