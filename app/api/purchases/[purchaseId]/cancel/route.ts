@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getStripe } from "@/lib/stripe";
 import { createClient } from "@/lib/supabase/server";
+import { errorMessage } from "@/lib/errors";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 // Before this route existed, a buyer subscribed to one specific paid agent
@@ -104,7 +105,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ pur
   } catch (err) {
     console.error("[purchases/cancel] Stripe cancel failed", {
       purchaseId,
-      message: err instanceof Error ? err.message : String(err),
+      message: errorMessage(err),
     });
     return NextResponse.redirect(
       new URL(

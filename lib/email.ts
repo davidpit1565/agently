@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { errorMessage } from "@/lib/errors";
 
 // Every event that reaches lib/notifications.ts's agently_notifications table
 // today only shows up in-app (the bell icon) — there's no email at all, so a
@@ -43,6 +44,6 @@ export async function sendNotificationEmail(to: string | null | undefined, subje
     // triggered it (an admin approving a listing, fulfilling a request)
     // already succeeded and redirected. A dead email provider shouldn't
     // turn either of those into a 500.
-    console.error("[email] send failed", { to, subject, message: err instanceof Error ? err.message : String(err) });
+    console.error("[email] send failed", { to, subject, message: errorMessage(err) });
   }
 }
