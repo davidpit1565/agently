@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { validateHostedAgentFields, deductCredits, refundCredits } from "./hosted-agents";
+import { validateHostedAgentFields, deductCredits, refundCredits, checkInvokeEligibility } from "./hosted-agents";
 
 describe("validateHostedAgentFields", () => {
   it("accepts 'file' and blanks out every hosted-only field regardless of what was submitted", () => {
@@ -97,6 +97,57 @@ describe("validateHostedAgentFields", () => {
         },
       });
     });
+  });
+});
+
+describe("checkInvokeEligibility", () => {
+  it("allows a non-member with credits remaining to invoke — the free-trial-without-membership decision", () => {
+    const result = checkInvokeEligibility({ membershipStatus: null, apiCredits: 20 }, 5);
+    expect(result).toEqual({ ok: true });
+  });
+
+  it("allows a non-member whose membership_status is some non-'active' value, as long as credits remain", () => {
+    const result = checkInvokeEligibility({ membershipStatus: "canceled", apiCredits: 3 }, 3);
+    expect(result).toEqual({ ok: true });
+  });
+
+  it("blocks a non-member with zero credits left, with the sign-up-for-credits message", () => {
+    const result = checkInvokeEligibility({ membershipStatus: null, apiCredits: 0 }, 5);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error).toMatch(/no active membership/i);
+      expect(result.error).toMatch(/no free credits left/i);
+    }
+  });
+
+  it("blocks an active member with zero credits left — membership never waives the credit cost itself", () => {
+    const result = checkInvokeEligibility({ membershipStatus: "active", apiCredits: 0 }, 5);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      // A member's own wallet is still empty, not "no membership" — the
+      // distinct combined-failure message only applies to non-members.
+      expect(result.error).toBe("Not enough credits for this call.");
+    }
+  });
+
+  it("blocks an active member whose remaining credits don't cover this call's cost", () => {
+    const result = checkInvokeEligibility({ membershipStatus: "active", apiCredits: 2 }, 5);
+    expect(result).toEqual({ ok: false, error: "Not enough credits for this call." });
+  });
+
+  it("blocks a non-member with some credits, but fewer than this call's cost", () => {
+    const result = checkInvokeEligibility({ membershipStatus: null, apiCredits: 2 }, 5);
+    expect(result).toEqual({ ok: false, error: "Not enough credits for this call." });
+  });
+
+  it("keeps the two failure messages distinguishable from each other", () => {
+    const noMembershipNoCredits = checkInvokeEligibility({ membershipStatus: null, apiCredits: 0 }, 5);
+    const insufficientCredits = checkInvokeEligibility({ membershipStatus: "active", apiCredits: 0 }, 5);
+    expect(noMembershipNoCredits.ok).toBe(false);
+    expect(insufficientCredits.ok).toBe(false);
+    if (!noMembershipNoCredits.ok && !insufficientCredits.ok) {
+      expect(noMembershipNoCredits.error).not.toBe(insufficientCredits.error);
+    }
   });
 });
 

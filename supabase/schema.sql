@@ -508,22 +508,32 @@ alter table agently_agents add constraint agently_agents_credits_per_call_check
     or (agent_kind in ('prompt', 'workflow') and credits_per_call is not null and credits_per_call > 0)
   );
 
--- The credit wallet backing hosted-agent calls (a monthly allotment, not a
--- balance that accumulates across months — see MEMBERSHIP_TIERS.monthlyCredits
--- in lib/membership.ts and app/api/stripe/webhook/route.ts's refill logic).
--- Default of 20 on every profile (member or not) is ASSUMPTION, same as
--- MEMBERSHIP_TIERS's own placeholder pricing — chosen to be enough to try a
--- hosted agent a handful of times, not measured against real usage.
+-- The credit wallet backing hosted-agent calls. For a paying member this is
+-- a monthly allotment, reset (not accumulated) each cycle — see
+-- MEMBERSHIP_TIERS.monthlyCredits in lib/membership.ts and
+-- app/api/stripe/webhook/route.ts's refill logic. Default of 20 on every
+-- new profile (member or not) is ASSUMPTION, same as MEMBERSHIP_TIERS's own
+-- placeholder pricing — chosen to be enough to try a hosted agent a handful
+-- of times, not measured against real usage.
 --
--- JUDGMENT CALL, flagged for David: the concept doc frames a free-call quota
--- as lowering purchase friction "before requiring an active membership," but
--- app/api/agents/[slug]/invoke/route.ts (this build's concrete spec, step 4)
--- requires membership_status = 'active' on every call regardless of
--- api_credits — so these 20 credits currently sit unusable until someone
--- becomes a paying member, which doesn't actually deliver the doc's
--- friction-lowering intent. Left as spec'd rather than silently reinterpreted;
--- worth a real decision on whether a signed-up-but-not-yet-a-member caller
--- should get limited invoke access on their free credits alone.
+-- DECIDED (David, 2026-09-06): these 20 free credits are usable via
+-- app/api/agents/[slug]/invoke/route.ts WITHOUT an active membership —
+-- membership_status = 'active' is no longer required on every call, only
+-- api_credits > 0 is (see lib/hosted-agents.ts's checkInvokeEligibility).
+-- That's the whole point of a free-trial grant: lower purchase friction
+-- before ever asking for payment (plan/agently-hosted-api-concept.html).
+--
+-- The abuse case that decision has to close (flagged in the same doc,
+-- section 6): if free credits refilled on their own, unlimited signups
+-- would mean unlimited free API usage at real cost. The fix is that this
+-- default is a ONE-TIME, non-renewing grant for a non-member — nothing
+-- ever tops up api_credits for an account that never pays (no cron reset,
+-- no refill on login, nothing). Once spent, spent. Only an actual paying
+-- membership event (checkout or renewal, both in
+-- app/api/stripe/webhook/route.ts) ever writes to api_credits again, and
+-- that always SETS it to the tier's monthlyCredits, never adds to a
+-- non-member's leftover balance. So repeated fake signups only ever get 20
+-- credits each, never a recurring drip.
 alter table agently_profiles add column if not exists api_credits integer not null default 20;
 alter table agently_profiles add column if not exists api_credits_refreshed_at timestamptz;
 

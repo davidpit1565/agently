@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { extractBearerKey, hashApiKey } from "@/lib/api-keys";
-import { deductCredits, refundCredits } from "@/lib/hosted-agents";
+import { deductCredits, refundCredits, checkInvokeEligibility } from "@/lib/hosted-agents";
 import { errorMessage } from "@/lib/errors";
 
 const MAX_INPUT_LENGTH = 20_000; // a reasonable ceiling on the caller's own request body — not a measured limit, just a sane guard.
 const WEBHOOK_TIMEOUT_MS = 25_000;
 
-// The actual hosted execution: a buyer with an active membership + enough
-// wallet credits calls this instead of ever receiving delivery_url. Never
-// applies to a 'file' agent — that's still the plain delivery flow at
+// The actual hosted execution: a buyer with enough wallet credits calls this
+// instead of ever receiving delivery_url — an active membership is no
+// longer required by itself, a non-member can spend their free trial
+// credits the same way (see lib/hosted-agents.ts's checkInvokeEligibility).
+// Never applies to a 'file' agent — that's still the plain delivery flow at
 // /api/deliveries/[agentId]. Every real call is metered (agently_agent_
 // invocations) and either runs an Anthropic call with a hidden system
 // prompt ('prompt') or forwards to the creator's own webhook server-to-
@@ -69,29 +71,39 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
     );
   }
 
-  // Step 4: membership gate. This credit wallet is a membership perk, not
-  // something a one-time per-agent purchase unlocks — those stay on the
-  // existing, untouched delivery/checkout flow.
+  // Step 4: the wallet this caller is invoking against. The credit wallet
+  // isn't gated behind an active membership any more (David's decision,
+  // 2026-09-06) — a non-member can invoke on their own free trial credits
+  // alone, since the whole point of the free-credit signup grant is to
+  // lower purchase friction before ever asking for payment (see
+  // plan/agently-hosted-api-concept.html). Those credits are a one-time,
+  // non-renewing grant (the schema's `default 20` on signup — see
+  // supabase/schema.sql's comment on agently_profiles.api_credits); nothing
+  // refills a non-member's wallet, so repeated fake signups only ever get
+  // 20 credits each, never a recurring drip. A one-time-per-agent purchase
+  // stays on the existing, untouched delivery/checkout flow either way.
   const { data: profile } = await admin
     .from("agently_profiles")
     .select("membership_status, api_credits")
     .eq("id", keyRow.user_id)
     .single();
 
-  if (!profile || profile.membership_status !== "active") {
-    return NextResponse.json(
-      { error: "An active membership is required to call hosted agents. See /pricing." },
-      { status: 402 }
-    );
+  if (!profile) {
+    return NextResponse.json({ error: "Account not found for this API key." }, { status: 404 });
   }
 
-  // Step 5: a cheap up-front check before touching the request body or
-  // running anything — the real, race-safe guard is the atomic deduction in
-  // step 6 below; this just avoids doing any work at all for an obviously
-  // empty wallet.
+  // Step 5: the access gate — see lib/hosted-agents.ts's checkInvokeEligibility
+  // for the full reasoning and the two distinct error messages it can
+  // return. This is a cheap up-front check before touching the request body
+  // or running anything; the real, race-safe guard is the atomic deduction
+  // in step 6 below.
   const cost = agent.credits_per_call ?? 0;
-  if (profile.api_credits < cost) {
-    return NextResponse.json({ error: "Not enough credits for this call." }, { status: 402 });
+  const eligibility = checkInvokeEligibility(
+    { membershipStatus: profile.membership_status, apiCredits: profile.api_credits },
+    cost
+  );
+  if (!eligibility.ok) {
+    return NextResponse.json({ error: eligibility.error }, { status: 402 });
   }
 
   let body: { input?: unknown };

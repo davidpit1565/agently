@@ -57,6 +57,51 @@ export function validateHostedAgentFields(input: {
 }
 
 /**
+ * The access gate for invoke (app/api/agents/[slug]/invoke/route.ts, steps
+ * 4-5) — decided by David 2026-09-06: a non-member can invoke on their own
+ * free trial credits alone, no active membership required, because the
+ * whole point of the free-credit signup grant is to lower purchase friction
+ * *before* asking for payment (plan/agently-hosted-api-concept.html). Those
+ * credits are a one-time, non-renewing grant (the schema's `default 20` on
+ * signup, never refilled again without an actual paid membership event —
+ * see lib/membership.ts and both refill sites in
+ * app/api/stripe/webhook/route.ts) — so this only ever loosens the *gate*,
+ * it does not create any new source of free credits. Repeated fake
+ * signups still only ever get 20 credits each, never a recurring drip.
+ *
+ * Pure so it's unit-testable without a live Supabase client — the actual
+ * atomic spend-check in step 6 (deductCredits) is the real, race-safe gate;
+ * this is the fast up-front check that also produces the right one of two
+ * distinct error messages:
+ *  - no active membership AND no credits left at all → "sign up for real
+ *    credits or become a member" (this is the only case that message means).
+ *  - some credits left, but not enough for this call's cost → the plain
+ *    "insufficient credits" message, same one the atomic deduction (step 6)
+ *    returns on its own race-safe path — kept identical wording so a caller
+ *    sees the same message whichever path produced it.
+ */
+export function checkInvokeEligibility(
+  profile: { membershipStatus: string | null; apiCredits: number },
+  cost: number
+): { ok: true } | { ok: false; error: string } {
+  const isMember = profile.membershipStatus === "active";
+
+  if (!isMember && profile.apiCredits <= 0) {
+    return {
+      ok: false,
+      error:
+        "No active membership and no free credits left. Become a member for a monthly credit refill, or see /pricing.",
+    };
+  }
+
+  if (profile.apiCredits < cost) {
+    return { ok: false, error: "Not enough credits for this call." };
+  }
+
+  return { ok: true };
+}
+
+/**
  * The actual race-condition guard for invoke (app/api/agents/[slug]/invoke/
  * route.ts, step 6): two concurrent calls on a wallet with just enough
  * credits for one of them must not both succeed and both deduct, dropping
