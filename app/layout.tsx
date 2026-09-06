@@ -6,6 +6,7 @@ import { Footer } from "./components/footer";
 import { PageWipe } from "./components/page-wipe";
 import { createClient } from "@/lib/supabase/server";
 import { isPlatformOwner } from "@/lib/owner";
+import { SITE_URL } from "@/lib/site";
 
 const display = Bricolage_Grotesque({
   subsets: ["latin"],
@@ -28,7 +29,7 @@ const description =
   "Upload, sell, and find AI agents by the problem they solve. Safety-reviewed before they're listed.";
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://agently-jet.vercel.app"),
+  metadataBase: new URL(SITE_URL),
   title,
   description,
   openGraph: { title, description, type: "website" },

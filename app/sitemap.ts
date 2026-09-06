@@ -1,7 +1,6 @@
 import type { MetadataRoute } from "next";
 import { getApprovedAgents } from "@/lib/catalog";
-
-const SITE_URL = "https://agently-jet.vercel.app";
+import { SITE_URL } from "@/lib/site";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const agents = await getApprovedAgents();

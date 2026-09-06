@@ -2,10 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { sendNotificationEmail } from "@/lib/email";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { errorMessage } from "@/lib/errors";
-
-// Same hardcoded-base-URL pattern already used in app/sitemap.ts,
-// app/robots.ts, and lib/watermark.ts — this app has no custom domain yet.
-const SITE_URL = "https://agently-jet.vercel.app";
+import { SITE_URL } from "@/lib/site";
 
 /** Creates one agently_team_invites row per teammate email and emails each
  *  one an accept link — called once, right after a team purchase's

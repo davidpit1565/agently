@@ -2,6 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { sendNotificationEmail } from "@/lib/email";
 import { errorMessage } from "@/lib/errors";
+import { SITE_URL } from "@/lib/site";
 
 export type Notification = {
   id: string;
@@ -102,7 +103,7 @@ export async function notifyOwnerOfPendingReview(params: {
     verdictLine,
     ...(diff ? ["", "What changed in this edit:", diff] : []),
     "",
-    "Review it: https://agently-jet.vercel.app/dashboard/admin/agents",
+    `Review it: ${SITE_URL}/dashboard/admin/agents`,
   ];
 
   await sendNotificationEmail(owner, `${agentName} needs review`, lines.join("\n"));
