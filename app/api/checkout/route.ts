@@ -61,7 +61,13 @@ export async function POST(request: Request) {
   // through, and nothing here re-checked status. A delisted or rejected
   // agent's id posted directly here would otherwise still be purchasable.
   if (agent.status !== "approved") {
-    return NextResponse.json({ error: "This agent isn't available for purchase." }, { status: 404 });
+    return NextResponse.redirect(
+      new URL(
+        `/agents/${agent.slug}?error=${encodeURIComponent("This agent isn't available for purchase.")}`,
+        request.url
+      ),
+      303
+    );
   }
 
   // A creator "buying" their own agent is free and instant for the "free"
@@ -72,7 +78,10 @@ export async function POST(request: Request) {
   // block it at the one place every purchase path (free claim and paid
   // checkout alike) goes through.
   if (agent.creator_id === user.id) {
-    return NextResponse.json({ error: "You can't buy your own agent." }, { status: 403 });
+    return NextResponse.redirect(
+      new URL(`/agents/${agent.slug}?error=${encodeURIComponent("You can't buy your own agent.")}`, request.url),
+      303
+    );
   }
 
   // Free agents skip Stripe entirely — record a zero-amount purchase so the
@@ -98,7 +107,13 @@ export async function POST(request: Request) {
   }
 
   if (!agent.price_cents) {
-    return NextResponse.json({ error: "This agent isn't purchasable through checkout." }, { status: 400 });
+    return NextResponse.redirect(
+      new URL(
+        `/agents/${agent.slug}?error=${encodeURIComponent("This agent isn't purchasable through checkout.")}`,
+        request.url
+      ),
+      303
+    );
   }
 
   // Team purchase (lib/team-pricing.ts): only for a one_time agent — a
@@ -112,12 +127,21 @@ export async function POST(request: Request) {
   let teamEmails: string[] = [];
   if (seats !== 1) {
     if (agent.pricing_model !== "one_time") {
-      return NextResponse.json({ error: "Team purchases are only available for a one-time purchase agent." }, { status: 400 });
+      return NextResponse.redirect(
+        new URL(
+          `/agents/${agent.slug}?error=${encodeURIComponent("Team purchases are only available for a one-time purchase agent.")}`,
+          request.url
+        ),
+        303
+      );
     }
     if (!Number.isInteger(seats) || seats < MIN_TEAM_SEATS || seats > MAX_TEAM_SEATS) {
-      return NextResponse.json(
-        { error: `A team purchase needs between ${MIN_TEAM_SEATS} and ${MAX_TEAM_SEATS} seats.` },
-        { status: 400 }
+      return NextResponse.redirect(
+        new URL(
+          `/agents/${agent.slug}?error=${encodeURIComponent(`A team purchase needs between ${MIN_TEAM_SEATS} and ${MAX_TEAM_SEATS} seats.`)}`,
+          request.url
+        ),
+        303
       );
     }
     teamEmails = String(form.get("team_emails") ?? "")
@@ -126,19 +150,37 @@ export async function POST(request: Request) {
       .filter(Boolean);
     const uniqueEmails = [...new Set(teamEmails)];
     if (uniqueEmails.length !== teamEmails.length) {
-      return NextResponse.json({ error: "Duplicate teammate email." }, { status: 400 });
+      return NextResponse.redirect(
+        new URL(`/agents/${agent.slug}?error=${encodeURIComponent("Duplicate teammate email.")}`, request.url),
+        303
+      );
     }
     if (teamEmails.length !== seats - 1) {
-      return NextResponse.json(
-        { error: `${seats} seats needs exactly ${seats - 1} teammate email(s) — you're already covered as one of the seats.` },
-        { status: 400 }
+      return NextResponse.redirect(
+        new URL(
+          `/agents/${agent.slug}?error=${encodeURIComponent(`${seats} seats needs exactly ${seats - 1} teammate email(s) — you're already covered as one of the seats.`)}`,
+          request.url
+        ),
+        303
       );
     }
     if (teamEmails.some((e) => !EMAIL_RE.test(e))) {
-      return NextResponse.json({ error: "One of the teammate emails doesn't look valid." }, { status: 400 });
+      return NextResponse.redirect(
+        new URL(
+          `/agents/${agent.slug}?error=${encodeURIComponent("One of the teammate emails doesn't look valid.")}`,
+          request.url
+        ),
+        303
+      );
     }
     if (teamEmails.includes(user.email?.toLowerCase() ?? "")) {
-      return NextResponse.json({ error: "You're already covered — don't include your own email in the team list." }, { status: 400 });
+      return NextResponse.redirect(
+        new URL(
+          `/agents/${agent.slug}?error=${encodeURIComponent("You're already covered — don't include your own email in the team list.")}`,
+          request.url
+        ),
+        303
+      );
     }
   }
 
@@ -204,20 +246,25 @@ export async function POST(request: Request) {
     // Stripe and create a second subscription, or a second charge for a
     // one-time agent, for someone who already owns it.
     if (existingError) {
-      return NextResponse.json(
-        { error: "Couldn't verify your existing purchases — try again in a moment." },
-        { status: 503 }
+      return NextResponse.redirect(
+        new URL(
+          `/agents/${agent.slug}?error=${encodeURIComponent("Couldn't verify your existing purchases — try again in a moment.")}`,
+          request.url
+        ),
+        303
       );
     }
     if (existing) {
-      return NextResponse.json(
-        {
-          error:
+      return NextResponse.redirect(
+        new URL(
+          `/agents/${agent.slug}?error=${encodeURIComponent(
             agent.pricing_model === "subscription"
               ? "You already have an active subscription to this agent."
-              : "You already own this agent.",
-        },
-        { status: 409 }
+              : "You already own this agent."
+          )}`,
+          request.url
+        ),
+        303
       );
     }
   }
@@ -239,17 +286,31 @@ export async function POST(request: Request) {
         .single()
     : { data: null };
   if (!checkoutAdmin) {
-    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(
+        `/agents/${agent.slug}?error=${encodeURIComponent("Not connected yet — Supabase isn't configured.")}`,
+        request.url
+      ),
+      303
+    );
   }
   if (!creator?.stripe_connect_ready || !creator.stripe_connect_id) {
-    return NextResponse.json(
-      { error: "This creator hasn't finished payout setup yet, so this agent can't be purchased right now." },
-      { status: 409 }
+    return NextResponse.redirect(
+      new URL(
+        `/agents/${agent.slug}?error=${encodeURIComponent(
+          "This creator hasn't finished payout setup yet, so this agent can't be purchased right now."
+        )}`,
+        request.url
+      ),
+      303
     );
   }
 
   if (!process.env.STRIPE_SECRET_KEY) {
-    return NextResponse.json({ error: "Not connected yet — Stripe isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(`/agents/${agent.slug}?error=${encodeURIComponent("Not connected yet — Stripe isn't configured.")}`, request.url),
+      303
+    );
   }
 
   const stripe = getStripe();
@@ -333,9 +394,14 @@ export async function POST(request: Request) {
           .update({ stripe_connect_ready: false, stripe_connect_id: null })
           .eq("id", agent.creator_id);
       }
-      return NextResponse.json(
-        { error: "This creator's payout setup needs to be redone — try again shortly, or contact them directly." },
-        { status: 409 }
+      return NextResponse.redirect(
+        new URL(
+          `/agents/${agent.slug}?error=${encodeURIComponent(
+            "This creator's payout setup needs to be redone — try again shortly, or contact them directly."
+          )}`,
+          request.url
+        ),
+        303
       );
     }
     throw err;

@@ -10,10 +10,16 @@ import { checkRateLimit } from "@/lib/rate-limit";
 // a second, separate subscription instead of changing the one they have.
 export async function POST(request: Request) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/membership?error=${encodeURIComponent("Not connected yet — Supabase isn't configured.")}`, request.url),
+      303
+    );
   }
   if (!process.env.STRIPE_SECRET_KEY) {
-    return NextResponse.json({ error: "Not connected yet — Stripe isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/membership?error=${encodeURIComponent("Not connected yet — Stripe isn't configured.")}`, request.url),
+      303
+    );
   }
 
   const supabase = await createClient();
@@ -30,7 +36,10 @@ export async function POST(request: Request) {
   // /api/membership/checkout.
   const allowed = await checkRateLimit(`membership_portal:${user.id}`, 10, 60);
   if (!allowed) {
-    return NextResponse.json({ error: "Too many attempts — wait a moment and try again." }, { status: 429 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/membership?error=${encodeURIComponent("Too many attempts — wait a moment and try again.")}`, request.url),
+      303
+    );
   }
 
   const { data: profile } = await supabase
@@ -40,7 +49,10 @@ export async function POST(request: Request) {
     .single();
 
   if (!profile?.stripe_customer_id) {
-    return NextResponse.json({ error: "No membership on file yet." }, { status: 404 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/membership?error=${encodeURIComponent("No membership on file yet.")}`, request.url),
+      303
+    );
   }
 
   const stripe = getStripe();
@@ -61,9 +73,12 @@ export async function POST(request: Request) {
     // checkout both already fail gracefully (empty results, or their own
     // resource_missing handling) rather than crashing on the same stale id.
     if (err instanceof Stripe.errors.StripeInvalidRequestError && err.code === "resource_missing") {
-      return NextResponse.json(
-        { error: "Couldn't find your membership on file — this can happen right after a Stripe mode change. Contact support to sort it out." },
-        { status: 409 }
+      return NextResponse.redirect(
+        new URL(
+          `/dashboard/membership?error=${encodeURIComponent("Couldn't find your membership on file — this can happen right after a Stripe mode change. Contact support to sort it out.")}`,
+          request.url
+        ),
+        303
       );
     }
     throw err;

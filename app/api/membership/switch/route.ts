@@ -46,10 +46,16 @@ async function getOrCreateMembershipProductId(
 // so it works regardless of whether that portal configuration ever happens.
 export async function POST(request: Request) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(`/pricing?error=${encodeURIComponent("Not connected yet — Supabase isn't configured.")}`, request.url),
+      303
+    );
   }
   if (!process.env.STRIPE_SECRET_KEY) {
-    return NextResponse.json({ error: "Not connected yet — Stripe isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(`/pricing?error=${encodeURIComponent("Not connected yet — Stripe isn't configured.")}`, request.url),
+      303
+    );
   }
 
   const form = await request.formData();
@@ -66,7 +72,10 @@ export async function POST(request: Request) {
   const requestedInterval = form.get("interval") === "yearly" ? "yearly" : null;
 
   if (tier === "free" || !(tier in MEMBERSHIP_TIERS)) {
-    return NextResponse.json({ error: "Unknown membership tier." }, { status: 400 });
+    return NextResponse.redirect(
+      new URL(`/pricing?error=${encodeURIComponent("Unknown membership tier.")}`, request.url),
+      303
+    );
   }
 
   const supabase = await createClient();
@@ -85,13 +94,19 @@ export async function POST(request: Request) {
     .single();
 
   if (profileError) {
-    return NextResponse.json({ error: "Couldn't verify your membership — try again in a moment." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(`/pricing?error=${encodeURIComponent("Couldn't verify your membership — try again in a moment.")}`, request.url),
+      303
+    );
   }
 
   if (profile?.membership_status !== "active" || !profile.stripe_customer_id) {
-    return NextResponse.json(
-      { error: "No active membership to switch — join a plan first from /pricing." },
-      { status: 409 }
+    return NextResponse.redirect(
+      new URL(
+        `/pricing?error=${encodeURIComponent("No active membership to switch — join a plan first from /pricing.")}`,
+        request.url
+      ),
+      303
     );
   }
 
@@ -114,9 +129,12 @@ export async function POST(request: Request) {
     });
   } catch (err) {
     if (err instanceof Stripe.errors.StripeInvalidRequestError && err.code === "resource_missing") {
-      return NextResponse.json(
-        { error: "Couldn't find your active subscription on Stripe — try again in a moment." },
-        { status: 409 }
+      return NextResponse.redirect(
+        new URL(
+          `/pricing?error=${encodeURIComponent("Couldn't find your active subscription on Stripe — try again in a moment.")}`,
+          request.url
+        ),
+        303
       );
     }
     throw err;
@@ -124,9 +142,12 @@ export async function POST(request: Request) {
   const subscription = subscriptions.data[0];
   const item = subscription?.items.data[0];
   if (!subscription || !item) {
-    return NextResponse.json(
-      { error: "Couldn't find your active subscription on Stripe — try again in a moment." },
-      { status: 409 }
+    return NextResponse.redirect(
+      new URL(
+        `/pricing?error=${encodeURIComponent("Couldn't find your active subscription on Stripe — try again in a moment.")}`,
+        request.url
+      ),
+      303
     );
   }
 

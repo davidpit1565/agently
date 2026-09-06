@@ -13,7 +13,10 @@ const MAX_DESCRIPTION_LENGTH = 2000;
 // UI hides isn't actually gated.
 export async function POST(request: Request) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/request?error=${encodeURIComponent("Not connected yet — Supabase isn't configured.")}`, request.url),
+      303
+    );
   }
 
   const supabase = await createClient();
@@ -32,9 +35,9 @@ export async function POST(request: Request) {
     .single();
 
   if (profile?.membership_tier !== "professional") {
-    return NextResponse.json(
-      { error: "Requesting a custom agent is a Professional-membership perk." },
-      { status: 403 }
+    return NextResponse.redirect(
+      new URL(`/dashboard/request?error=${encodeURIComponent("Requesting a custom agent is a Professional-membership perk.")}`, request.url),
+      303
     );
   }
 
@@ -44,9 +47,9 @@ export async function POST(request: Request) {
   // real annoyance to someone else, not just a wasted DB row.
   const allowed = await checkRateLimit(`agent_request:${user.id}`, 5, 600);
   if (!allowed) {
-    return NextResponse.json(
-      { error: "Too many requests in a short time — wait a few minutes and try again." },
-      { status: 429 }
+    return NextResponse.redirect(
+      new URL(`/dashboard/request?error=${encodeURIComponent("Too many requests in a short time — wait a few minutes and try again.")}`, request.url),
+      303
     );
   }
 
@@ -54,7 +57,10 @@ export async function POST(request: Request) {
   const description = String(form.get("description") ?? "").trim().slice(0, MAX_DESCRIPTION_LENGTH);
 
   if (!description) {
-    return NextResponse.json({ error: "Describe what you need." }, { status: 400 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/request?error=${encodeURIComponent("Describe what you need.")}`, request.url),
+      303
+    );
   }
 
   const { error } = await supabase.from("agently_agent_requests").insert({
@@ -63,7 +69,10 @@ export async function POST(request: Request) {
   });
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/request?error=${encodeURIComponent(error.message)}`, request.url),
+      303
+    );
   }
 
   return NextResponse.redirect(new URL("/dashboard/request?submitted=1", request.url), 303);

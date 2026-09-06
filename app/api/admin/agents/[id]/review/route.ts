@@ -16,7 +16,13 @@ import { reviewAgentSubmission } from "@/lib/safety-review";
 // score and note, never approves or rejects on its own.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/admin/agents?error=${encodeURIComponent("Not connected yet — Supabase isn't configured.")}`,
+        request.url
+      ),
+      303
+    );
   }
 
   const supabase = await createClient();
@@ -25,13 +31,22 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } = await supabase.auth.getUser();
 
   if (!isPlatformOwner(user?.email)) {
-    return NextResponse.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/admin/agents?error=${encodeURIComponent("Not found.")}`, request.url),
+      303
+    );
   }
 
   const { id } = await params;
   const admin = createAdminClient();
   if (!admin) {
-    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY not configured" }, { status: 500 });
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/admin/agents?error=${encodeURIComponent("SUPABASE_SERVICE_ROLE_KEY not configured")}`,
+        request.url
+      ),
+      303
+    );
   }
 
   const { data: agent } = await admin
@@ -41,7 +56,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .single();
 
   if (!agent) {
-    return NextResponse.json({ error: "Agent not found." }, { status: 404 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/admin/agents?error=${encodeURIComponent("Agent not found.")}`, request.url),
+      303
+    );
   }
 
   const verdict = await reviewAgentSubmission({
@@ -53,9 +71,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   });
 
   if (!verdict) {
-    return NextResponse.json(
-      { error: "No automated verdict came back — check ANTHROPIC_API_KEY, or try again in a moment." },
-      { status: 502 }
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/admin/agents?error=${encodeURIComponent(
+          "No automated verdict came back — check ANTHROPIC_API_KEY, or try again in a moment."
+        )}`,
+        request.url
+      ),
+      303
     );
   }
 
@@ -68,7 +91,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .eq("id", id);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/admin/agents?error=${encodeURIComponent(error.message)}`, request.url),
+      303
+    );
   }
 
   return NextResponse.redirect(new URL("/dashboard/admin/agents?reviewed=1", request.url), 303);

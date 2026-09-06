@@ -8,9 +8,9 @@ import { SubmitButton } from "@/app/components/submit-button";
 export default async function UploadPage({
   searchParams,
 }: {
-  searchParams: Promise<{ submitted?: string; skipped_files?: string }>;
+  searchParams: Promise<{ submitted?: string; skipped_files?: string; error?: string }>;
 }) {
-  const { submitted, skipped_files: skippedFiles } = await searchParams;
+  const { submitted, skipped_files: skippedFiles, error } = await searchParams;
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return (
@@ -70,6 +70,12 @@ export default async function UploadPage({
           is publicly visible until the safety review clears it.
         </p>
       </div>
+
+      {error && (
+        <p className="mb-6 animate-shake rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          {error}
+        </p>
+      )}
 
       {submitted && (
         <p className="mb-6 rounded-lg border border-accent/30 bg-accent-soft px-4 py-3 text-sm text-accent">

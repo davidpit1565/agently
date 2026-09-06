@@ -8,9 +8,9 @@ import { isPlatformOwner } from "@/lib/owner";
 export default async function AdminRequestsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ saved?: string; embedded?: string; skipped?: string }>;
+  searchParams: Promise<{ saved?: string; embedded?: string; skipped?: string; error?: string }>;
 }) {
-  const { saved, embedded, skipped } = await searchParams;
+  const { saved, embedded, skipped, error } = await searchParams;
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return <Notice title="Not connected yet">This page needs Supabase configured.</Notice>;
@@ -34,6 +34,11 @@ export default async function AdminRequestsPage({
       {saved && (
         <p className="mb-6 rounded-lg border border-accent/30 bg-accent-soft px-4 py-3 text-sm text-accent">
           Saved.
+        </p>
+      )}
+      {error && (
+        <p className="mb-6 animate-shake rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          {error}
         </p>
       )}
 

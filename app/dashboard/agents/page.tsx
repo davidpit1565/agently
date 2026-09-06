@@ -18,9 +18,9 @@ const STATUS_LABEL: Record<string, string> = {
 export default async function MyAgentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ membership?: string; delisted?: string; removed?: string }>;
+  searchParams: Promise<{ membership?: string; delisted?: string; removed?: string; error?: string }>;
 }) {
-  const { membership, delisted, removed } = await searchParams;
+  const { membership, delisted, removed, error } = await searchParams;
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return (
@@ -59,6 +59,11 @@ export default async function MyAgentsPage({
         <div className="mb-6 rounded-lg border border-line bg-surface px-4 py-2.5 text-sm text-ink-soft">
           Listing deleted for good.
         </div>
+      )}
+      {error && (
+        <p className="mb-6 animate-shake rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          {error}
+        </p>
       )}
       <div className="mb-8 flex animate-fade-up items-center justify-between gap-4">
         <h1 className="text-balance font-display text-2xl font-semibold">Your agents</h1>

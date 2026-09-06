@@ -19,11 +19,17 @@ import { MIN_AGENT_PRICE_CENTS } from "@/lib/membership";
 // required, same pattern as every other write in this app), and forms
 // only support GET/POST.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
-  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
-  }
-
   const { id } = await params;
+
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/agents/${id}/edit?error=${encodeURIComponent("Not connected yet — Supabase isn't configured.")}`,
+        request.url
+      ),
+      303
+    );
+  }
   const supabase = await createClient();
   const {
     data: { user },
@@ -35,7 +41,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const { data: existing } = await supabase.from("agently_agents").select("*").eq("id", id).single();
   if (!existing || existing.creator_id !== user.id) {
-    return NextResponse.json({ error: "Agent not found, or you don't own it." }, { status: 404 });
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/agents/${id}/edit?error=${encodeURIComponent("Agent not found, or you don't own it.")}`,
+        request.url
+      ),
+      303
+    );
   }
 
   const form = await request.formData();
@@ -56,13 +68,19 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // specific agent) but can't be switched into it from something else, and
   // no other listing can be switched into it either.
   if (pricingModel === "subscription" && existing.pricing_model !== "subscription") {
-    return NextResponse.json(
-      { error: "Monthly subscription is no longer available for a listing — choose free or a one-time purchase." },
-      { status: 400 }
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/agents/${id}/edit?error=${encodeURIComponent("Monthly subscription is no longer available for a listing — choose free or a one-time purchase.")}`,
+        request.url
+      ),
+      303
     );
   }
   if (pricingModel !== "free" && pricingModel !== "one_time" && pricingModel !== "subscription") {
-    return NextResponse.json({ error: "Unknown pricing model." }, { status: 400 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/agents/${id}/edit?error=${encodeURIComponent("Unknown pricing model.")}`, request.url),
+      303
+    );
   }
 
   // Same enforcement as creating a listing (app/api/agents/route.ts) — an
@@ -75,21 +93,28 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       .eq("id", user.id)
       .single();
     if (!profile?.stripe_connect_ready) {
-      return NextResponse.json(
-        { error: "Connect Stripe payouts before listing a paid agent — see /dashboard/payouts." },
-        { status: 403 }
+      return NextResponse.redirect(
+        new URL(
+          `/dashboard/agents/${id}/edit?error=${encodeURIComponent("Connect Stripe payouts before listing a paid agent — see /dashboard/payouts.")}`,
+          request.url
+        ),
+        303
       );
     }
     const price = Number(priceEur);
     if (!Number.isFinite(price) || price <= 0) {
-      return NextResponse.json({ error: "Enter a price for a paid agent." }, { status: 400 });
+      return NextResponse.redirect(
+        new URL(`/dashboard/agents/${id}/edit?error=${encodeURIComponent("Enter a price for a paid agent.")}`, request.url),
+        303
+      );
     }
     if (Math.round(price * 100) < MIN_AGENT_PRICE_CENTS) {
-      return NextResponse.json(
-        {
-          error: `A paid agent must be priced at least €${(MIN_AGENT_PRICE_CENTS / 100).toFixed(2)} — below that, Stripe's own processing fee can cost more than the platform earns on the sale.`,
-        },
-        { status: 400 }
+      return NextResponse.redirect(
+        new URL(
+          `/dashboard/agents/${id}/edit?error=${encodeURIComponent(`A paid agent must be priced at least €${(MIN_AGENT_PRICE_CENTS / 100).toFixed(2)} — below that, Stripe's own processing fee can cost more than the platform earns on the sale.`)}`,
+          request.url
+        ),
+        303
       );
     }
   }
@@ -100,9 +125,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!deliveryUrl && newFiles.length === 0) {
     const hasExistingFiles = (await getAgentIdsWithFiles([id])).has(id);
     if (!hasExistingFiles) {
-      return NextResponse.json(
-        { error: "Add a delivery link or attach at least one file — a buyer needs to actually receive something." },
-        { status: 400 }
+      return NextResponse.redirect(
+        new URL(
+          `/dashboard/agents/${id}/edit?error=${encodeURIComponent("Add a delivery link or attach at least one file — a buyer needs to actually receive something.")}`,
+          request.url
+        ),
+        303
       );
     }
   }
@@ -162,7 +190,13 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // computed just above.
   const admin = createAdminClient();
   if (!admin) {
-    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/agents/${id}/edit?error=${encodeURIComponent("Not connected yet — Supabase isn't configured.")}`,
+        request.url
+      ),
+      303
+    );
   }
 
   // Optimistic lock on `version`: a double form-submit (slow network
@@ -196,7 +230,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .select("id");
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/agents/${id}/edit?error=${encodeURIComponent(error.message)}`, request.url),
+      303
+    );
   }
 
   const successParam = isNewVersion ? "updated=1" : "saved=1";

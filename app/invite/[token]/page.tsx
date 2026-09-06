@@ -10,8 +10,15 @@ import { SubmitButton } from "@/app/components/submit-button";
 // pattern as agently_agent_files and agently_downloads, since claiming a
 // seat has to work for someone who doesn't have an account (and so no
 // session-scoped RLS check could ever apply) yet.
-export default async function InvitePage({ params }: { params: Promise<{ token: string }> }) {
+export default async function InvitePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ token: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
   const { token } = await params;
+  const { error } = await searchParams;
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return <Notice title="Not connected yet">This page needs Supabase configured first.</Notice>;
@@ -110,6 +117,11 @@ export default async function InvitePage({ params }: { params: Promise<{ token: 
         You&apos;ve been given a seat on this team purchase. Accepting gives
         you the same delivery link and files access as the buyer.
       </p>
+      {error && (
+        <p className="mb-6 animate-shake rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          {error}
+        </p>
+      )}
       <form action={`/api/invite/${token}/accept`} method="POST">
         <SubmitButton
           pendingText="Joining…"

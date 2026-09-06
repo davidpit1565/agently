@@ -14,7 +14,13 @@ import { isPlatformOwner } from "@/lib/owner";
 // their own agents" would block that with the session client).
 export async function POST(request: Request) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/admin/requests?error=${encodeURIComponent("Not connected yet — Supabase isn't configured.")}`,
+        request.url
+      ),
+      303
+    );
   }
 
   const supabase = await createClient();
@@ -23,12 +29,18 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!isPlatformOwner(user?.email)) {
-    return NextResponse.json({ error: "Not authorized." }, { status: 403 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/admin/requests?error=${encodeURIComponent("Not authorized.")}`, request.url),
+      303
+    );
   }
 
   const admin = createAdminClient();
   if (!admin) {
-    return NextResponse.json({ error: "Service role key not configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/admin/requests?error=${encodeURIComponent("Service role key not configured.")}`, request.url),
+      303
+    );
   }
   const db = admin;
 
@@ -39,7 +51,10 @@ export async function POST(request: Request) {
     .is("embedding", null);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/admin/requests?error=${encodeURIComponent(error.message)}`, request.url),
+      303
+    );
   }
 
   let embedded = 0;

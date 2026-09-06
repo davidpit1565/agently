@@ -10,9 +10,9 @@ import { PLATFORM_FEE_PERCENT } from "@/lib/membership";
 export default async function PayoutsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ onboarded?: string }>;
+  searchParams: Promise<{ onboarded?: string; error?: string }>;
 }) {
-  const { onboarded } = await searchParams;
+  const { onboarded, error } = await searchParams;
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return (
@@ -106,6 +106,12 @@ export default async function PayoutsPage({
           the platform fee.
         </p>
       </div>
+
+      {error && (
+        <p className="mb-6 animate-shake rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+          {error}
+        </p>
+      )}
 
       {onboarded && !ready && (
         <p className="mb-6 animate-fade-up rounded-lg border border-line bg-surface px-4 py-3 text-sm text-ink-soft">

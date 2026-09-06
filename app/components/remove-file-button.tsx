@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 export function RemoveFileButton({
   agentId,
   fileId,
@@ -9,6 +11,8 @@ export function RemoveFileButton({
   fileId: string;
   fileName: string;
 }) {
+  const [pending, setPending] = useState(false);
+
   return (
     <form
       action={`/api/agents/${agentId}/files/${fileId}`}
@@ -20,11 +24,13 @@ export function RemoveFileButton({
           )
         ) {
           e.preventDefault();
+          return;
         }
+        setPending(true);
       }}
     >
-      <button type="submit" className="text-xs text-ink-faint hover:text-red-400">
-        Remove
+      <button type="submit" disabled={pending} className="text-xs text-ink-faint hover:text-red-400 disabled:cursor-not-allowed disabled:opacity-60">
+        {pending ? "Removing…" : "Remove"}
       </button>
     </form>
   );

@@ -13,7 +13,10 @@ import { deleteAllAgentFiles } from "@/lib/agent-files";
 // cascade and are removed explicitly first.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/agents?error=${encodeURIComponent("Not connected yet — Supabase isn't configured.")}`, request.url),
+      303
+    );
   }
 
   const { id } = await params;
@@ -28,12 +31,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const { data: existing } = await supabase.from("agently_agents").select("creator_id").eq("id", id).single();
   if (!existing || existing.creator_id !== user.id) {
-    return NextResponse.json({ error: "Agent not found, or you don't own it." }, { status: 404 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/agents?error=${encodeURIComponent("Agent not found, or you don't own it.")}`, request.url),
+      303
+    );
   }
 
   const admin = createAdminClient();
   if (!admin) {
-    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/agents?error=${encodeURIComponent("Not connected yet — Supabase isn't configured.")}`, request.url),
+      303
+    );
   }
 
   const { count, error: countError } = await admin
@@ -41,12 +50,18 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .select("id", { count: "exact", head: true })
     .eq("agent_id", id);
   if (countError) {
-    return NextResponse.json({ error: countError.message }, { status: 400 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/agents?error=${encodeURIComponent(countError.message)}`, request.url),
+      303
+    );
   }
   if (count && count > 0) {
-    return NextResponse.json(
-      { error: "This agent has purchase history — remove it from the catalog instead of deleting it." },
-      { status: 409 }
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/agents?error=${encodeURIComponent("This agent has purchase history — remove it from the catalog instead of deleting it.")}`,
+        request.url
+      ),
+      303
     );
   }
 
@@ -54,7 +69,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const { error } = await admin.from("agently_agents").delete().eq("id", id);
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/agents?error=${encodeURIComponent(error.message)}`, request.url),
+      303
+    );
   }
 
   return NextResponse.redirect(new URL("/dashboard/agents?removed=1", request.url), 303);

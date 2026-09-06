@@ -14,7 +14,13 @@ const VALID_STATUSES: AgentRequestStatus[] = ["pending", "in_progress", "fulfill
 // schema.sql's note on agent_requests.
 export async function POST(request: Request, { params }: { params: Promise<{ id: string }> }) {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/admin/requests?error=${encodeURIComponent("Not connected yet — Supabase isn't configured.")}`,
+        request.url
+      ),
+      303
+    );
   }
 
   const supabase = await createClient();
@@ -23,7 +29,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   } = await supabase.auth.getUser();
 
   if (!isPlatformOwner(user?.email)) {
-    return NextResponse.json({ error: "Not found." }, { status: 404 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/admin/requests?error=${encodeURIComponent("Not found.")}`, request.url),
+      303
+    );
   }
 
   const { id } = await params;
@@ -33,12 +42,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const fulfilledAgentSlug = (form.get("fulfilled_agent_slug") as string) || null;
 
   if (!VALID_STATUSES.includes(status)) {
-    return NextResponse.json({ error: "Unknown status." }, { status: 400 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/admin/requests?error=${encodeURIComponent("Unknown status.")}`, request.url),
+      303
+    );
   }
 
   const admin = createAdminClient();
   if (!admin) {
-    return NextResponse.json({ error: "SUPABASE_SERVICE_ROLE_KEY not configured" }, { status: 500 });
+    return NextResponse.redirect(
+      new URL(
+        `/dashboard/admin/requests?error=${encodeURIComponent("SUPABASE_SERVICE_ROLE_KEY not configured")}`,
+        request.url
+      ),
+      303
+    );
   }
 
   let fulfilledAgentId: string | null = null;
@@ -48,9 +66,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
       // A typo'd slug used to fail silently: the request got marked
       // fulfilled, the requester was notified "it's ready," and
       // fulfilled_agent_id just stayed null with no link and no error.
-      return NextResponse.json(
-        { error: `No listed agent has the slug "${fulfilledAgentSlug}". Check the slug and try again.` },
-        { status: 400 }
+      return NextResponse.redirect(
+        new URL(
+          `/dashboard/admin/requests?error=${encodeURIComponent(
+            `No listed agent has the slug "${fulfilledAgentSlug}". Check the slug and try again.`
+          )}`,
+          request.url
+        ),
+        303
       );
     }
     fulfilledAgentId = agent.id;
@@ -58,7 +81,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const { data: existing } = await admin.from("agently_agent_requests").select("requester_id, status").eq("id", id).single();
   if (!existing) {
-    return NextResponse.json({ error: "Request not found." }, { status: 404 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/admin/requests?error=${encodeURIComponent("Request not found.")}`, request.url),
+      303
+    );
   }
 
   const { error } = await admin
@@ -67,7 +93,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     .eq("id", id);
 
   if (error) {
-    return NextResponse.json({ error: error.message }, { status: 400 });
+    return NextResponse.redirect(
+      new URL(`/dashboard/admin/requests?error=${encodeURIComponent(error.message)}`, request.url),
+      303
+    );
   }
 
   if (status === "fulfilled" && existing.status !== "fulfilled") {
