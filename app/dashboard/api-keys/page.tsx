@@ -9,7 +9,7 @@ function formatDate(iso: string | null) {
 }
 
 // Where a hosted ('prompt'/'workflow') agent's buyer actually gets and
-// manages the credential they call /api/agents/[slug]/invoke with — see
+// manages the credential they call /api/hosted-agents/[slug]/invoke with — see
 // plan/agently-hosted-api-concept.html. The full plaintext key is only ever
 // visible once, right after generating it (the ?new_key= redirect param
 // below) — every key already on the list only ever shows its prefix.

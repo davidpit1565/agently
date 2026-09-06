@@ -386,7 +386,7 @@ export default async function AgentPage({
                 {agent.credits_per_call ?? "?"} credit{agent.credits_per_call === 1 ? "" : "s"} from your wallet.
               </p>
               <pre className="overflow-x-auto rounded-lg border border-line bg-surface p-4 font-mono text-xs text-ink-soft">
-{`curl -X POST ${siteOrigin}/api/agents/${agent.slug}/invoke \\
+{`curl -X POST ${siteOrigin}/api/hosted-agents/${agent.slug}/invoke \\
   -H "Authorization: Bearer <YOUR_API_KEY>" \\
   -H "Content-Type: application/json" \\
   -d '{"input": "your request here"}'`}
