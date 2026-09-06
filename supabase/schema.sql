@@ -397,6 +397,54 @@ create trigger agent_requests_touch_updated_at
   before update on agently_agent_requests
   for each row execute function agently_touch_updated_at();
 
+-- Every membership cancel-initiation and tier switch, so David can actually
+-- see over time why people leave and why they upgrade instead of guessing.
+-- Written only by the Stripe webhook (app/api/stripe/webhook/route.ts), the
+-- one place that ever learns about either event — same "no per-row owner
+-- concept RLS can check" reasoning as agently_agent_requests above, so this
+-- has no RLS policies at all: RLS is enabled with zero grants, meaning even
+-- a signed-in user gets nothing back through the regular client, and only
+-- the service-role admin client (webhook writes, the admin dashboard reads)
+-- can touch it.
+--
+-- stripe_event_id is the same natural-key idempotency already used for
+-- purchases/invoices elsewhere in this file: it's the Stripe event.id that
+-- caused this row, unique so a webhook retry of the exact same delivery
+-- can't double-count one cancellation or one upgrade.
+--
+-- reason_code/reason_comment come from Stripe's own cancellation survey
+-- (subscription.cancellation_details) once "Collect a reason for
+-- cancellation" is turned on in the Stripe Dashboard's Customer Portal
+-- settings — until then they're always null, which the admin view must
+-- show as "no reason given", never fabricate. Stripe has no equivalent
+-- upgrade-reason survey, so tier_changed rows only ever carry from/to tier
+-- (what changed), not why — an in-app prompt would be needed for that,
+-- and doesn't exist yet.
+create table if not exists agently_membership_events (
+  id uuid primary key default gen_random_uuid(),
+  stripe_event_id text not null,
+  user_id uuid references agently_profiles(id) on delete set null,
+  stripe_subscription_id text not null,
+  event_type text not null check (event_type in ('cancel_scheduled', 'tier_changed')),
+  from_tier text,
+  to_tier text,
+  reason_code text,
+  reason_comment text,
+  period_end timestamptz,
+  created_at timestamptz not null default now(),
+  -- Not stripe_event_id alone: one delivery of customer.subscription.updated
+  -- can legitimately produce both a cancel_scheduled and a tier_changed row
+  -- (see app/api/stripe/webhook/route.ts) — a bare unique column would
+  -- reject the second insert as a false duplicate of the first.
+  unique (stripe_event_id, event_type)
+);
+
+create index if not exists agently_membership_events_user_idx on agently_membership_events (user_id);
+create index if not exists agently_membership_events_type_idx on agently_membership_events (event_type, created_at desc);
+
+alter table agently_membership_events enable row level security;
+-- No policies on purpose (see comment above the table) — service role only.
+
 -- Real files attached to a listing (README, the delivered package, docs) —
 -- not just the single delivery_url text field a creator can also still
 -- set. Stored in the private 'agently-files' Storage bucket below: never

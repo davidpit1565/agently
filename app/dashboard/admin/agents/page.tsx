@@ -4,6 +4,7 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { Notice } from "@/app/components/form-field";
 import { SubmitButton } from "@/app/components/submit-button";
 import { Reveal } from "@/app/components/reveal";
+import { AdminNav } from "@/app/components/admin-nav";
 import { isPlatformOwner } from "@/lib/owner";
 import type { Agent } from "@/lib/types";
 
@@ -69,6 +70,7 @@ export default async function AdminAgentsPage({
 
   return (
     <main className="mx-auto max-w-2xl px-6 py-16 sm:py-20">
+      <AdminNav active="agents" />
       <h1 className="text-balance mb-2 font-display text-2xl font-semibold">Listings to review</h1>
       <p className="mb-8 text-sm text-ink-faint">
         Only pending, rejected, or delisted agents show here — approved ones need no action and
