@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { Notice } from "@/app/components/form-field";
 import { SubmitButton } from "@/app/components/submit-button";
 import { Reveal } from "@/app/components/reveal";
+import { GenerateKeyButton } from "@/app/components/generate-key-button";
 
 function formatDate(iso: string | null) {
   if (!iso) return "Never";
@@ -11,14 +12,15 @@ function formatDate(iso: string | null) {
 // Where a hosted ('prompt'/'workflow') agent's buyer actually gets and
 // manages the credential they call /api/hosted-agents/[slug]/invoke with — see
 // plan/agently-hosted-api-concept.html. The full plaintext key is only ever
-// visible once, right after generating it (the ?new_key= redirect param
-// below) — every key already on the list only ever shows its prefix.
+// visible once, right after generating it — handled entirely client-side by
+// GenerateKeyButton so the secret never touches a URL/redirect/browser
+// history; every key already on the list only ever shows its prefix.
 export default async function ApiKeysPage({
   searchParams,
 }: {
-  searchParams: Promise<{ new_key?: string; revoked?: string; error?: string }>;
+  searchParams: Promise<{ revoked?: string; error?: string }>;
 }) {
-  const { new_key: newKey, revoked, error } = await searchParams;
+  const { revoked, error } = await searchParams;
 
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
     return <Notice title="Not connected yet">This page needs Supabase configured first.</Notice>;
@@ -67,18 +69,6 @@ export default async function ApiKeysPage({
         </p>
       )}
 
-      {newKey && (
-        <div className="mb-8 rounded-2xl border border-accent/30 bg-accent-soft p-5">
-          <h2 className="mb-2 font-display text-sm font-semibold text-accent">Your new key</h2>
-          <p className="mb-3 text-xs text-ink-faint">
-            Copy it now — this is the only time it&apos;s shown. Losing it means generating a new one.
-          </p>
-          <code className="block break-all rounded-lg border border-line bg-surface px-4 py-3 font-mono text-sm text-ink">
-            {newKey}
-          </code>
-        </div>
-      )}
-
       <Reveal className="bezel-shell mb-8">
         <div className="bezel-core border border-line bg-surface p-5">
           <h2 className="mb-3 font-display text-sm font-semibold text-accent">Credit wallet</h2>
@@ -96,14 +86,7 @@ export default async function ApiKeysPage({
         </div>
       </Reveal>
 
-      <form action="/api/dashboard/api-keys" method="POST" className="mb-10">
-        <SubmitButton
-          pendingText="Generating…"
-          className="magnetic-btn rounded-full bg-accent px-6 py-3 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
-        >
-          Generate new key
-        </SubmitButton>
-      </form>
+      <GenerateKeyButton />
 
       <section className="mb-10">
         <h2 className="mb-3 font-display text-sm font-semibold uppercase tracking-wide text-ink-faint">
