@@ -114,7 +114,7 @@ export default async function AdminAgentsPage({
                 </a>
               )}
               {agent.review_notes ? (
-                <p className="mb-3 rounded-lg border border-line bg-surface-raised p-3 text-xs text-ink-soft">
+                <p className="mb-3 whitespace-pre-line rounded-lg border border-line bg-surface-raised p-3 text-xs text-ink-soft">
                   <strong>Automated review:</strong> {agent.review_notes}
                 </p>
               ) : (
