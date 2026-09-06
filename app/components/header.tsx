@@ -43,6 +43,9 @@ export function Header({ signedIn, isAdmin = false }: { signedIn: boolean; isAdm
       <Link href="/dashboard/analytics" className="hover:text-ink">
         Analytics
       </Link>
+      <Link href="/dashboard/api-keys" className="hover:text-ink">
+        API keys
+      </Link>
       <Link href="/dashboard/settings" className="hover:text-ink">
         Settings
       </Link>
@@ -169,6 +172,13 @@ export function Header({ signedIn, isAdmin = false }: { signedIn: boolean; isAdm
                 className="flex min-h-11 items-center rounded-lg px-2 hover:bg-surface hover:text-ink"
               >
                 Analytics
+              </Link>
+              <Link
+                href="/dashboard/api-keys"
+                onClick={() => setOpen(false)}
+                className="flex min-h-11 items-center rounded-lg px-2 hover:bg-surface hover:text-ink"
+              >
+                API keys
               </Link>
               <Link
                 href="/dashboard/settings"

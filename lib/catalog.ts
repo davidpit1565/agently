@@ -3,6 +3,23 @@ import { createAdminClient } from "@/lib/supabase/admin";
 import { SEED_AGENTS } from "@/data/seed-agents";
 import type { Agent } from "@/lib/types";
 
+// Every agently_agents column EXCEPT hosted_system_prompt and
+// hosted_webhook_url — both have their column-level SELECT revoked from
+// authenticated/anon entirely (supabase/schema.sql), which means a plain
+// `select("*")` through the user-session client (as opposed to the
+// service-role admin client, which bypasses grants) now fails outright with
+// a permission-denied error the instant it references either column: `*`
+// expands to every column of the table, and Postgres requires privilege on
+// all of them, not just the ones actually read back. Every query below that
+// used to read `select("*")` through that client needs this instead — the
+// one place that still needs the two hidden columns directly (the invoke
+// route; the edit page, for its own owner) goes through the admin client
+// and selects them by name there instead.
+export const AGENT_PUBLIC_COLUMNS =
+  "id, creator_id, slug, name, tagline, problem_solved, description, category_slug, pricing_model, " +
+  "price_cents, currency, delivery_url, agent_kind, credits_per_call, status, review_notes, trust_score, " +
+  "version, embedding, view_count, created_at, updated_at";
+
 function supabaseConfigured() {
   return Boolean(
     process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
@@ -16,12 +33,12 @@ export async function getApprovedAgents(): Promise<Agent[]> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("agently_agents")
-    .select("*")
+    .select(AGENT_PUBLIC_COLUMNS)
     .eq("status", "approved")
     .order("created_at", { ascending: false });
 
   if (error || !data || data.length === 0) return SEED_AGENTS;
-  return data as Agent[];
+  return data as unknown as Agent[];
 }
 
 // Not filtered by status — a pending or rejected agent still has to be
@@ -35,10 +52,10 @@ export async function getAgentBySlug(slug: string): Promise<Agent | null> {
   }
 
   const supabase = await createClient();
-  const { data, error } = await supabase.from("agently_agents").select("*").eq("slug", slug).single();
+  const { data, error } = await supabase.from("agently_agents").select(AGENT_PUBLIC_COLUMNS).eq("slug", slug).single();
 
   if (error || !data) return SEED_AGENTS.find((a) => a.slug === slug) ?? null;
-  return data as Agent;
+  return data as unknown as Agent;
 }
 
 export type CreatorProfile = {
@@ -87,13 +104,13 @@ export async function getAgentsByCreator(creatorId: string): Promise<AgentsResul
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("agently_agents")
-    .select("*")
+    .select(AGENT_PUBLIC_COLUMNS)
     .eq("creator_id", creatorId)
     .eq("status", "approved")
     .order("created_at", { ascending: false });
 
   if (error) return { agents: [], failed: true };
-  return { agents: (data ?? []) as Agent[], failed: false };
+  return { agents: (data ?? []) as unknown as Agent[], failed: false };
 }
 
 /** Every agent a creator owns, any status — for their own dashboard, never
@@ -107,12 +124,12 @@ export async function getMyAgents(userId: string): Promise<AgentsResult> {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("agently_agents")
-    .select("*")
+    .select(AGENT_PUBLIC_COLUMNS)
     .eq("creator_id", userId)
     .order("created_at", { ascending: false });
 
   if (error) return { agents: [], failed: true };
-  return { agents: (data ?? []) as Agent[], failed: false };
+  return { agents: (data ?? []) as unknown as Agent[], failed: false };
 }
 
 /** Fire-and-forget — a visitor's page render shouldn't wait on this, and a
@@ -168,7 +185,7 @@ export async function getMyPurchases(userId: string): Promise<{ purchases: Purch
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("agently_purchases")
-    .select("id, created_at, amount_cents, agently_agents(*)")
+    .select(`id, created_at, amount_cents, agently_agents(${AGENT_PUBLIC_COLUMNS})`)
     .eq("buyer_id", userId)
     .eq("status", "paid")
     .order("created_at", { ascending: false });

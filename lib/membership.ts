@@ -5,13 +5,22 @@ import type { MembershipTier } from "./types";
  * open until there's real usage data. Change these once that data exists;
  * nothing else in the codebase needs to change when you do.
  */
+// monthlyCredits: also placeholder/ASSUMPTION numbers, same as every price
+// above — the hosted-agent-API doc (plan/agently-hosted-api-concept.html)
+// deliberately left the credit-wallet size open until there's real usage
+// data on what a hosted call actually costs to run. Round, clearly-arbitrary
+// numbers chosen only to feel roughly proportional to each tier's price —
+// not measured against any real per-call cost. This is what a membership
+// checkout or renewal (app/api/stripe/webhook/route.ts) sets
+// agently_profiles.api_credits *to* each cycle — a monthly allotment, not
+// something that accumulates.
 export const MEMBERSHIP_TIERS: Record<
   Exclude<MembershipTier, "free">,
-  { name: string; monthlyPriceCents: number; yearlyPriceCents: number; maxActiveListings: number }
+  { name: string; monthlyPriceCents: number; yearlyPriceCents: number; maxActiveListings: number; monthlyCredits: number }
 > = {
-  basic: { name: "Basic", monthlyPriceCents: 900, yearlyPriceCents: 9000, maxActiveListings: 3 },
-  pro: { name: "Pro", monthlyPriceCents: 2900, yearlyPriceCents: 29000, maxActiveListings: 15 },
-  professional: { name: "Professional", monthlyPriceCents: 9900, yearlyPriceCents: 99000, maxActiveListings: 100 },
+  basic: { name: "Basic", monthlyPriceCents: 900, yearlyPriceCents: 9000, maxActiveListings: 3, monthlyCredits: 300 },
+  pro: { name: "Pro", monthlyPriceCents: 2900, yearlyPriceCents: 29000, maxActiveListings: 15, monthlyCredits: 1500 },
+  professional: { name: "Professional", monthlyPriceCents: 9900, yearlyPriceCents: 99000, maxActiveListings: 100, monthlyCredits: 8000 },
 };
 
 export const PLATFORM_FEE_PERCENT = 15; // report ch. 6: start low (10-15%), raise once there's liquidity

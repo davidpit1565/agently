@@ -474,6 +474,151 @@ insert into storage.buckets (id, name, public)
 values ('agently-files', 'agently-files', false)
 on conflict (id) do nothing;
 
+-- Hosted-execution agents (plan/agently-hosted-api-concept.html, decided
+-- 6.9.2026): a 'prompt' or 'workflow' agent never hands its actual logic to
+-- the buyer at all — it runs on Agently's own infrastructure, and the buyer
+-- gets an API key + credit wallet instead of a delivery_url. 'file' (the
+-- default) is every listing that exists today, completely unchanged —
+-- delivery_url/pricing_model keep meaning exactly what they already mean.
+-- Deliberately NOT in scope yet, per that doc's own phased rollout: arbitrary
+-- untrusted creator-submitted code (would need E2B/Modal/Northflank-style
+-- sandboxing) — there are zero external creators today, so there's nothing
+-- to sandbox against yet.
+alter table agently_agents add column if not exists agent_kind text not null default 'file' check (agent_kind in ('file', 'prompt', 'workflow'));
+-- 'prompt' only. Never sent to the buyer in any response — the whole point
+-- of this model (see the doc's "trade secret, not classic IP" framing) is
+-- that the buyer gets to call the agent, never to read it. Treated with the
+-- same "never log this" discipline as a real secret, even though it isn't
+-- one of the app's env-var secrets — see app/api/agents/[slug]/invoke/route.ts.
+alter table agently_agents add column if not exists hosted_system_prompt text;
+-- 'workflow' only. David's own n8n (or similar) endpoint that Agently calls
+-- server-to-server on invoke — never exposed to the buyer, same reasoning as
+-- hosted_system_prompt above (a leaked webhook URL is a direct line to the
+-- creator's own automation, unrelated to the credit wallet that's supposed
+-- to gate it).
+alter table agently_agents add column if not exists hosted_webhook_url text;
+-- Null when agent_kind = 'file' (no metering applies to a plain download);
+-- required for 'prompt'/'workflow' — enforced below, not by a plain
+-- `not null`, since the requirement is conditional on agent_kind.
+alter table agently_agents add column if not exists credits_per_call integer;
+alter table agently_agents drop constraint if exists agently_agents_credits_per_call_check;
+alter table agently_agents add constraint agently_agents_credits_per_call_check
+  check (
+    (agent_kind = 'file' and credits_per_call is null)
+    or (agent_kind in ('prompt', 'workflow') and credits_per_call is not null and credits_per_call > 0)
+  );
+
+-- The credit wallet backing hosted-agent calls (a monthly allotment, not a
+-- balance that accumulates across months — see MEMBERSHIP_TIERS.monthlyCredits
+-- in lib/membership.ts and app/api/stripe/webhook/route.ts's refill logic).
+-- Default of 20 on every profile (member or not) is ASSUMPTION, same as
+-- MEMBERSHIP_TIERS's own placeholder pricing — chosen to be enough to try a
+-- hosted agent a handful of times, not measured against real usage.
+--
+-- JUDGMENT CALL, flagged for David: the concept doc frames a free-call quota
+-- as lowering purchase friction "before requiring an active membership," but
+-- app/api/agents/[slug]/invoke/route.ts (this build's concrete spec, step 4)
+-- requires membership_status = 'active' on every call regardless of
+-- api_credits — so these 20 credits currently sit unusable until someone
+-- becomes a paying member, which doesn't actually deliver the doc's
+-- friction-lowering intent. Left as spec'd rather than silently reinterpreted;
+-- worth a real decision on whether a signed-up-but-not-yet-a-member caller
+-- should get limited invoke access on their free credits alone.
+alter table agently_profiles add column if not exists api_credits integer not null default 20;
+alter table agently_profiles add column if not exists api_credits_refreshed_at timestamptz;
+
+-- Same atomic-increment reasoning as agently_increment_agent_view above,
+-- applied to refunding credits (app/api/agents/[slug]/invoke/route.ts, step
+-- 9: a failed hosted call refunds what step 6 already deducted) — a plain
+-- `update ... set api_credits = api_credits + :n` from application code
+-- would be a read-modify-write race under concurrent refunds/deductions on
+-- the same wallet, same class of bug this function exists to avoid for
+-- view_count.
+create or replace function agently_add_credits(profile_id uuid, amount integer) returns void as $$
+begin
+  update agently_profiles set api_credits = api_credits + amount where id = profile_id;
+end;
+$$ language plpgsql;
+
+-- The other half of the same problem, the direction that actually needs a
+-- guard: app/api/agents/[slug]/invoke/route.ts must deduct `cost` credits
+-- ONLY if the wallet still has at least that much, in one atomic statement —
+-- a separate "read balance, check, then update" from application code is
+-- exactly the race two concurrent calls on a nearly-empty wallet would hit,
+-- both passing the check before either writes, dropping the balance below
+-- zero. Returns whether a row was actually updated: false means either the
+-- profile doesn't exist or didn't have enough credit left *at the instant
+-- this ran* — which the caller must treat as "insufficient credits," not
+-- retry, since retrying would just contend for the same already-spent
+-- balance again.
+create or replace function agently_deduct_credits(profile_id uuid, cost integer) returns boolean as $$
+declare
+  affected integer;
+begin
+  update agently_profiles set api_credits = api_credits - cost
+    where id = profile_id and api_credits >= cost;
+  get diagnostics affected = row_count;
+  return affected > 0;
+end;
+$$ language plpgsql;
+
+-- Only a hash is ever stored — same principle as a real password or API-key
+-- system: the plaintext key is shown to its owner exactly once, at creation
+-- (app/api/dashboard/api-keys/route.ts), and never recoverable after that.
+-- key_prefix is what the dashboard shows instead, so someone with several
+-- keys can tell them apart without the full secret ever being displayed or
+-- logged again.
+create table if not exists agently_api_keys (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references agently_profiles(id) on delete cascade,
+  key_hash text not null unique,
+  key_prefix text not null,
+  created_at timestamptz not null default now(),
+  last_used_at timestamptz,
+  revoked_at timestamptz
+);
+
+create index if not exists agently_api_keys_user_idx on agently_api_keys (user_id) where revoked_at is null;
+
+-- The data a future creator-payout feature (per-agent, per-usage) would
+-- aggregate from — deliberately not building that feature now (there is
+-- exactly one creator, David, so there's nothing to split payouts between
+-- yet), just making sure every real hosted call is logged against the right
+-- agent_id/user_id so it can be built on top of this later without a
+-- backfill.
+create table if not exists agently_agent_invocations (
+  id uuid primary key default gen_random_uuid(),
+  agent_id uuid not null references agently_agents(id) on delete cascade,
+  user_id uuid not null references agently_profiles(id) on delete cascade,
+  credits_charged integer not null,
+  created_at timestamptz not null default now()
+);
+
+create index if not exists agently_agent_invocations_agent_idx on agently_agent_invocations (agent_id, created_at desc);
+
+-- Same "no per-row owner concept RLS can usefully check" reasoning as
+-- agently_agent_requests and agently_membership_events above: every read or
+-- write of an invocation log goes through the service-role client from
+-- server code (the invoke route) that already authenticated the caller by
+-- their API key, not a Supabase session — RLS enabled, zero policies,
+-- service-role only.
+alter table agently_agent_invocations enable row level security;
+
+alter table agently_api_keys enable row level security;
+-- Unlike agently_agent_invocations, a signed-in user DOES have a legitimate
+-- reason to read this table directly: listing their own keys' prefix/dates
+-- on /dashboard/api-keys. key_hash is a one-way hash, not the secret itself
+-- (see the comment on the table above), so selecting it changes nothing
+-- about security even though the column isn't filtered out below — there's
+-- nothing useful to do with a hash you can't reverse. No insert/update/delete
+-- policy on purpose: generating a key (which must return the plaintext
+-- exactly once) and revoking one both go through the service-role client
+-- from app/api/dashboard/api-keys/route.ts, which has already checked the
+-- caller owns the row being touched — the same reasoning as every other
+-- service-role-only write path in this file.
+drop policy if exists "users see their own api keys" on agently_api_keys;
+create policy "users see their own api keys" on agently_api_keys for select using (user_id = auth.uid());
+
 -- Row Level Security: catalog is public to read; writes are locked to owners.
 alter table agently_profiles enable row level security;
 alter table agently_agents enable row level security;
@@ -539,6 +684,24 @@ create policy "categories are public" on agently_categories for select using (tr
 -- there is no longer any legitimate insert or update from a user's own
 -- session to carve an exception for.
 revoke insert, update on agently_agents from authenticated;
+
+-- Column-level, not the row-level policy above: "approved agents are
+-- public" makes every column of an approved row selectable by anyone with
+-- the public anon key (by design, same as any other listing field) unless a
+-- specific column is locked down separately — Postgres/Supabase grant SELECT
+-- on every column of a table to anon/authenticated by default, and RLS only
+-- filters *rows*, never columns. hosted_system_prompt is the whole trade
+-- secret this hosted-agent model exists to protect (see
+-- plan/agently-hosted-api-concept.html) — without this, anyone could read it
+-- straight off the Supabase REST API for any approved 'prompt' agent, the
+-- exact leak the entire "never hand over the implementation" design is
+-- meant to prevent, even though no page in this app ever renders that
+-- column. hosted_webhook_url gets the same treatment: it's the creator's own
+-- internal automation endpoint, not something a buyer calling through the
+-- metered /api/agents/[slug]/invoke route (app code, using the service-role
+-- client — unaffected by this revoke) has any legitimate reason to see
+-- directly.
+revoke select (hosted_system_prompt, hosted_webhook_url) on agently_agents from authenticated, anon;
 
 drop policy if exists "buyers see their own purchases" on agently_purchases;
 create policy "buyers see their own purchases" on agently_purchases for select using (buyer_id = auth.uid());

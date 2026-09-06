@@ -1,11 +1,14 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
+import { AGENT_PUBLIC_COLUMNS } from "@/lib/catalog";
 import { CATEGORIES_FALLBACK } from "@/data/categories";
 import { Field, Notice } from "@/app/components/form-field";
 import { SubmitButton } from "@/app/components/submit-button";
 import { getAgentFiles } from "@/lib/agent-files";
 import { RemoveFileButton } from "@/app/components/remove-file-button";
+import { HostedAgentFields } from "@/app/components/hosted-agent-fields";
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -36,7 +39,22 @@ export default async function EditAgentPage({
     return <Notice title="Sign in first">You need an account to edit an agent.</Notice>;
   }
 
-  const { data: agent } = await supabase.from("agently_agents").select("*").eq("id", id).single();
+  // hosted_system_prompt/hosted_webhook_url have their column-level SELECT
+  // revoked from `authenticated` entirely (supabase/schema.sql) — a blanket
+  // column grant isn't row-aware, so there's no "except the row's own
+  // creator" carve-out to give the user's own session client here. The
+  // owner still needs to see their own prompt to actually edit it, so this
+  // one read goes through the service-role client instead — ownership is
+  // checked explicitly right below, same as the write side of this same
+  // route (app/api/agents/[id]/route.ts) already does.
+  // The SUPABASE_SERVICE_ROLE_KEY-missing fallback below can't see
+  // hosted_system_prompt/hosted_webhook_url at all (same revoke) — a
+  // degraded "the hosted-only fields render blank" is the honest result of
+  // that missing config, not a hard crash.
+  const admin = createAdminClient();
+  const { data: agent } = admin
+    ? await admin.from("agently_agents").select("*").eq("id", id).single()
+    : await supabase.from("agently_agents").select(AGENT_PUBLIC_COLUMNS).eq("id", id).single();
 
   if (!agent || agent.creator_id !== user.id) {
     notFound();
@@ -161,11 +179,19 @@ export default async function EditAgentPage({
           hint="€2.00 minimum for a paid agent — below that, Stripe's own processing fee can cost more than the platform earns on the sale."
           defaultValue={agent.price_cents ? String(agent.price_cents / 100) : undefined}
         />
+        <HostedAgentFields
+          defaultAgentKind={agent.agent_kind}
+          defaultHostedSystemPrompt={agent.hosted_system_prompt ?? ""}
+          defaultHostedWebhookUrl={agent.hosted_webhook_url ?? ""}
+          defaultCreditsPerCall={agent.credits_per_call}
+        />
+
         <Field
           label="Delivery link (repo, file, or API endpoint)"
           name="delivery_url"
           type="url"
           defaultValue={agent.delivery_url ?? undefined}
+          hint="Only for file delivery — not used for a hosted prompt/workflow agent."
         />
 
         <label className="flex flex-col gap-1 text-sm">

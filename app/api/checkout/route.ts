@@ -45,9 +45,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Too many checkout attempts — wait a moment and try again." }, { status: 429 });
   }
 
+  // Not select("*") — hosted_system_prompt/hosted_webhook_url have their
+  // column-level SELECT revoked from authenticated/anon entirely
+  // (supabase/schema.sql), and `*` referencing either through this
+  // user-session client would fail the whole query with permission-denied.
+  // Checkout has no reason to touch either column anyway.
   const { data: agent } = await supabase
     .from("agently_agents")
-    .select("*")
+    .select("id, creator_id, slug, name, pricing_model, price_cents, currency, status, delivery_url")
     .eq("id", agentId)
     .single();
 

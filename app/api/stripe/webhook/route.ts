@@ -6,7 +6,8 @@ import { notifyCreatorOfSale } from "@/lib/notifications";
 import { recordMembershipEvent } from "@/lib/membership-events";
 import { createTeamInvitesAndNotify } from "@/lib/team-invites";
 import { sendNotificationEmail } from "@/lib/email";
-import { PLATFORM_FEE_PERCENT, MIN_PLATFORM_FEE_CENTS } from "@/lib/membership";
+import { PLATFORM_FEE_PERCENT, MIN_PLATFORM_FEE_CENTS, MEMBERSHIP_TIERS } from "@/lib/membership";
+import type { MembershipTier } from "@/lib/types";
 import { errorMessage } from "@/lib/errors";
 
 // Shared by charge.refunded and the two dispute events below: the purchases
@@ -187,12 +188,22 @@ export async function POST(request: Request) {
           }
         }
       } else if (user_id && membership_tier) {
+        // Set (not add) api_credits to this tier's full monthly amount — the
+        // hosted-agent credit wallet is a monthly allotment, same reasoning
+        // as membership_tier/membership_status right beside it: a first
+        // checkout starts the wallet at the tier's number, not zero (see
+        // plan/agently-hosted-api-concept.html and lib/membership.ts's
+        // MEMBERSHIP_TIERS.monthlyCredits).
+        const tierCredits = MEMBERSHIP_TIERS[membership_tier as Exclude<MembershipTier, "free">]?.monthlyCredits;
         const { error } = await supabase
           .from("agently_profiles")
           .update({
             membership_tier,
             membership_status: "active",
             stripe_customer_id: session.customer,
+            ...(tierCredits !== undefined
+              ? { api_credits: tierCredits, api_credits_refreshed_at: new Date().toISOString() }
+              : {}),
           })
           .eq("id", user_id);
         if (error) {
@@ -459,7 +470,38 @@ export async function POST(request: Request) {
       };
       if (invoice.billing_reason === "subscription_cycle" && invoice.subscription) {
         const subscription = await stripe.subscriptions.retrieve(invoice.subscription);
-        const { agent_id, buyer_id } = (subscription.metadata ?? {}) as Record<string, string>;
+        const { agent_id, buyer_id, user_id: renewalUserId, membership_tier: renewalTier } =
+          (subscription.metadata ?? {}) as Record<string, string>;
+
+        // A membership renewal (not a per-agent subscription renewal, the
+        // branch right below) — this is the actual "monthly refill" trigger
+        // the credit wallet needs: checkout.session.completed above only
+        // ever fires once, on the first payment. Every cycle after that
+        // only ever fires this event. Re-fetching the subscription live
+        // (already done above) rather than trusting stale event data keeps
+        // this consistent with the same-event handlers elsewhere in this file.
+        if (renewalUserId && renewalTier && subscription.status === "active") {
+          const tierCredits = MEMBERSHIP_TIERS[renewalTier as Exclude<MembershipTier, "free">]?.monthlyCredits;
+          if (tierCredits !== undefined) {
+            const { error: creditError } = await supabase
+              .from("agently_profiles")
+              .update({ api_credits: tierCredits, api_credits_refreshed_at: new Date().toISOString() })
+              .eq("id", renewalUserId);
+            if (creditError) {
+              // Never lets a credit-refill failure block or fail the rest of
+              // this handler — same "log and continue" pattern as every
+              // other non-critical branch in this file. Stripe already has
+              // the buyer's money either way; this is a best-effort refill,
+              // not part of the payment's own success/failure.
+              console.error("[stripe/webhook] membership credit refill failed", {
+                eventId: event.id,
+                userId: renewalUserId,
+                message: creditError.message,
+              });
+            }
+          }
+        }
+
         if (agent_id && buyer_id) {
           // Same out-of-order-delivery risk as checkout.session.completed
           // above, the other direction: a subscription can already be
