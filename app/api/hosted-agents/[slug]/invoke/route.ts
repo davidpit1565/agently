@@ -4,6 +4,7 @@ import { extractBearerKey, hashApiKey } from "@/lib/api-keys";
 import { deductCredits, refundCredits, checkInvokeEligibility, checkAndAlertOnFailureRate } from "@/lib/hosted-agents";
 import { errorMessage } from "@/lib/errors";
 import { isSafeExternalUrl } from "@/lib/validation";
+import { checkRateLimit } from "@/lib/rate-limit";
 
 const MAX_INPUT_LENGTH = 20_000; // a reasonable ceiling on the caller's own request body — not a measured limit, just a sane guard.
 const WEBHOOK_TIMEOUT_MS = 25_000;
@@ -53,6 +54,25 @@ export async function POST(request: Request, { params }: { params: Promise<{ slu
 
   if (!keyRow) {
     return NextResponse.json({ error: "Invalid or revoked API key." }, { status: 401 });
+  }
+
+  // Every other endpoint in this codebase that triggers a real per-call cost
+  // (search's embedding call, agent submission's Anthropic+Voyage calls,
+  // checkout) is rate-limited — this one wasn't, despite being the one that
+  // makes a real Anthropic call or forwards to a third party's webhook on
+  // every request. The credit wallet caps total spend, but nothing capped
+  // *rate*: a valid key (even a free-trial one with no active membership)
+  // could otherwise be hammered in a tight loop, and a failed call refunds
+  // its credit (see the catch block below), so a failing call is free to
+  // retry indefinitely — a zero-cost way to flood a creator's webhook.
+  // Scoped by user id, not key id or IP: a caller generating several keys
+  // (nothing here limits that) shouldn't be able to multiply their
+  // effective rate by spreading calls across them, and server-to-server
+  // calls all sharing one outbound IP (or a shared proxy) shouldn't get
+  // lumped in with every other caller behind the same address.
+  const allowed = await checkRateLimit(`hosted_invoke:${keyRow.user_id}`, 30, 60);
+  if (!allowed) {
+    return NextResponse.json({ error: "Too many calls — slow down and try again shortly." }, { status: 429 });
   }
 
   // Step 3: the agent. Only an approved, hosted (non-file) agent applies here.
