@@ -8,6 +8,7 @@ import { getEmbedding, embeddableText } from "@/lib/embeddings";
 import { uploadAgentFiles } from "@/lib/agent-files";
 import { sanitizeUrl } from "@/lib/validation";
 import { checkRateLimit } from "@/lib/rate-limit";
+import { validateHostedAgentFields } from "@/lib/hosted-agents";
 import type { MembershipTier } from "@/lib/types";
 
 // Handles the upload form (app/dashboard/upload). A "low" risk verdict from
@@ -139,6 +140,23 @@ export async function POST(request: Request) {
   // the single place that decides what counts as "no file."
   const files = form.getAll("files").filter((f): f is File => f instanceof File);
 
+  // Hosted execution (plan/agently-hosted-api-concept.html): defaults to
+  // 'file' when the field is absent — every existing upload flow and every
+  // agent that doesn't opt into hosting is completely unaffected.
+  const hostedValidation = validateHostedAgentFields({
+    agentKind: String(form.get("agent_kind") ?? "file"),
+    hostedSystemPrompt: (form.get("hosted_system_prompt") as string) || null,
+    hostedWebhookUrl: (form.get("hosted_webhook_url") as string) || null,
+    creditsPerCall: (form.get("credits_per_call") as string) || null,
+  });
+  if (!hostedValidation.ok) {
+    return NextResponse.redirect(
+      new URL(`/dashboard/upload?error=${encodeURIComponent(hostedValidation.error)}`, request.url),
+      303
+    );
+  }
+  const hosted = hostedValidation.fields;
+
   // A paid listing with no connected payout account has nowhere for the
   // money to go — checkout (/api/checkout) already refuses to sell it, but
   // that left a dead listing sitting on the catalog looking purchasable.
@@ -175,8 +193,11 @@ export async function POST(request: Request) {
   // A listing with neither a delivery link nor an attached file has nothing
   // for a buyer to actually receive — this was a real gap: the original 5
   // seed agents all shipped with delivery_url: null and no files, meaning a
-  // real purchase would have paid and gotten nothing back.
-  if (!deliveryUrl && files.length === 0) {
+  // real purchase would have paid and gotten nothing back. Doesn't apply to
+  // a hosted agent — there's nothing to "deliver," the buyer calls the
+  // invoke endpoint instead (validated above: hosted_system_prompt or
+  // hosted_webhook_url is already required for those).
+  if (hosted.agentKind === "file" && !deliveryUrl && files.length === 0) {
     return NextResponse.redirect(
       new URL(
         `/dashboard/upload?error=${encodeURIComponent("Add a delivery link or attach at least one file — a buyer needs to actually receive something.")}`,
@@ -268,6 +289,10 @@ export async function POST(request: Request) {
       pricing_model: pricingModel,
       price_cents: pricingModel === "free" ? null : Math.round(Number(priceEur) * 100),
       delivery_url: deliveryUrl,
+      agent_kind: hosted.agentKind,
+      hosted_system_prompt: hosted.hostedSystemPrompt,
+      hosted_webhook_url: hosted.hostedWebhookUrl,
+      credits_per_call: hosted.creditsPerCall,
       status,
       trust_score: trustScore,
       review_notes: verdict ? `[${verdict.risk}] ${verdict.summary}${verdict.flags.length ? ` — flags: ${verdict.flags.join("; ")}` : ""}` : null,

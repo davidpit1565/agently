@@ -4,6 +4,7 @@ import { canUpload } from "@/lib/membership";
 import { CATEGORIES_FALLBACK } from "@/data/categories";
 import { Field, Notice } from "@/app/components/form-field";
 import { SubmitButton } from "@/app/components/submit-button";
+import { HostedAgentFields } from "@/app/components/hosted-agent-fields";
 
 export default async function UploadPage({
   searchParams,
@@ -162,15 +163,17 @@ export default async function UploadPage({
           step="0.01"
           hint="€2.00 minimum for a paid agent — below that, Stripe's own processing fee can cost more than the platform earns on the sale."
         />
+        <HostedAgentFields />
+
         <Field
           label="Delivery link (repo, file, or API endpoint)"
           name="delivery_url"
           type="url"
-          hint="Required unless you attach at least one file below instead."
+          hint="Only for file delivery — required unless you attach at least one file below instead. Not used for a hosted prompt/workflow agent."
         />
 
         <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">Files (required if there's no delivery link above)</span>
+          <span className="font-medium">Files (required for file delivery, if there's no delivery link above)</span>
           <input
             type="file"
             name="files"
