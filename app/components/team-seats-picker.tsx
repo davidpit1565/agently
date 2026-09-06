@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { MIN_TEAM_SEATS, MAX_TEAM_SEATS, teamPriceCents, teamDiscountPercent } from "@/lib/team-pricing";
 import { formatEuros } from "@/lib/format";
 
@@ -10,8 +9,21 @@ import { formatEuros } from "@/lib/format";
 // server-side handling in app/api/checkout is untouched) but adds a live
 // total that updates as the selection changes, using the same
 // teamPriceCents math the checkout route itself uses.
-export function TeamSeatsPicker({ basePriceCents }: { basePriceCents: number }) {
-  const [seats, setSeats] = useState(1);
+//
+// Controlled from the parent (app/components/purchase-button.tsx) rather
+// than owning its own state — the Buy button above this picker needs the
+// same seats value to update its own price label, and two independent
+// useState calls for the same field would drift the moment one updates
+// without the other.
+export function TeamSeatsPicker({
+  basePriceCents,
+  seats,
+  onSeatsChange,
+}: {
+  basePriceCents: number;
+  seats: number;
+  onSeatsChange: (seats: number) => void;
+}) {
   const discount = teamDiscountPercent(seats);
   const total = teamPriceCents(basePriceCents, seats);
 
@@ -22,7 +34,7 @@ export function TeamSeatsPicker({ basePriceCents }: { basePriceCents: number }) 
         <select
           name="seats"
           value={seats}
-          onChange={(e) => setSeats(Number(e.target.value))}
+          onChange={(e) => onSeatsChange(Number(e.target.value))}
           className="w-32 rounded-lg border border-line bg-surface-raised px-2 py-1.5 text-sm text-ink"
         >
           <option value="1">Just me</option>

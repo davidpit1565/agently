@@ -11,12 +11,10 @@ import { ReviewForm } from "@/app/components/review-form";
 import { Reveal } from "@/app/components/reveal";
 import { getAgentFiles, getReadmeHtml } from "@/lib/agent-files";
 import { formatEuros } from "@/lib/format";
-import { SubmitButton } from "@/app/components/submit-button";
 import { RefundButton } from "@/app/components/refund-button";
 import { CancelSubscriptionButton } from "@/app/components/cancel-subscription-button";
 import { getAcceptedTeamPurchaseId } from "@/lib/team-invites";
-import { MIN_TEAM_SEATS, MAX_TEAM_SEATS } from "@/lib/team-pricing";
-import { TeamSeatsPicker } from "@/app/components/team-seats-picker";
+import { PurchaseButton } from "@/app/components/purchase-button";
 
 function formatSize(bytes: number) {
   if (bytes < 1024) return `${bytes} B`;
@@ -460,47 +458,7 @@ export default async function AgentPage({
         {!isOwner && !hasPurchased && (
           <form action="/api/checkout" method="POST" className="flex flex-col gap-3 pt-4">
             <input type="hidden" name="agentId" value={agent.id} />
-            <SubmitButton
-              pendingText={agent.pricing_model === "free" ? "Getting it…" : "Redirecting to checkout…"}
-              className="shine-sweep magnetic-btn group flex w-fit items-center gap-2 rounded-full bg-accent py-2 pl-6 pr-2 text-sm font-medium text-[#04140f] transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:opacity-90"
-            >
-              {agent.pricing_model === "free" ? "Get this agent" : `Buy — ${priceLabel(agent)}`}
-              <span className="magnetic-icon flex h-8 w-8 items-center justify-center rounded-full bg-black/10">
-                →
-              </span>
-            </SubmitButton>
-
-            {/* Team licensing (lib/team-pricing.ts): only makes sense for a
-                one-time purchase — a subscription's recurring billing has no
-                clean place to attach a one-time seat discount, and a free
-                agent has nothing to discount. Left collapsed by default so
-                it doesn't compete with the single-buyer path most people
-                want. Submits through the same form: "seats" defaults to the
-                plain "1" radio, so opening this and not touching anything
-                is identical to an ordinary purchase. */}
-            {agent.pricing_model === "one_time" && (
-              <details className="details-anim w-fit rounded-lg border border-line bg-surface px-4 py-3">
-                <summary className="cursor-pointer text-xs font-medium text-ink-soft">
-                  Buying for a team?
-                </summary>
-                <div className="mt-3 flex flex-col gap-3 text-sm">
-                  <p className="max-w-sm text-pretty text-xs leading-relaxed text-ink-faint">
-                    From {MIN_TEAM_SEATS} to {MAX_TEAM_SEATS} seats, cheaper per seat the more you add.
-                    Everyone you list gets an email with their own access link right after checkout.
-                  </p>
-                  <TeamSeatsPicker basePriceCents={agent.price_cents ?? 0} />
-                  <label className="flex flex-col gap-1 text-xs text-ink-soft">
-                    Teammate emails — one per line, one fewer than the seat count above
-                    <textarea
-                      name="team_emails"
-                      rows={3}
-                      placeholder={"teammate1@company.com\nteammate2@company.com"}
-                      className="w-full max-w-sm rounded-lg border border-line bg-surface-raised px-3 py-2 text-sm text-ink placeholder:text-ink-faint"
-                    />
-                  </label>
-                </div>
-              </details>
-            )}
+            <PurchaseButton pricingModel={agent.pricing_model} basePriceCents={agent.price_cents ?? 0} baseLabel={priceLabel(agent)} />
           </form>
         )}
       </div>
