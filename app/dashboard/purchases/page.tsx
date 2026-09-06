@@ -47,35 +47,45 @@ export default async function MyPurchasesPage() {
           Couldn't load your purchases — try refreshing the page.
         </p>
       ) : purchases.length === 0 ? (
-        <p className="text-sm text-ink-soft">
-          Nothing yet.{" "}
-          <Link href="/browse" className="text-accent underline">
-            Browse the catalog
-          </Link>
-          .
-        </p>
+        <div className="flex animate-reveal-up flex-col items-center gap-3 rounded-2xl border border-dashed border-line py-16 text-center">
+          <span className="flex h-11 w-11 items-center justify-center rounded-full border border-line text-ink-faint">
+            <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.4">
+              <path d="M10 6v4l2.5 2.5" strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx="10" cy="10" r="7.5" />
+            </svg>
+          </span>
+          <p className="text-sm text-ink-soft">
+            Nothing yet.{" "}
+            <Link href="/browse" className="text-accent underline">
+              Browse the catalog
+            </Link>
+            .
+          </p>
+        </div>
       ) : (
         <div className="flex flex-col gap-3">
           {purchases.map(({ purchaseId, purchasedAt, amountPaidCents, agent }, i) => (
             <Reveal
               key={purchaseId}
               delay={Math.min(i, 6) * 60}
-              className="flex flex-col gap-2 rounded-xl border border-line bg-surface p-4 transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:border-accent/30 hover:bg-surface-raised sm:flex-row sm:items-center sm:justify-between"
+              className="group bezel-shell transition-all duration-300 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-1 hover:shadow-[0_16px_40px_-18px_rgba(47,224,173,0.22)]"
             >
-              <div className="min-w-0">
-                <Link href={`/agents/${agent.slug}`} className="font-display text-sm font-semibold hover:text-accent">
-                  {agent.name}
-                </Link>
-                <p className="mt-0.5 truncate text-sm text-ink-faint">{agent.tagline}</p>
-              </div>
-              <div className="flex shrink-0 items-center gap-3 font-mono text-xs text-ink-faint">
-                <span className="tabular-nums">
-                  {amountPaidCents === 0 ? "Free" : `€${formatEuros(amountPaidCents)}`}
-                </span>
-                <span>·</span>
-                <span className="tabular-nums">
-                  {new Date(purchasedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
-                </span>
+              <div className="bezel-core flex flex-col gap-2 border border-line bg-surface p-4 transition-colors duration-300 group-hover:border-accent/40 group-hover:bg-surface-raised sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0">
+                  <Link href={`/agents/${agent.slug}`} className="font-display text-sm font-semibold hover:text-accent">
+                    {agent.name}
+                  </Link>
+                  <p className="mt-0.5 truncate text-sm text-ink-faint">{agent.tagline}</p>
+                </div>
+                <div className="flex shrink-0 items-center gap-3 font-mono text-xs text-ink-faint">
+                  <span className="tabular-nums">
+                    {amountPaidCents === 0 ? "Free" : `€${formatEuros(amountPaidCents)}`}
+                  </span>
+                  <span>·</span>
+                  <span className="tabular-nums">
+                    {new Date(purchasedAt).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" })}
+                  </span>
+                </div>
               </div>
             </Reveal>
           ))}
