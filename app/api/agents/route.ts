@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { MEMBERSHIP_TIERS, canUpload, MIN_AGENT_PRICE_CENTS } from "@/lib/membership";
 import { reviewAgentSubmission, isAutoApproveEnabled } from "@/lib/safety-review";
+import { notifyOwnerOfPendingReview } from "@/lib/notifications";
 import { getEmbedding, embeddableText } from "@/lib/embeddings";
 import { uploadAgentFiles } from "@/lib/agent-files";
 import { sanitizeUrl } from "@/lib/validation";
@@ -253,6 +254,10 @@ export async function POST(request: Request) {
       return NextResponse.redirect(new URL("/dashboard/upload?submitted=1", request.url));
     }
     return NextResponse.json({ error: error?.message ?? "Could not save the listing." }, { status: 400 });
+  }
+
+  if (status === "pending_review") {
+    await notifyOwnerOfPendingReview({ agentName: name, isEdit: false, verdict });
   }
 
   let rejectedNames: string[] = [];

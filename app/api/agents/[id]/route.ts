@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { reviewAgentSubmission, isAutoApproveEnabled } from "@/lib/safety-review";
-import { notifyBuyersOfUpdate } from "@/lib/notifications";
+import { notifyBuyersOfUpdate, notifyOwnerOfPendingReview } from "@/lib/notifications";
+import { buildAgentEditDiff } from "@/lib/agent-diff";
 import { getEmbedding, embeddableText } from "@/lib/embeddings";
 import { uploadAgentFiles, getAgentIdsWithFiles } from "@/lib/agent-files";
 import { sanitizeUrl } from "@/lib/validation";
@@ -124,17 +125,28 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   let reviewNotes = existing.review_notes;
   let embedding = existing.embedding;
 
+  // Computed even in the null-verdict branch below — a human re-reviewing
+  // this needs to see what a creator actually changed, not just the AI's
+  // (possibly absent) opinion on the new text.
+  let editDiff: string | undefined;
+  let verdict: Awaited<ReturnType<typeof reviewAgentSubmission>> = null;
+
   if (contentChanged) {
-    const verdict = await reviewAgentSubmission({ name, tagline, problemSolved, description, deliveryUrl });
+    editDiff = buildAgentEditDiff(existing, { name, tagline, problemSolved, description });
+    verdict = await reviewAgentSubmission({ name, tagline, problemSolved, description, deliveryUrl });
     if (verdict) {
       // isAutoApproveEnabled() is off by default — see lib/safety-review.ts.
       status = verdict.risk === "low" && isAutoApproveEnabled() ? "approved" : "pending_review";
       trustScore = verdict.score;
-      reviewNotes = `[${verdict.risk}] ${verdict.summary}${verdict.flags.length ? ` — flags: ${verdict.flags.join("; ")}` : ""}`;
+      reviewNotes = `[${verdict.risk}] ${verdict.summary}${verdict.flags.length ? ` — flags: ${verdict.flags.join("; ")}` : ""}\n\nWhat changed:\n${editDiff}`;
     } else {
       // No automated opinion available — a real content change still goes
-      // back to a human rather than silently keeping the old verdict.
+      // back to a human rather than silently keeping the old verdict. The
+      // diff is the only thing a reviewer has to go on here, so it still
+      // needs to land in review_notes rather than leaving the old AI note
+      // (about a since-changed version of the listing) in place.
       status = "pending_review";
+      reviewNotes = `No automated verdict (check ANTHROPIC_API_KEY).\n\nWhat changed:\n${editDiff}`;
     }
 
     // The text a buyer's search matches against changed — re-embed, or the
@@ -206,6 +218,10 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   // something someone running the delivered code needs to hear about.
   if (isNewVersion) {
     await notifyBuyersOfUpdate(id, name, version);
+  }
+
+  if (contentChanged && status === "pending_review") {
+    await notifyOwnerOfPendingReview({ agentName: name, isEdit: true, verdict, diff: editDiff });
   }
 
   if (rejectedNames.length > 0) {

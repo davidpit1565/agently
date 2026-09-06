@@ -74,6 +74,39 @@ export async function notifyBuyersOfUpdate(agentId: string, agentName: string, v
  *  retry the same event, hit the purchases table's unique-id dedupe on the
  *  retry, and this notification would never fire at all, for a sale that
  *  already succeeded and was already charged. */
+/** Alerts the platform owner by email whenever a listing needs a human
+ *  look — a new submission or a content edit that landed in
+ *  pending_review. Before this there was no signal at all beyond checking
+ *  /dashboard/admin/agents by hand; a listing could sit unreviewed
+ *  indefinitely with nothing prompting a look. sendNotificationEmail
+ *  already never throws (missing RESEND_API_KEY, or a dead provider, both
+ *  just log and return), so this needs no try/catch of its own — a failure
+ *  here must never block the create/edit request that triggered it. */
+export async function notifyOwnerOfPendingReview(params: {
+  agentName: string;
+  isEdit: boolean;
+  verdict: { risk: string; summary: string; flags: string[] } | null;
+  diff?: string;
+}) {
+  const owner = process.env.PLATFORM_OWNER_EMAIL;
+  if (!owner) return;
+
+  const { agentName, isEdit, verdict, diff } = params;
+  const verdictLine = verdict
+    ? `AI verdict: [${verdict.risk}] ${verdict.summary}${verdict.flags.length ? ` — flags: ${verdict.flags.join("; ")}` : ""}`
+    : "No automated verdict came back (check ANTHROPIC_API_KEY) — this one needs a manual look with no AI opinion to go on.";
+
+  const lines = [
+    `${agentName} ${isEdit ? "was edited and" : "was submitted and"} is waiting in pending_review.`,
+    verdictLine,
+    ...(diff ? ["", "What changed in this edit:", diff] : []),
+    "",
+    "Review it: https://agently-jet.vercel.app/dashboard/admin/agents",
+  ];
+
+  await sendNotificationEmail(owner, `${agentName} needs review`, lines.join("\n"));
+}
+
 export async function notifyCreatorOfSale(
   admin: SupabaseClient,
   params: { creatorId: string; agentId: string; agentName: string; amountCents: number; currency: string }
