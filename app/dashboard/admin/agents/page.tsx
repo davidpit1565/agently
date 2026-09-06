@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { Notice } from "@/app/components/form-field";
 import { SubmitButton } from "@/app/components/submit-button";
+import { Reveal } from "@/app/components/reveal";
 import { isPlatformOwner } from "@/lib/owner";
 import type { Agent } from "@/lib/types";
 
@@ -91,64 +92,78 @@ export default async function AdminAgentsPage({
       )}
 
       {agents.length === 0 ? (
-        <p className="text-sm text-ink-soft">Nothing waiting on review.</p>
+        <div className="flex animate-reveal-up flex-col items-center gap-3 rounded-2xl border border-dashed border-line py-16 text-center">
+          <span className="flex h-11 w-11 items-center justify-center rounded-full border border-line text-ink-faint">
+            <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.4">
+              <path d="M10 6v4l2.5 2.5" strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx="10" cy="10" r="7.5" />
+            </svg>
+          </span>
+          <p className="text-sm text-ink-soft">Nothing waiting on review.</p>
+        </div>
       ) : (
         <div className="flex flex-col gap-4">
-          {agents.map((agent) => (
-            <div key={agent.id} className="rounded-xl border border-line bg-surface p-5">
-              <div className="mb-2 flex items-center justify-between">
-                <span className="font-mono text-xs text-ink-faint">{agent.status}</span>
-                <span className="text-xs text-ink-faint">
-                  by {agent.agently_profiles?.display_name ?? "unknown"}
-                </span>
-              </div>
-              <h2 className="mb-1 font-display text-sm font-semibold">{agent.name}</h2>
-              <p className="mb-2 text-sm text-ink-soft">{agent.tagline}</p>
-              <p className="mb-2 text-xs text-ink-faint">
-                <strong className="text-ink-soft">Problem solved:</strong> {agent.problem_solved}
-              </p>
-              <p className="mb-3 text-xs text-ink-faint">{agent.description}</p>
-              {agent.delivery_url && (
-                <a
-                  href={agent.delivery_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="mb-3 block text-xs text-accent underline"
-                >
-                  {agent.delivery_url}
-                </a>
-              )}
-              {agent.review_notes ? (
-                <p className="mb-3 whitespace-pre-line rounded-lg border border-line bg-surface-raised p-3 text-xs text-ink-soft">
-                  <strong>Automated review:</strong> {agent.review_notes}
+          {agents.map((agent, i) => (
+            <Reveal
+              key={agent.id}
+              delay={Math.min(i, 6) * 60}
+              className="group bezel-shell transition-all duration-300 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-1 hover:shadow-[0_16px_40px_-18px_rgba(47,224,173,0.22)]"
+            >
+              <div className="bezel-core border border-line bg-surface p-5 transition-colors duration-300 group-hover:border-accent/40 group-hover:bg-surface-raised">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="font-mono text-xs text-ink-faint">{agent.status}</span>
+                  <span className="text-xs text-ink-faint">
+                    by {agent.agently_profiles?.display_name ?? "unknown"}
+                  </span>
+                </div>
+                <h2 className="mb-1 font-display text-sm font-semibold">{agent.name}</h2>
+                <p className="mb-2 text-sm text-ink-soft">{agent.tagline}</p>
+                <p className="mb-2 text-xs text-ink-faint">
+                  <strong className="text-ink-soft">Problem solved:</strong> {agent.problem_solved}
                 </p>
-              ) : (
-                <p className="mb-3 rounded-lg border border-line bg-surface-raised p-3 text-xs text-ink-faint">
-                  No automated verdict (ANTHROPIC_API_KEY not configured, or the call failed) —
-                  this one has had zero review so far.
-                </p>
-              )}
+                <p className="mb-3 text-xs text-ink-faint">{agent.description}</p>
+                {agent.delivery_url && (
+                  <a
+                    href={agent.delivery_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mb-3 block text-xs text-accent underline"
+                  >
+                    {agent.delivery_url}
+                  </a>
+                )}
+                {agent.review_notes ? (
+                  <p className="mb-3 whitespace-pre-line rounded-lg border border-line bg-surface-raised p-3 text-xs text-ink-soft">
+                    <strong>Automated review:</strong> {agent.review_notes}
+                  </p>
+                ) : (
+                  <p className="mb-3 rounded-lg border border-line bg-surface-raised p-3 text-xs text-ink-faint">
+                    No automated verdict (ANTHROPIC_API_KEY not configured, or the call failed) —
+                    this one has had zero review so far.
+                  </p>
+                )}
 
-              <form action={`/api/admin/agents/${agent.id}`} method="POST" className="flex items-center gap-2">
-                <select
-                  name="status"
-                  defaultValue={agent.status}
-                  aria-label="Listing status"
-                  className="rounded-lg border border-line bg-surface-raised px-3 py-2 text-sm text-ink outline-none transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] focus:border-accent focus:shadow-[0_0_0_3px_rgba(47,224,173,0.12)]"
-                >
-                  <option value="pending_review">Pending review</option>
-                  <option value="approved">Approve</option>
-                  <option value="rejected">Reject</option>
-                  <option value="delisted">Delist</option>
-                </select>
-                <SubmitButton
-                  pendingText="Saving…"
-                  className="magnetic-btn w-fit rounded-full border border-line px-4 py-2 text-xs font-medium text-ink-soft transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:border-accent/50 hover:text-accent"
-                >
-                  Save
-                </SubmitButton>
-              </form>
-            </div>
+                <form action={`/api/admin/agents/${agent.id}`} method="POST" className="flex items-center gap-2">
+                  <select
+                    name="status"
+                    defaultValue={agent.status}
+                    aria-label="Listing status"
+                    className="rounded-lg border border-line bg-surface-raised px-3 py-2 text-sm text-ink outline-none transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] focus:border-accent focus:shadow-[0_0_0_3px_rgba(47,224,173,0.12)]"
+                  >
+                    <option value="pending_review">Pending review</option>
+                    <option value="approved">Approve</option>
+                    <option value="rejected">Reject</option>
+                    <option value="delisted">Delist</option>
+                  </select>
+                  <SubmitButton
+                    pendingText="Saving…"
+                    className="magnetic-btn w-fit rounded-full border border-line px-4 py-2 text-xs font-medium text-ink-soft transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:border-accent/50 hover:text-accent"
+                  >
+                    Save
+                  </SubmitButton>
+                </form>
+              </div>
+            </Reveal>
           ))}
         </div>
       )}
@@ -164,25 +179,31 @@ export default async function AdminAgentsPage({
             failed), so they're stuck showing trust_score=0. Re-run to get a real one.
           </p>
           <div className="flex flex-col gap-4">
-            {unscoredApproved.map((agent) => (
-              <div key={agent.id} className="rounded-xl border border-line bg-surface p-5">
-                <div className="mb-2 flex items-center justify-between">
-                  <span className="font-mono text-xs text-ink-faint">{agent.status}</span>
-                  <span className="text-xs text-ink-faint">
-                    by {agent.agently_profiles?.display_name ?? "unknown"}
-                  </span>
+            {unscoredApproved.map((agent, i) => (
+              <Reveal
+                key={agent.id}
+                delay={Math.min(i, 6) * 60}
+                className="group bezel-shell transition-all duration-300 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-1 hover:shadow-[0_16px_40px_-18px_rgba(47,224,173,0.22)]"
+              >
+                <div className="bezel-core border border-line bg-surface p-5 transition-colors duration-300 group-hover:border-accent/40 group-hover:bg-surface-raised">
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="font-mono text-xs text-ink-faint">{agent.status}</span>
+                    <span className="text-xs text-ink-faint">
+                      by {agent.agently_profiles?.display_name ?? "unknown"}
+                    </span>
+                  </div>
+                  <h3 className="mb-1 font-display text-sm font-semibold">{agent.name}</h3>
+                  <p className="mb-3 text-sm text-ink-soft">{agent.tagline}</p>
+                  <form action={`/api/admin/agents/${agent.id}/review`} method="POST">
+                    <SubmitButton
+                      pendingText="Reviewing…"
+                      className="magnetic-btn w-fit rounded-full border border-line px-4 py-2 text-xs font-medium text-ink-soft transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:border-accent/50 hover:text-accent"
+                    >
+                      Re-run AI review
+                    </SubmitButton>
+                  </form>
                 </div>
-                <h3 className="mb-1 font-display text-sm font-semibold">{agent.name}</h3>
-                <p className="mb-3 text-sm text-ink-soft">{agent.tagline}</p>
-                <form action={`/api/admin/agents/${agent.id}/review`} method="POST">
-                  <SubmitButton
-                    pendingText="Reviewing…"
-                    className="magnetic-btn w-fit rounded-full border border-line px-4 py-2 text-xs font-medium text-ink-soft transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:border-accent/50 hover:text-accent"
-                  >
-                    Re-run AI review
-                  </SubmitButton>
-                </form>
-              </div>
+              </Reveal>
             ))}
           </div>
         </>

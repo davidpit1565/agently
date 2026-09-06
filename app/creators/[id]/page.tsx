@@ -38,7 +38,7 @@ export default async function CreatorPage({
   return (
     <main className="mx-auto max-w-5xl px-6 py-16 sm:py-20">
       <Reveal className="mb-10 flex items-center gap-4">
-        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-line bg-surface font-display text-lg font-semibold text-accent shadow-[inset_0_1px_0_0_rgba(237,243,238,0.05)]">
+        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-line bg-surface font-display text-lg font-semibold text-accent shadow-[inset_0_1px_0_0_rgba(237,243,238,0.05)] transition-transform duration-[220ms] [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-0.5 hover:scale-105">
           {creator.display_name.slice(0, 1).toUpperCase()}
         </div>
         <div>
