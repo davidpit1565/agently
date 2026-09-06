@@ -265,12 +265,24 @@ async function runHostedWorkflow(webhookUrl: string, input: string): Promise<unk
     throw new Error("Webhook call failed (blocked: private/internal address)");
   }
 
+  // redirect: "manual" is the other half of this guard — fetch's default
+  // ("follow") would happily chase a 3xx from a webhook that passed the
+  // isSafeExternalUrl check straight to an internal address (the cloud
+  // metadata endpoint, localhost, an RFC1918 host) with no further check at
+  // all. A creator's webhook has no legitimate reason to redirect, so any
+  // redirect response is treated as a failure rather than re-validated and
+  // followed.
   const res = await fetch(webhookUrl, {
     method: "POST",
     headers: { "content-type": "application/json" },
     body: JSON.stringify({ input }),
     signal: AbortSignal.timeout(WEBHOOK_TIMEOUT_MS),
+    redirect: "manual",
   });
+
+  if (res.type === "opaqueredirect" || (res.status >= 300 && res.status < 400)) {
+    throw new Error("Webhook call failed (blocked: redirect not allowed)");
+  }
 
   if (!res.ok) {
     throw new Error(`Webhook call failed (${res.status})`);
