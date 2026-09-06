@@ -53,7 +53,8 @@ export default async function ApiKeysPage({
       <h1 className="text-balance mb-2 font-display text-2xl font-semibold">API keys</h1>
       <p className="mb-8 text-sm text-ink-faint">
         For calling a hosted agent (a &quot;prompt&quot; or &quot;workflow&quot; listing) directly from your own code
-        — every real call spends credits from your wallet below, and needs an active membership.
+        — every real call spends credits from your wallet below. No membership required to invoke: your
+        free signup credits work the same way, they just don&apos;t refill on their own.
       </p>
 
       {error && (
@@ -91,7 +92,7 @@ export default async function ApiKeysPage({
           <p className="mt-2 text-xs text-ink-faint">
             {profile?.membership_status === "active"
               ? "Resets to your membership tier's monthly amount on renewal — it doesn't carry over."
-              : "An active membership is required to actually call a hosted agent — browsing and this dashboard don't need one, but invoking does."}
+              : "A one-time free grant from signup — it doesn't refill on its own. Becoming a member adds a monthly refill instead of a one-off balance."}
           </p>
         </div>
       </Reveal>

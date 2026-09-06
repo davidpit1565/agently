@@ -86,6 +86,24 @@ describe("validateHostedAgentFields", () => {
       }
     });
 
+    it("rejects a webhook URL pointing at a private or internal address (SSRF)", () => {
+      for (const bad of [
+        "http://127.0.0.1/hook",
+        "http://localhost:3000/hook",
+        "http://169.254.169.254/latest/meta-data/",
+        "http://10.0.0.5/hook",
+        "https://box.internal/hook",
+      ]) {
+        const result = validateHostedAgentFields({
+          agentKind: "workflow",
+          hostedSystemPrompt: null,
+          hostedWebhookUrl: bad,
+          creditsPerCall: "5",
+        });
+        expect(result.ok, `hosted_webhook_url=${bad} should be rejected`).toBe(false);
+      }
+    });
+
     it("accepts a valid https webhook agent", () => {
       const result = validateHostedAgentFields({
         agentKind: "workflow",

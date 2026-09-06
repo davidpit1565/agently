@@ -382,7 +382,7 @@ export default async function AgentPage({
                 <Link href="/dashboard/api-keys" className="text-accent underline">
                   get one here
                 </Link>
-                {" "}if you don&apos;t have one) and an active membership. Each call spends{" "}
+                {" "}if you don&apos;t have one — no membership required, your free signup credits work too). Each call spends{" "}
                 {agent.credits_per_call ?? "?"} credit{agent.credits_per_call === 1 ? "" : "s"} from your wallet.
               </p>
               <pre className="overflow-x-auto rounded-lg border border-line bg-surface p-4 font-mono text-xs text-ink-soft">
