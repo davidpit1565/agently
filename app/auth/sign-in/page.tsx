@@ -104,6 +104,7 @@ function SignInForm() {
                 autoComplete="one-time-code"
                 required
                 placeholder="123456"
+                aria-label="6-digit code"
                 value={code}
                 onChange={(e) => setCode(e.target.value)}
                 className="rounded-lg border border-line bg-surface px-4 py-2.5 text-center text-lg tracking-[0.3em] text-ink outline-none transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] focus:border-accent focus:shadow-[0_0_0_3px_rgba(47,224,173,0.12)]"
@@ -124,6 +125,7 @@ function SignInForm() {
               type="email"
               required
               placeholder="you@example.com"
+              aria-label="Email address"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               className="rounded-lg border border-line bg-surface px-4 py-2.5 text-sm text-ink outline-none transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] focus:border-accent focus:shadow-[0_0_0_3px_rgba(47,224,173,0.12)]"
