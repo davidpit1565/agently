@@ -23,47 +23,92 @@ const SOCIAL_LINKS = [
   },
 ];
 
+const EXPLORE_LINKS = [
+  { href: "/browse", label: "Browse" },
+  { href: "/pricing", label: "Membership" },
+  { href: "/dashboard/upload", label: "Upload an agent" },
+];
+
+const COMPANY_LINKS = [
+  { href: "/about", label: "About" },
+  { href: "/terms", label: "Terms" },
+  { href: "/privacy", label: "Privacy" },
+];
+
+function FooterLink({ href, label }: { href: string; label: string }) {
+  return (
+    <Link
+      href={href}
+      className="group relative w-fit text-ink-faint transition-colors duration-200 hover:text-ink"
+    >
+      {label}
+      <span className="underline-grow" />
+    </Link>
+  );
+}
+
 export function Footer() {
   return (
-    <footer className="border-t border-line px-6 py-8 text-center text-xs text-ink-faint">
-      <Reveal className="mb-4 flex items-center justify-center gap-4">
-        {SOCIAL_LINKS.map((l) => (
-          <a
-            key={l.name}
-            href={l.href}
-            target="_blank"
-            rel="noopener noreferrer"
-            aria-label={l.name}
-            className="p-2 text-ink-faint transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-1 hover:scale-110 hover:text-accent"
-          >
-            <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
-              <path d={l.path} />
-            </svg>
-          </a>
-        ))}
+    <footer className="border-t border-line px-6 py-14 text-sm">
+      <Reveal className="mx-auto flex max-w-5xl flex-col gap-10">
+        <div className="grid gap-10 sm:grid-cols-[1.4fr_1fr_1fr]">
+          <div className="flex flex-col gap-3">
+            <span className="flex w-fit items-center gap-2 font-display text-sm font-semibold tracking-tight text-ink">
+              <span className="h-2 w-2 rounded-full bg-accent" aria-hidden />
+              Agently
+            </span>
+            <p className="max-w-xs text-pretty text-xs leading-relaxed text-ink-faint">
+              Agently is part of{" "}
+              <a
+                href="https://actually-works-studio.vercel.app"
+                className="text-ink-soft underline transition-colors duration-200 hover:text-accent"
+              >
+                Actually Works
+              </a>{" "}
+              — built by a creator who uses this catalog on their own channel
+              first.
+            </p>
+            <div className="flex items-center gap-2 pt-1">
+              {SOCIAL_LINKS.map((l) => (
+                <a
+                  key={l.name}
+                  href={l.href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label={l.name}
+                  className="magnetic-btn flex h-9 w-9 items-center justify-center rounded-full border border-line text-ink-faint transition-all duration-200 [transition-timing-function:cubic-bezier(0.23,1,0.32,1)] hover:-translate-y-1 hover:border-accent/40 hover:text-accent"
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                    <path d={l.path} />
+                  </svg>
+                </a>
+              ))}
+            </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <span className="font-mono text-xs uppercase tracking-wide text-ink-faint">Explore</span>
+            <nav className="flex flex-col gap-2.5">
+              {EXPLORE_LINKS.map((l) => (
+                <FooterLink key={l.href} href={l.href} label={l.label} />
+              ))}
+            </nav>
+          </div>
+
+          <div className="flex flex-col gap-3">
+            <span className="font-mono text-xs uppercase tracking-wide text-ink-faint">Company</span>
+            <nav className="flex flex-col gap-2.5">
+              {COMPANY_LINKS.map((l) => (
+                <FooterLink key={l.href} href={l.href} label={l.label} />
+              ))}
+            </nav>
+          </div>
+        </div>
+
+        <p className="border-t border-line pt-6 text-xs text-ink-faint">
+          Every listing on Agently does a real job on our own channel before it&apos;s ever offered for sale.
+        </p>
       </Reveal>
-      <p>
-        Agently is part of{" "}
-        <a
-          href="https://actually-works-studio.vercel.app"
-          className="underline hover:text-accent"
-        >
-          Actually Works
-        </a>{" "}
-        — built by a creator who uses this catalog on their own channel first.{" "}
-        <Link href="/about" className="underline hover:text-accent">
-          About
-        </Link>
-        {" · "}
-        <Link href="/terms" className="underline hover:text-accent">
-          Terms
-        </Link>
-        {" · "}
-        <Link href="/privacy" className="underline hover:text-accent">
-          Privacy
-        </Link>
-        .
-      </p>
     </footer>
   );
 }
