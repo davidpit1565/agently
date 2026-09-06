@@ -54,7 +54,16 @@ export async function POST(request: Request) {
 
   const form = await request.formData();
   const tier = String(form.get("tier")) as MembershipTier;
-  const interval = form.get("interval") === "yearly" ? "yearly" : "monthly";
+  // Only "yearly" is ever an explicit request to change billing frequency —
+  // that's the one button whose whole point is switching to yearly. Every
+  // other value (including a literal "monthly" — pricing/page.tsx and
+  // dashboard/membership/page.tsx now send "keep" for their tier-switch
+  // buttons, not "monthly") falls through to the member's actual current
+  // interval, resolved below from Stripe once the subscription item is
+  // fetched. Previously "keep my current tier's billing frequency" was
+  // hardcoded as literal "monthly" here — a yearly member switching tiers
+  // silently got rebilled monthly with no such request from them.
+  const requestedInterval = form.get("interval") === "yearly" ? "yearly" : null;
 
   if (tier === "free" || !(tier in MEMBERSHIP_TIERS)) {
     return NextResponse.json({ error: "Unknown membership tier." }, { status: 400 });
@@ -120,6 +129,13 @@ export async function POST(request: Request) {
       { status: 409 }
     );
   }
+
+  // The subscription's own current price is the one source of truth for
+  // "what interval is this member actually on" — nothing in the database
+  // tracks it separately, so reading it live here (rather than assuming
+  // monthly) is what makes "keep my billing frequency" actually keep it.
+  const currentInterval = item.price.recurring?.interval === "year" ? "yearly" : "monthly";
+  const interval = requestedInterval ?? currentInterval;
 
   const config = MEMBERSHIP_TIERS[tier];
   const amount = interval === "yearly" ? config.yearlyPriceCents : config.monthlyPriceCents;
