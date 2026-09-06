@@ -71,7 +71,7 @@ export function validateHostedAgentFields(input: {
 }
 
 /**
- * The access gate for invoke (app/api/agents/[slug]/invoke/route.ts, steps
+ * The access gate for invoke (app/api/hosted-agents/[slug]/invoke/route.ts, steps
  * 4-5) — decided by David 2026-09-06: a non-member can invoke on their own
  * free trial credits alone, no active membership required, because the
  * whole point of the free-credit signup grant is to lower purchase friction
@@ -116,7 +116,7 @@ export function checkInvokeEligibility(
 }
 
 /**
- * The actual race-condition guard for invoke (app/api/agents/[slug]/invoke/
+ * The actual race-condition guard for invoke (app/api/hosted-agents/[slug]/invoke/
  * route.ts, step 6): two concurrent calls on a wallet with just enough
  * credits for one of them must not both succeed and both deduct, dropping
  * the balance below zero. A plain "read balance, check >= cost, then
@@ -157,11 +157,12 @@ const FAILURE_ALERT_WINDOW = 10;
 const ALERT_COOLDOWN_MS = 60 * 60 * 1000; // 1 hour — see agently_agents.last_alert_sent_at in supabase/schema.sql
 
 /**
- * Called from the invoke route's failure path only (app/api/agents/[slug]/
- * invoke/route.ts's catch block), after that call's failed-invocation row is
- * already logged. Before this, the only way anyone found out a hosted
- * agent's webhook died, or that Anthropic calls to a specific agent were
- * failing repeatedly, was a buyer complaining — possibly long after it broke.
+ * Called from the invoke route's failure path only
+ * (app/api/hosted-agents/[slug]/invoke/route.ts's catch block), after that
+ * call's failed-invocation row is already logged. Before this, the only way
+ * anyone found out a hosted agent's webhook died, or that Anthropic calls
+ * to a specific agent were failing repeatedly, was a buyer complaining —
+ * possibly long after it broke.
  *
  * Looks at the last FAILURE_ALERT_WINDOW logged invocations for this agent
  * (success or failure, oldest-first doesn't matter — only the count of

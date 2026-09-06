@@ -9,12 +9,16 @@ import { generateApiKey } from "@/lib/api-keys";
 // direct Supabase REST call with a user's own session can't fabricate a key
 // row for someone else's user_id. Ownership here is just "the caller is
 // signed in" — there's no separate approval step like a listing has.
-export async function POST(request: Request) {
+//
+// Responds with JSON, not a redirect: the plaintext key used to travel back
+// to the page as a ?new_key=... query param, which put a real secret in the
+// browser's address bar and history, and in any request logging that
+// records full URLs. Returning it in the response body instead means it
+// only ever exists in this one response and the caller's own in-memory
+// state (see app/components/generate-key-button.tsx) — never in a URL.
+export async function POST() {
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL) {
-    return NextResponse.redirect(
-      new URL(`/dashboard/api-keys?error=${encodeURIComponent("Not connected yet — Supabase isn't configured.")}`, request.url),
-      303
-    );
+    return NextResponse.json({ error: "Not connected yet — Supabase isn't configured." }, { status: 503 });
   }
 
   const supabase = await createClient();
@@ -23,24 +27,16 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
 
   if (!user) {
-    return NextResponse.redirect(new URL("/auth/sign-in", request.url));
+    return NextResponse.json({ error: "Sign in first." }, { status: 401 });
   }
 
   const admin = createAdminClient();
   if (!admin) {
-    return NextResponse.redirect(
-      new URL(`/dashboard/api-keys?error=${encodeURIComponent("Not connected yet — Supabase isn't configured.")}`, request.url),
-      303
-    );
+    return NextResponse.json({ error: "Not connected yet — SUPABASE_SERVICE_ROLE_KEY isn't configured." }, { status: 503 });
   }
 
   // The plaintext key exists only in this one variable, for this one
-  // request — never persisted anywhere, never logged. It's carried back to
-  // the page in the redirect's query string (a plain HTML form POST has no
-  // other channel), same pattern this app already uses for every other
-  // one-time success message (?submitted=1, ?saved=1) — it's a one-time
-  // reveal, not something the URL itself needs to stay secret past this
-  // single redirect/render.
+  // request — never persisted anywhere, never logged.
   const { plaintext, hash, prefix } = generateApiKey();
 
   const { error } = await admin.from("agently_api_keys").insert({
@@ -50,14 +46,8 @@ export async function POST(request: Request) {
   });
 
   if (error) {
-    return NextResponse.redirect(
-      new URL(`/dashboard/api-keys?error=${encodeURIComponent("Could not create a key — try again.")}`, request.url),
-      303
-    );
+    return NextResponse.json({ error: "Could not create a key — try again." }, { status: 500 });
   }
 
-  return NextResponse.redirect(
-    new URL(`/dashboard/api-keys?new_key=${encodeURIComponent(plaintext)}`, request.url),
-    303
-  );
+  return NextResponse.json({ plaintext });
 }
